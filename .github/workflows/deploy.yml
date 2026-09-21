@@ -13,6 +13,22 @@ jobs:
   check:
     name: Check proxy
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15.18-bookworm
+        env:
+          POSTGRES_USER: typesafe
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: typesafe_test
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U typesafe -d typesafe_test" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7.4.2-bookworm
+        ports: ["6379:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://typesafe:test-only-password@127.0.0.1:5432/typesafe_test
+      TEST_REDIS_URL: redis://127.0.0.1:6379/15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,9 +44,11 @@ jobs:
         run: |
           for script in deploy/*.sh; do bash -n "$script"; done
           shellcheck deploy/*.sh
-          RELEASE_ID=check RELEASE_SHA=check PROXY_ENV_FILE=/dev/null docker compose -f deploy/compose.yml config --quiet
+          RELEASE_ID=check RELEASE_SHA=check PROXY_ENV_FILE=/dev/null POSTGRES_ENV_FILE=/dev/null docker compose -f deploy/compose.yml config --quiet
       - name: Build API image
         run: docker build -t typesafe-proxy:check apps/api
+      - name: Check nginx configuration
+        run: bash deploy/check-nginx.sh
 
   deploy-api:
     name: Deploy API to VPS
@@ -51,8 +69,10 @@ jobs:
           SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
           TYPESAFE_TEST_API_TOKEN_1: ${{ secrets.TYPESAFE_TEST_API_TOKEN_1 }}
           TYPESAFE_MASTER_API_TOKEN_1: ${{ secrets.TYPESAFE_MASTER_API_TOKEN_1 }}
-          RATE_LIMIT_PER_MINUTE: ${{ vars.RATE_LIMIT_PER_MINUTE || '60' }}
-          RATE_LIMIT_BURST: ${{ vars.RATE_LIMIT_BURST || '10' }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: redis://redis:6379/0
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          TOKEN_HASH_SECRET: ${{ secrets.TOKEN_HASH_SECRET }}
         run: bash deploy/ci.sh
 
   deploy-web:

@@ -3,3 +3,9 @@
 !uv.lock
 !proxy/
 !proxy/*.py
+!alembic.ini
+!migrations/
+!migrations/*.py
+!migrations/script.py.mako
+!migrations/versions/
+!migrations/versions/*.py

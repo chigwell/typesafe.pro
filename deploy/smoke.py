@@ -1,4 +1,4 @@
-"""Check health, authentication and optionally one small real TypeSafe request."""
+"""Check health and optionally anonymous, invalid-token and legacy-token access."""
 
 import argparse
 import json
@@ -26,7 +26,9 @@ def main():
             args.base_url + path, data=data, headers=headers
         )
         try:
-            with opener.open(request, timeout=70) as result:
+            with opener.open(request, timeout=125) as result:
+                if not result.headers.get("X-Request-ID"):
+                    raise RuntimeError("Missing X-Request-ID")
                 return result.status, result.read()
         except urllib.error.HTTPError as error:
             with error:
@@ -42,12 +44,6 @@ def main():
         or health.get("release") != args.release
     ):
         raise RuntimeError("Health check or release mismatch")
-    for token in (None, "invalid-smoke-test-key"):
-        status, _ = call("/v1/systemone", data=b"{}", token=token)
-        if status != 401:
-            raise RuntimeError(
-                f"Authentication check returned HTTP {status}, expected 401"
-            )
     if args.env_file:
         env = dict(
             line.split("=", 1) for line in Path(args.env_file).read_text().splitlines()
@@ -59,23 +55,23 @@ def main():
                 "is_on": {"type": "noul", "instructions": "Is the light on?"}
             },
         }
-        status, raw = call(
-            "/v1/systemone",
-            json.dumps(payload).encode(),
-            env["TYPESAFE_TEST_API_TOKEN_1"],
-        )
-        if status != 200:
-            raise RuntimeError(f"Live upstream check returned HTTP {status}")
-        result = json.loads(raw)
-        if (
-            not {"model", "answers", "usage"} <= result.keys()
-            or "is_on" not in result["answers"]
-        ):
-            raise RuntimeError(
-                "Live upstream response does not match the TypeSafe contract"
-            )
-        print("Live TypeSafe request: OK")
-    print(f"Health, release and authorization checks: OK ({args.release})")
+        tokens = [None, "invalid-smoke-test-key"]
+        if env.get("TYPESAFE_TEST_API_TOKEN_1"):
+            tokens.append(env["TYPESAFE_TEST_API_TOKEN_1"])
+        for token in tokens:
+            status, raw = call("/v1/systemone", json.dumps(payload).encode(), token)
+            if status != 200:
+                raise RuntimeError(f"Live upstream check returned HTTP {status}")
+            result = json.loads(raw)
+            if (
+                not {"model", "answers", "usage"} <= result.keys()
+                or "is_on" not in result["answers"]
+            ):
+                raise RuntimeError(
+                    "Live upstream response does not match the TypeSafe contract"
+                )
+        print("Live anonymous, invalid-token and configured legacy-token checks: OK")
+    print(f"Health and release checks: OK ({args.release})")
 
 
 if __name__ == "__main__":

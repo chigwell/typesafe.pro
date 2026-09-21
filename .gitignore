@@ -149,6 +149,8 @@ activemq-data/
 
 # Environments
 .env
+runtime.env
+postgres.env
 .envrc
 .venv
 env/

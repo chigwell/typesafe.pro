@@ -6,6 +6,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project && useradd --uid 10001 --user-group --create-home typesafe
 COPY proxy ./proxy
+COPY alembic.ini ./
+COPY migrations ./migrations
 USER 10001:10001
 EXPOSE 8000
 CMD [".venv/bin/uvicorn", "proxy.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log", "--no-proxy-headers", "--log-level", "warning"]

@@ -1,4 +1,42 @@
 services:
+  postgres:
+    image: postgres:15.18-bookworm
+    restart: unless-stopped
+    env_file:
+      - path: ${POSTGRES_ENV_FILE:?POSTGRES_ENV_FILE required}
+        format: raw
+    environment:
+      POSTGRES_USER: typesafe
+      POSTGRES_DB: typesafe
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=30", "-c", "work_mem=4MB"]
+    mem_limit: 256m
+    pids_limit: 128
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U typesafe -d typesafe"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    logging: &bounded-logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  redis:
+    image: redis:7.4.2-bookworm
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "noeviction", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis-data:/data
+    mem_limit: 192m
+    pids_limit: 64
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    logging: *bounded-logs
   api:
     image: typesafe-proxy:${RELEASE_ID:?RELEASE_ID required}
     build:
@@ -12,6 +50,12 @@ services:
         format: raw
     environment:
       RELEASE_SHA: ${RELEASE_SHA:?RELEASE_SHA required}
+      TRUSTED_PROXY_CIDRS: 172.30.81.1/32
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
@@ -27,8 +71,16 @@ services:
       timeout: 4s
       retries: 10
       start_period: 5s
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *bounded-logs
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  default:
+    name: typesafe-proxy-admission-v1
+    ipam:
+      config:
+        - subnet: 172.30.81.0/24
+          gateway: 172.30.81.1

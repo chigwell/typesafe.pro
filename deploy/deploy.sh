@@ -21,6 +21,7 @@ compose() {
     local id
     id=$(basename "$directory")
     RELEASE_ID=$id RELEASE_SHA=${id%%.*} PROXY_ENV_FILE="$directory/runtime.env" \
+        POSTGRES_ENV_FILE="$directory/postgres.env" \
         docker compose -p typesafe-proxy -f "$directory/deploy/compose.yml" "$@"
 }
 
@@ -61,6 +62,7 @@ trap rollback ERR INT TERM HUP
 
 tar -xzf "$incoming/release.tar.gz" -C "$release"
 install -m 600 "$incoming/runtime.env" "$release/runtime.env"
+install -m 600 "$incoming/postgres.env" "$release/postgres.env"
 [[ ! -f $site ]] || cp -a "$site" "$backup/site.conf"
 if [[ -e $enabled || -L $enabled ]]; then
     cp -a "$enabled" "$backup/enabled"
@@ -69,8 +71,10 @@ compose "$release" build
 # Validate the candidate before interrupting the running container.
 printf 'events {}\nhttp { include %s/deploy/nginx/api.typesafe.pro.conf; }\n' "$release" > "$release/nginx-check.conf"
 nginx -t -c "$release/nginx-check.conf"
+compose "$release" up -d --wait --wait-timeout 75 postgres redis
+compose "$release" run --rm --no-deps api .venv/bin/alembic upgrade head
 activated=1
-compose "$release" up -d --no-build --wait --wait-timeout 75
+compose "$release" up -d --no-build --wait --wait-timeout 75 api
 python3 "$release/deploy/smoke.py" --base-url http://127.0.0.1:8010 --release "$sha"
 nginx_changed=1
 install -m 644 "$release/deploy/nginx/api.typesafe.pro.conf" "$site"
@@ -94,4 +98,5 @@ ln -sfn "$release" "$ROOT/current.next"
 mv -Tf "$ROOT/current.next" "$ROOT/current"
 trap - ERR INT TERM HUP
 rm -f "$incoming/runtime.env"
+rm -f "$incoming/postgres.env"
 echo "Deployed $sha"

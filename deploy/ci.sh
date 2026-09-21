@@ -19,7 +19,7 @@ incoming="/opt/typesafe-proxy/incoming/$sha-${GITHUB_RUN_ID:-local}-${GITHUB_RUN
 # The path contains only the validated SHA and GitHub's numeric run identifiers.
 # shellcheck disable=SC2029
 ssh "${options[@]}" "$target" "install -d -m 700 '$incoming'"
-scp "${options[@]}" "$work/release.tar.gz" "$work/runtime.env" "$target:$incoming/"
+scp "${options[@]}" "$work/release.tar.gz" "$work/runtime.env" "$work/postgres.env" "$target:$incoming/"
 # shellcheck disable=SC2029
 ssh "${options[@]}" "$target" \
     "tar -xzf '$incoming/release.tar.gz' -C '$incoming' && bash '$incoming/deploy/deploy.sh' '$sha'"

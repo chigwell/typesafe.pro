@@ -2,56 +2,114 @@ import os
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from ipaddress import ip_network
 
 UPSTREAM = "https://api.typesafe.ai"
 MAX_BODY_BYTES = 10 * 1024 * 1024
+MASTER_REQUESTS_PER_MINUTE = 1_200
+MASTER_TOKENS_PER_SECOND = 250_000
+MAX_CONTEXT_TOKENS = 64_000
+MAX_STATE_QUESTION_TOKENS = 32_000
+RETENTION_SECONDS = 3 * 24 * 60 * 60
 TOKEN_NAME = re.compile(r"TYPESAFE_(TEST|MASTER)_API_TOKEN_([1-9][0-9]*)$")
+TIERS = ("paid", "free", "anonymous")
 
 
 @dataclass(frozen=True)
-class TokenPair:
+class MasterKey:
     key_id: str
-    client: bytes = field(repr=False)
-    master: bytes = field(repr=False)
+    secret: bytes = field(repr=False)
+
+
+@dataclass(frozen=True)
+class Policy:
+    tier: str
+    rpm: int
+    burst: int
+    queue_wait: float
+    queue_size: int
+
+
+DEFAULT_POLICIES = {
+    "anonymous": Policy("anonymous", 30, 5, 3, 64),
+    "free": Policy("free", 120, 10, 10, 128),
+    "paid": Policy("paid", 1000, 20, 30, 256),
+}
 
 
 @dataclass(frozen=True)
 class Settings:
-    tokens: tuple[TokenPair, ...]
-    rate_per_minute: int = 60
-    burst: int = 10
+    masters: tuple[MasterKey, ...]
+    legacy_tokens: tuple[bytes, ...] = field(repr=False)
+    database_url: str = field(repr=False)
+    redis_url: str = field(repr=False)
+    hash_secret: bytes = field(repr=False)
+    trusted_proxies: tuple = ()
+    queue_memory_bytes: int = 64 * 1024 * 1024
+    max_pending: int = 512
+    max_inflight: int = 32
+    master_max_inflight: int = 8
+    request_timeout: int = 90
     release_sha: str = "development"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
         env = os.environ if env is None else env
-        pairs: dict[str, dict[str, bytes]] = {}
+        keys: dict[str, dict[str, bytes]] = {}
         for name, value in env.items():
             if not name.startswith(("TYPESAFE_TEST_API_TOKEN_", "TYPESAFE_MASTER_API_TOKEN_")):
                 continue
             match = TOKEN_NAME.fullmatch(name)
+            if match is not None and match.group(1) == "TEST" and not value:
+                continue
             if match is None or not re.fullmatch(r"[\x21-\x7e]+", value):
                 raise ValueError("Invalid token configuration (names or values)")
             kind, key_id = match.groups()
-            pairs.setdefault(key_id, {})[kind] = value.encode("ascii")
-        if not pairs or any(set(pair) != {"TEST", "MASTER"} for pair in pairs.values()):
-            raise ValueError("At least one complete TEST/MASTER token pair is required")
-        clients = [pair["TEST"] for pair in pairs.values()]
-        masters = {pair["MASTER"] for pair in pairs.values()}
-        if len(set(clients)) != len(clients) or set(clients) & masters:
-            raise ValueError("Client tokens must be unique and distinct from master tokens")
+            keys.setdefault(key_id, {})[kind] = value.encode("ascii")
+        if not keys or any("MASTER" not in pair for pair in keys.values()):
+            raise ValueError("At least one master is required; legacy tokens need a matching index")
+        clients = [pair["TEST"] for pair in keys.values() if "TEST" in pair]
+        masters = [pair["MASTER"] for pair in keys.values()]
+        if (
+            len(set(clients)) != len(clients)
+            or len(set(masters)) != len(masters)
+            or set(clients) & set(masters)
+        ):
+            raise ValueError("Tokens must be unique and client/master tokens must differ")
+        required = ("DATABASE_URL", "REDIS_URL", "TOKEN_HASH_SECRET")
+        if any(not env.get(name) or "\n" in env[name] or "\r" in env[name] for name in required):
+            raise ValueError("DATABASE_URL, REDIS_URL and TOKEN_HASH_SECRET are required")
+        if len(env["TOKEN_HASH_SECRET"]) < 32:
+            raise ValueError("TOKEN_HASH_SECRET must contain at least 32 characters")
+
+        def positive(name, default):
+            try:
+                value = int(env.get(name, str(default)))
+                if value > 0:
+                    return value
+            except ValueError:
+                pass
+            raise ValueError(f"{name} must be a positive integer")
+
         try:
-            rate = int(env.get("RATE_LIMIT_PER_MINUTE", "60"))
-            burst = int(env.get("RATE_LIMIT_BURST", "10"))
+            trusted = tuple(
+                ip_network(value.strip())
+                for value in env.get("TRUSTED_PROXY_CIDRS", "127.0.0.1/32,::1/128").split(",")
+                if value.strip()
+            )
         except ValueError:
-            raise ValueError("Rate limits must be positive integers") from None
-        if rate <= 0 or burst <= 0:
-            raise ValueError("Rate limits must be positive integers")
+            raise ValueError("Invalid TRUSTED_PROXY_CIDRS") from None
         return cls(
-            tokens=tuple(
-                TokenPair(key, pair["TEST"], pair["MASTER"]) for key, pair in pairs.items()
-            ),
-            rate_per_minute=rate,
-            burst=burst,
+            masters=tuple(MasterKey(key, keys[key]["MASTER"]) for key in sorted(keys, key=int)),
+            legacy_tokens=tuple(clients),
+            database_url=env["DATABASE_URL"],
+            redis_url=env["REDIS_URL"],
+            hash_secret=env["TOKEN_HASH_SECRET"].encode(),
+            trusted_proxies=trusted,
+            queue_memory_bytes=positive("QUEUE_MEMORY_BYTES", 64 * 1024 * 1024),
+            max_pending=positive("MAX_PENDING_REQUESTS", 512),
+            max_inflight=positive("MAX_INFLIGHT_REQUESTS", 32),
+            master_max_inflight=positive("MASTER_MAX_INFLIGHT", 8),
+            request_timeout=positive("REQUEST_TIMEOUT_SECONDS", 90),
             release_sha=env.get("RELEASE_SHA", "development"),
         )

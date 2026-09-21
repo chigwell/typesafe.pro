@@ -1,37 +1,19 @@
 import asyncio
 import gzip
-from contextlib import asynccontextmanager
 
 import httpx
 import pytest
+from conftest import ENV
 from starlette.requests import ClientDisconnect
 
 from proxy.config import MAX_BODY_BYTES, Settings
-from proxy.main import create_app
 from proxy.transport import ProxyResponse, upstream_request
 
-ENV = {
-    "TYPESAFE_TEST_API_TOKEN_1": "client-one",
-    "TYPESAFE_MASTER_API_TOKEN_1": "master-one",
-    "TYPESAFE_TEST_API_TOKEN_2": "client-two",
-    "TYPESAFE_MASTER_API_TOKEN_2": "master-two",
-    "RELEASE_SHA": "test-release",
-}
 AUTH = {"Authorization": "Bearer client-one"}
 
 
 def response(status=200, body=b"ok", headers=None):
     return httpx.Response(status, stream=httpx.ByteStream(body), headers=headers)
-
-
-@asynccontextmanager
-async def client_for(handler, *, env=None, clock=lambda: 0):
-    app = create_app(Settings.from_env(ENV | (env or {})), httpx.MockTransport(handler), clock)
-    async with app.router.lifespan_context(app):
-        async with httpx.AsyncClient(
-            transport=httpx.ASGITransport(app), base_url="https://api.typesafe.pro"
-        ) as client:
-            yield client
 
 
 @pytest.mark.parametrize(
@@ -45,18 +27,21 @@ async def client_for(handler, *, env=None, clock=lambda: 0):
         [("Authorization", "Bearer client-one"), ("Authorization", "Bearer client-one")],
     ],
 )
-async def test_invalid_auth_never_calls_upstream(headers):
+async def test_invalid_auth_is_anonymous(headers, client_for, store):
     def handler(request):
-        pytest.fail("Unauthorized request reached upstream")
+        assert request.headers["authorization"].startswith("Bearer master-")
+        return response(422, b"invalid request")
 
     async with client_for(handler) as client:
         result = await client.post("/v1/systemone", headers=headers, content=b"not json")
-    assert result.status_code == 401
-    assert result.headers["www-authenticate"] == "Bearer"
+    assert result.status_code == 422
+    event = await store.pool.fetchrow("SELECT * FROM proxy_error_events")
+    assert event["client_tier"] == "anonymous"
+    assert event["ip_hash"] == event["client_hash"]
 
 
 @pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "DELETE", "OPTIONS", "CUSTOM"])
-async def test_transparent_request_and_multiple_tokens(method):
+async def test_transparent_request_and_multiple_tokens(method, client_for):
     seen = []
 
     def handler(request):
@@ -85,21 +70,25 @@ async def test_transparent_request_and_multiple_tokens(method):
         assert req.extensions["timeout"] == {"connect": 5, "read": 60, "write": 60, "pool": 5}
 
 
-async def test_health_bypasses_auth_and_upstream_but_other_paths_do_not():
+async def test_health_bypasses_admission(client_for):
+    calls = []
+
     def handler(request):
-        pytest.fail("Health request reached upstream")
+        calls.append(request)
+        return response()
 
     async with client_for(handler) as client:
         result = await client.get("/health")
         assert result.json() == {"ok": True, "service": "typesafe-proxy", "release": "test-release"}
         assert result.headers["cache-control"] == "no-store"
+        assert result.headers["x-request-id"]
+        assert not calls
         for path in ("/", "/docs", "/openapi.json", "/health/"):
-            assert (await client.get(path)).status_code == 401
-        assert (await client.post("/health")).status_code == 401
+            assert (await client.get(path)).status_code == 200
+        assert (await client.post("/health")).status_code == 200
 
 
-async def test_limiter_concurrency_refill_and_key_isolation():
-    now = [0.0]
+async def test_limiter_concurrency_and_key_isolation(client_for):
     calls = []
 
     async def handler(request):
@@ -107,7 +96,7 @@ async def test_limiter_concurrency_refill_and_key_isolation():
         calls.append(request)
         return response()
 
-    async with client_for(handler, clock=lambda: now[0]) as client:
+    async with client_for(handler) as client:
         results = await asyncio.gather(
             *[client.get("/v1/systemone", headers=AUTH) for _ in range(11)]
         )
@@ -118,17 +107,9 @@ async def test_limiter_concurrency_refill_and_key_isolation():
         assert (
             await client.get("/v1/systemone", headers={"Authorization": "Bearer client-two"})
         ).status_code == 200
-        now[0] = 0.9
-        assert (await client.get("/v1/systemone", headers=AUTH)).status_code == 429
-        now[0] = 1.0
-        assert (await client.get("/v1/systemone", headers=AUTH)).status_code == 200
-        assert (await client.get("/v1/systemone", headers=AUTH)).status_code == 429
-        now[0] = 100.0
-        results = [await client.get("/v1/systemone", headers=AUTH) for _ in range(11)]
-        assert [r.status_code for r in results] == [200] * 10 + [429]
 
 
-async def test_strip_hop_headers_keep_duplicates_and_never_reuse_cookies():
+async def test_strip_hop_headers_keep_duplicates_and_never_reuse_cookies(client_for):
     seen = []
 
     def handler(request):
@@ -158,7 +139,7 @@ async def test_strip_hop_headers_keep_duplicates_and_never_reuse_cookies():
     assert "cookie" not in seen[1].headers
 
 
-async def test_compressed_bytes_are_not_decoded_in_proxy():
+async def test_compressed_bytes_are_not_decoded_in_proxy(client_for):
     compressed = gzip.compress(b"unchanged bytes" * 100)
     async with client_for(
         lambda req: response(
@@ -177,7 +158,7 @@ async def test_compressed_bytes_are_not_decoded_in_proxy():
     "error,status",
     [(httpx.ConnectError, 502), (httpx.ReadTimeout, 504), (httpx.ConnectTimeout, 504)],
 )
-async def test_network_failures_do_not_expose_details_or_retry(error, status, caplog):
+async def test_network_failures_do_not_expose_details_or_retry(error, status, caplog, client_for):
     calls = []
 
     def handler(request):
@@ -192,7 +173,7 @@ async def test_network_failures_do_not_expose_details_or_retry(error, status, ca
     assert "hidden" not in caplog.text and "master-one" not in caplog.text
 
 
-async def test_redirect_returned_without_following():
+async def test_redirect_returned_without_following(client_for):
     seen = []
 
     def handler(request):
@@ -224,7 +205,7 @@ def test_upstream_authority_is_fixed(path):
     assert req.url.raw_path == path + b"?url=https://evil.example"
 
 
-async def test_body_limit_prevents_upstream_call():
+async def test_body_limit_prevents_upstream_call(client_for):
     def handler(request):
         pytest.fail("Oversize body reached upstream")
 
@@ -269,8 +250,10 @@ async def test_stream_closes_upstream_on_client_disconnect():
         {"TYPESAFE_TEST_API_TOKEN_3": "orphan"},
         {"TYPESAFE_TEST_API_TOKEN_bad": "bad"},
         {"TYPESAFE_TEST_API_TOKEN_1": "line\nbreak"},
-        {"RATE_LIMIT_PER_MINUTE": "0"},
-        {"RATE_LIMIT_BURST": "NaN"},
+        {"MAX_PENDING_REQUESTS": "0"},
+        {"MAX_INFLIGHT_REQUESTS": "NaN"},
+        {"TOKEN_HASH_SECRET": "short"},
+        {"TYPESAFE_MASTER_API_TOKEN_2": "master-one"},
     ],
 )
 def test_invalid_configuration_fails_closed_without_secret_values(changes):
