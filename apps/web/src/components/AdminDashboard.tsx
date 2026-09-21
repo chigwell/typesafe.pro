@@ -762,6 +762,11 @@ export default function AdminDashboard() {
                   >
                     <option value="">All</option>
                     {[
+                      "endpoint_not_found",
+                      "method_not_allowed",
+                      "unsupported_media_type",
+                      "invalid_json",
+                      "invalid_request",
                       "upstream_error",
                       "invalid_upstream_response",
                       "rate_limit_exceeded",

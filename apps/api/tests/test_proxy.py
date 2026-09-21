@@ -1,9 +1,10 @@
 import asyncio
 import gzip
+import json
 
 import httpx
 import pytest
-from conftest import ENV
+from conftest import ENV, VALID_REQUEST
 from starlette.requests import ClientDisconnect
 
 from proxy.config import MAX_BODY_BYTES, Settings
@@ -33,22 +34,22 @@ async def test_invalid_auth_is_anonymous(headers, client_for, store):
         return response(422, b"invalid request")
 
     async with client_for(handler) as client:
-        result = await client.post("/v1/systemone", headers=headers, content=b"not json")
+        result = await client.post("/v1/systemone", headers=headers, json=VALID_REQUEST)
     assert result.status_code == 422
     event = await store.pool.fetchrow("SELECT * FROM proxy_error_events")
     assert event["client_tier"] == "anonymous"
     assert event["ip_hash"] == event["client_hash"]
 
 
-@pytest.mark.parametrize("method", ["GET", "POST", "PATCH", "DELETE", "OPTIONS", "CUSTOM"])
-async def test_transparent_request_and_multiple_tokens(method, client_for):
+async def test_transparent_request_and_multiple_tokens(client_for):
+    method = "POST"
     seen = []
 
     def handler(request):
         seen.append(request)
         return response(422, b'{ "upstream": "validation" }', [("X-Trace", "a"), ("X-Trace", "b")])
 
-    body = b'  {"raw": "unchanged"}\n'
+    body = b"  " + json.dumps(VALID_REQUEST | {"raw": "unchanged"}).encode() + b"\n"
     async with client_for(handler) as client:
         for token in ("client-one", "client-two"):
             result = await client.request(
@@ -86,8 +87,9 @@ async def test_health_bypasses_admission(client_for):
         assert result.headers["x-request-id"]
         assert not calls
         for path in ("/", "/docs", "/openapi.json", "/health/"):
-            assert (await client.get(path)).status_code == 200
-        assert (await client.post("/health")).status_code == 200
+            assert (await client.get(path)).status_code == 404
+        assert (await client.post("/health")).status_code == 405
+        assert not calls
 
 
 async def test_cors_preflight_bypasses_upstream_and_admission(client_for):
@@ -125,14 +127,16 @@ async def test_limiter_concurrency_and_key_isolation(client_for):
 
     async with client_for(handler) as client:
         results = await asyncio.gather(
-            *[client.get("/v1/systemone", headers=AUTH) for _ in range(11)]
+            *[client.post("/v1/systemone", json=VALID_REQUEST, headers=AUTH) for _ in range(11)]
         )
         assert sum(r.status_code == 200 for r in results) == 10
         denied = next(r for r in results if r.status_code == 429)
         assert denied.headers["retry-after"] == "1"
         assert len(calls) == 10
         assert (
-            await client.get("/v1/systemone", headers={"Authorization": "Bearer client-two"})
+            await client.post(
+                "/v1/systemone", json=VALID_REQUEST, headers={"Authorization": "Bearer client-two"}
+            )
         ).status_code == 200
 
 
@@ -153,14 +157,18 @@ async def test_strip_hop_headers_keep_duplicates_and_never_reuse_cookies(client_
         )
 
     async with client_for(handler) as client:
-        result = await client.get(
-            "/test", headers=AUTH | {"Connection": "X-Private", "X-Private": "secret"}
+        result = await client.post(
+            "/v1/systemone",
+            json=VALID_REQUEST,
+            headers=AUTH | {"Connection": "X-Private", "X-Private": "secret"},
         )
         assert len(result.headers.get_list("set-cookie")) == 2
         assert result.headers["x-trace"] == "safe"
         assert "connection" not in result.headers and "x-private" not in result.headers
         client.cookies.clear()
-        await client.get("/test", headers={"Authorization": "Bearer client-two"})
+        await client.post(
+            "/v1/systemone", json=VALID_REQUEST, headers={"Authorization": "Bearer client-two"}
+        )
     assert "x-private" not in seen[0].headers
     assert "connection" not in seen[0].headers
     assert "cookie" not in seen[1].headers
@@ -174,7 +182,9 @@ async def test_compressed_bytes_are_not_decoded_in_proxy(client_for):
             body=compressed,
         )
     ) as client:
-        async with client.stream("GET", "/test", headers=AUTH) as result:
+        async with client.stream(
+            "POST", "/v1/systemone", json=VALID_REQUEST, headers=AUTH
+        ) as result:
             raw = b"".join([chunk async for chunk in result.aiter_raw()])
             assert raw == compressed
             assert result.headers["content-length"] == str(len(compressed))
@@ -193,7 +203,7 @@ async def test_network_failures_do_not_expose_details_or_retry(error, status, ca
         raise error("sensitive-upstream-detail", request=request)
 
     async with client_for(handler) as client:
-        result = await client.post("/v1/systemone?secret=hidden", headers=AUTH)
+        result = await client.post("/v1/systemone?secret=hidden", json=VALID_REQUEST, headers=AUTH)
     assert result.status_code == status
     assert len(calls) == 1
     assert "sensitive" not in result.text
@@ -208,7 +218,7 @@ async def test_redirect_returned_without_following(client_for):
         return response(307, headers={"Location": "https://other.example/"})
 
     async with client_for(handler) as client:
-        result = await client.post("/test", headers=AUTH)
+        result = await client.post("/v1/systemone", json=VALID_REQUEST, headers=AUTH)
     assert result.status_code == 307 and result.headers["location"] == "https://other.example/"
     assert len(seen) == 1
 
@@ -237,7 +247,11 @@ async def test_body_limit_prevents_upstream_call(client_for):
         pytest.fail("Oversize body reached upstream")
 
     async with client_for(handler) as client:
-        result = await client.post("/test", headers=AUTH, content=b"x" * (MAX_BODY_BYTES + 1))
+        result = await client.post(
+            "/v1/systemone",
+            headers=AUTH | {"Content-Type": "application/json"},
+            content=b"x" * (MAX_BODY_BYTES + 1),
+        )
     assert result.status_code == 413
 
 

@@ -180,3 +180,37 @@ retention, and local verification.
 For full model behavior, question types, and response shapes, use the
 [TypeSafe API reference](https://docs.typesafe.ai/api). When contacting support,
 include the `X-Request-ID`, approximate time of the request, and the HTTP status.
+
+## Local request validation
+
+The gateway forwards only `POST /v1/systemone`. It checks the decoded path and
+method before reading a body or performing admission. `/health` and `/admin`
+remain local routes; unknown paths are never forwarded. Browser CORS preflight
+is supported for `POST /v1/systemone`.
+
+Send `Content-Type: application/json` (parameters such as `charset=utf-8` are
+accepted). Request compression is unsupported: omit `Content-Encoding` or use
+`identity`. The existing 10 MiB body limit and client rate limits apply.
+
+Before reserving an upstream key, the gateway validates JSON and the documented
+`model`, `state`, and `questions` structure, including `noul`, `choice` (1–255
+options), and `score` (2–10 levels). Duplicate JSON keys and non-finite numbers
+are rejected. Additional fields and query parameters are preserved, and valid
+bodies are forwarded byte for byte. Model availability and semantic constraints
+are checked by upstream. Anonymous access remains supported.
+
+Local errors use the existing `error` field:
+
+| Status | Error | Meaning |
+| --- | --- | --- |
+| 404 | `endpoint_not_found` | Unsupported path |
+| 405 | `method_not_allowed` | Unsupported method; see `Allow` |
+| 415 | `unsupported_media_type` | Missing/unsupported content type or encoding |
+| 400 | `invalid_json` | Malformed JSON, duplicate keys, or non-finite numbers |
+| 422 | `invalid_request` | Invalid request structure |
+
+Schema errors include the first failing field as a `details.path` array and a
+`details.reason` string, without its input value. These permanent errors have no
+`Retry-After` header. They retain CORS, `X-Request-ID`, and `Cache-Control: no-store`
+headers and appear under their own error codes in the admin dashboard. Early
+route rejections have client tier `unknown` because authentication was skipped.

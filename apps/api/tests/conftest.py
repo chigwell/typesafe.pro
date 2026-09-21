@@ -15,6 +15,12 @@ from proxy.config import Settings
 from proxy.main import create_app
 from proxy.storage import Store
 
+VALID_REQUEST = {
+    "model": "jev-latest",
+    "state": "test",
+    "questions": {"x": {"type": "noul", "instructions": "Is it valid?"}},
+}
+
 ENV = {
     "TYPESAFE_TEST_API_TOKEN_1": "client-one",
     "TYPESAFE_MASTER_API_TOKEN_1": "master-one",

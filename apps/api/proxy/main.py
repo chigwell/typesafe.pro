@@ -29,13 +29,14 @@ from .storage import Store
 from .system import SystemSampler
 from .telemetry import Telemetry, new_event
 from .transport import ProxyResponse, upstream_request
+from .validation import InvalidRequest, validate_body, validate_media, validate_route
 
 CORS_HEADERS = [
     (b"access-control-allow-origin", b"*"),
     (b"access-control-expose-headers", b"X-Request-ID, Retry-After"),
 ]
 CORS_PREFLIGHT_HEADERS = CORS_HEADERS + [
-    (b"access-control-allow-methods", b"DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"),
+    (b"access-control-allow-methods", b"POST, OPTIONS"),
     (b"access-control-allow-headers", b"Authorization, Content-Type, X-Request-ID"),
     (b"access-control-max-age", b"600"),
     (b"cache-control", b"no-store"),
@@ -106,6 +107,13 @@ class RequestID:
             scope["method"] == "OPTIONS"
             and b"origin" in headers
             and b"access-control-request-method" in headers
+            and (
+                is_admin
+                or (
+                    scope["path"] == "/v1/systemone"
+                    and headers[b"access-control-request-method"] == b"POST"
+                )
+            )
         ):
             await send(
                 {
@@ -331,6 +339,7 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
                         event["response_truncated"] |= len(event["raw_response"].encode()) > 8192
 
             try:
+                validate_route(scope)
                 state.budget.enter()
                 claimed = True
                 identity = await authenticate(scope, config, state.store, state.redis)
@@ -343,6 +352,7 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
                 retry = await state.limiter.client_retry(identity, policy)
                 if retry:
                     raise Rejected("rate_limit_exceeded", 429, retry)
+                validate_media(scope["headers"])
                 stage = "upload"
                 body = bytearray()
                 async with asyncio.timeout(60):
@@ -356,6 +366,7 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
                 event["estimated_tokens"] = estimate_tokens(body)
                 content = bytes(body)
                 del body
+                validate_body(content)
                 stage = "dispatch"
                 watcher = asyncio.create_task(disconnected())
                 work = asyncio.create_task(dispatch(content))
@@ -377,7 +388,10 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
                         for frame in traceback.extract_tb(error.__traceback__)
                     )
                 )
-                if isinstance(error, Rejected):
+                if isinstance(error, InvalidRequest):
+                    code, status, retry = error.code, error.status, None
+                    event["error_detail"] = error.code
+                elif isinstance(error, Rejected):
                     code, status, retry = error.code, error.status, error.retry
                 elif isinstance(error, (ClientDisconnect, asyncio.CancelledError)):
                     code, status, retry = "client_disconnected", 499, 1
@@ -402,10 +416,21 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
                 elif headers_sent:
                     raise RuntimeError("Proxy stream interrupted") from None
                 else:
-                    await JSONResponse(
-                        {"error": code},
+                    response_body = {"error": code}
+                    response_headers = {"Cache-Control": "no-store"}
+                    if retry is not None:
+                        response_headers["Retry-After"] = str(retry)
+                    if isinstance(error, InvalidRequest):
+                        if error.details is not None:
+                            response_body["details"] = error.details
+                        if error.allow:
+                            response_headers["Allow"] = error.allow
+                    # Escape field names too: JSON keys may contain lone surrogates.
+                    await Response(
+                        json.dumps(response_body),
+                        media_type="application/json",
                         status_code=status,
-                        headers={"Retry-After": str(retry), "Cache-Control": "no-store"},
+                        headers=response_headers,
                     )(scope, receive, tracked_send)
             finally:
                 for task in (watcher, work):

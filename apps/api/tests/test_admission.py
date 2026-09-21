@@ -7,7 +7,7 @@ from ipaddress import ip_network
 
 import httpx
 import pytest
-from conftest import ENV
+from conftest import ENV, VALID_REQUEST
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from proxy.auth import Identity, authenticate, client_ip, digest
@@ -178,7 +178,9 @@ async def test_disconnect_removes_pending_and_releases_memory(store, redis, monk
         redis=redis,
     )
     incoming = asyncio.Queue()
-    await incoming.put({"type": "http.request", "body": b"{}", "more_body": False})
+    await incoming.put(
+        {"type": "http.request", "body": json.dumps(VALID_REQUEST).encode(), "more_body": False}
+    )
     sent = []
 
     async def send(message):
@@ -195,7 +197,9 @@ async def test_disconnect_removes_pending_and_releases_memory(store, redis, monk
             return await original(owner)
 
         monkeypatch.setattr(app.state.limiter, "acquire", observed_acquire)
-        task = asyncio.create_task(app(scope(), incoming.get, send))
+        task = asyncio.create_task(
+            app(scope([(b"content-type", b"application/json")]), incoming.get, send)
+        )
         await asyncio.wait_for(queued.wait(), 2)
         await incoming.put({"type": "http.disconnect"})
         await asyncio.wait_for(task, 1)
@@ -214,7 +218,7 @@ async def test_queue_timeout_response_and_redis_failure(client_for, monkeypatch,
     async with client_for(lambda req: pytest.fail("Must not reach upstream")) as client:
         for master in client.app.state.settings.masters:
             await client.app.state.limiter.cooldown(master, 10)
-        result = await client.get("/test")
+        result = await client.post("/v1/systemone", json=VALID_REQUEST)
         assert result.status_code == 429 and result.json()["error"] == "queue_timeout"
         assert result.headers["retry-after"] == "1"
 
@@ -222,7 +226,7 @@ async def test_queue_timeout_response_and_redis_failure(client_for, monkeypatch,
             raise RedisConnectionError("private backend detail")
 
         monkeypatch.setattr(client.app.state.limiter, "client_retry", unavailable)
-        result = await client.get("/test")
+        result = await client.post("/v1/systemone", json=VALID_REQUEST)
         assert result.status_code == 503 and result.json()["error"] == "limiter_unavailable"
         assert result.headers["x-request-id"]
 
@@ -232,7 +236,7 @@ async def test_logs_raw_errors_redacts_secrets_and_counters(client_for, store, r
     async with client_for(lambda req: httpx.Response(422, stream=httpx.ByteStream(raw))) as client:
         result = await client.post(
             "/v1/systemone?api_key=hidden-value",
-            content=b"{}",
+            json=VALID_REQUEST,
             headers={"Authorization": "Bearer client-one", "X-Request-ID": "trace-1"},
         )
         assert result.content == raw and result.headers["x-request-id"] == "trace-1"
@@ -262,7 +266,7 @@ async def test_response_validation_and_compressed_usage(client_for, store, redis
             200, stream=httpx.ByteStream(gzip.compress(raw)), headers={"Content-Encoding": "gzip"}
         )
     ) as client:
-        result = await client.post("/v1/systemone", json={"questions": {"x": {}}})
+        result = await client.post("/v1/systemone", json=VALID_REQUEST)
         assert result.json() == data
     assert await store.pool.fetchval("SELECT count(*) FROM proxy_error_events") == 0
     key = (await redis.keys("ts:metrics:*:all"))[0]
@@ -270,7 +274,7 @@ async def test_response_validation_and_compressed_usage(client_for, store, redis
     async with client_for(
         lambda req: httpx.Response(200, stream=httpx.ByteStream(b"not JSON"))
     ) as client:
-        result = await client.post("/v1/systemone", content=b"{}")
+        result = await client.post("/v1/systemone", json=VALID_REQUEST)
         assert result.content == b"not JSON"
     assert (
         await store.pool.fetchval("SELECT error_code FROM proxy_error_events")
@@ -328,7 +332,9 @@ async def test_request_id_validation(client_for, value):
         )
 
     async with client_for(handler) as client:
-        response = await client.get("/test", headers={"X-Request-ID": value})
+        response = await client.post(
+            "/v1/systemone", json=VALID_REQUEST, headers={"X-Request-ID": value}
+        )
     assert response.headers["x-request-id"] == seen[0]
     assert (seen[0] == value) == (value == "valid-trace_12")
 
@@ -337,7 +343,7 @@ async def test_http_memory_limit_and_queue_size(client_for, redis):
     async with client_for(
         lambda req: pytest.fail("Over-budget request sent"), env={"QUEUE_MEMORY_BYTES": "4"}
     ) as client:
-        result = await client.post("/test", content=b"123")
+        result = await client.post("/v1/systemone", json=VALID_REQUEST)
         assert result.status_code == 503 and result.json()["error"] == "queue_full"
         assert client.app.state.budget.bytes == client.app.state.budget.requests == 0
     settings = Settings.from_env(ENV)
@@ -367,7 +373,7 @@ async def test_interrupted_stream_is_logged_and_releases_lease(client_for, store
     stream = BrokenStream()
     async with client_for(lambda req: httpx.Response(200, stream=stream)) as client:
         with pytest.raises(RuntimeError, match="Proxy stream interrupted"):
-            await client.get("/test")
+            await client.post("/v1/systemone", json=VALID_REQUEST)
         assert client.app.state.scheduler.inflight == 0
         assert client.app.state.budget.requests == 0
         for prefix in client.app.state.limiter.prefixes.values():
@@ -385,7 +391,7 @@ async def test_global_upstream_deadline_releases_slot(client_for):
         await asyncio.Event().wait()
 
     async with client_for(handler, env={"REQUEST_TIMEOUT_SECONDS": "1"}) as client:
-        response = await client.get("/test")
+        response = await client.post("/v1/systemone", json=VALID_REQUEST)
         assert response.status_code == 504
         assert client.app.state.scheduler.inflight == 0
 

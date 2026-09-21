@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
-from conftest import ENV
+from conftest import ENV, VALID_REQUEST
 
 from proxy.activity import Activity, buckets
 from proxy.admin import COOKIE, session_cookie, valid_session
@@ -243,7 +243,7 @@ async def test_error_pages_filter_sanitize_and_real_ip(client_for, store):
         )
     ) as client:
         for ip in ("203.0.113.5", "2001:db8::2"):
-            await client.get("/v1/systemone", headers={"X-Real-IP": ip})
+            await client.post("/v1/systemone", json=VALID_REQUEST, headers={"X-Real-IP": ip})
         await client.app.state.telemetry.flush()
         await client.post("/admin/api/auth/login", json={"password": PASSWORD})
         first = (await client.get("/admin/api/errors?page=1&page_size=1&status=502")).json()
