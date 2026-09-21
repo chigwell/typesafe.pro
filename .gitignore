@@ -216,3 +216,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node / Cloudflare
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.wrangler/
+.vite/
+coverage/
+.nyc_output/
+
+# Local Cloudflare and app secrets
+.dev.vars
+.dev.vars.*

@@ -1,0 +1,10 @@
+{
+  "name": "@typesafe-pro/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bash ../../scripts/cf-env.sh wrangler pages dev public --compatibility-date=2026-09-21",
+    "deploy": "bash ../../scripts/cf-env.sh wrangler pages deploy public --project-name=typesafe-pro --branch=main"
+  }
+}
