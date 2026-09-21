@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npm run validate:seo",
     "preview": "bash ../../scripts/cf-env.sh wrangler pages dev out --compatibility-date=2026-09-21",
     "deploy": "npm run build && bash ../../scripts/cf-env.sh wrangler pages deploy out --project-name=typesafe-pro --branch=main",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "validate:seo": "node scripts/validate-seo-output.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.475.0",

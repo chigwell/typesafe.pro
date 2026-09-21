@@ -1,25 +1,53 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { OG_IMAGE_ALT, OG_IMAGE_URL, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL } from "@/lib/seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://typesafe.pro"),
-  title: "typesafe.pro - Messy words. Clear decisions.",
-  description:
-    "Turn text into labels, scores, and yes-or-no probabilities with free access to TypeSafe Jev. Try examples in your browser, then copy the code into your app.",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
   alternates: {
-    canonical: "/",
+    canonical: `${SITE_URL}/`,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   openGraph: {
     type: "website",
-    url: "https://typesafe.pro/",
-    title: "typesafe.pro - Messy words. Clear decisions.",
-    description: "Small AI decisions, without the setup. Explore free Jev examples, try the playground, and take the code with you.",
+    url: `${SITE_URL}/`,
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: OG_IMAGE_URL,
+        width: 1200,
+        height: 630,
+        alt: OG_IMAGE_ALT,
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "typesafe.pro - Messy words. Clear decisions.",
-    description: "Small AI decisions, without the setup. Explore free Jev examples, try the playground, and take the code with you.",
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: OG_IMAGE_URL,
+        width: 1200,
+        height: 630,
+        alt: OG_IMAGE_ALT,
+      },
+    ],
   },
   manifest: "/site.webmanifest",
   icons: {
