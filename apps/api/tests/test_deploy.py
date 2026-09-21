@@ -59,6 +59,12 @@ def test_deploy_shell_syntax():
         subprocess.run(["bash", "-n", str(path)], check=True)
 
 
+def test_compose_keeps_the_existing_project_network_for_upgrade():
+    compose = (ROOT / "deploy/compose.yml").read_text()
+    assert "networks:" not in compose
+    assert "TRUSTED_PROXY_CIDRS: 127.0.0.1/32,::1/128,172.16.0.0/12" in compose
+
+
 def test_migration_is_idempotent(migrated):
     subprocess.run(
         [

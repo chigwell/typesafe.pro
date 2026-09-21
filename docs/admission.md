@@ -2,10 +2,11 @@
 
 The path is Cloudflare -> nginx -> one FastAPI worker -> TypeSafe. nginx trusts
 `CF-Connecting-IP` only from the published Cloudflare networks and overwrites
-`X-Real-IP` / `X-Forwarded-For`. FastAPI trusts these headers only from the fixed
-Docker bridge gateway `172.30.81.1`. Direct callers cannot select their identity
-with forwarding headers. Keep port 8010 bound to loopback. For a local non-Docker
-nginx, `TRUSTED_PROXY_CIDRS` defaults to loopback; do not set it to `0.0.0.0/0`.
+`X-Real-IP` / `X-Forwarded-For`. FastAPI trusts these headers from loopback and
+Docker's private `172.16.0.0/12` bridge range. Direct callers cannot select their
+identity with forwarding headers because port 8010 remains bound to loopback. For a
+local non-Docker nginx, `TRUSTED_PROXY_CIDRS` defaults to loopback; do not set it
+to `0.0.0.0/0`.
 
 Cloudflare ranges were checked on 2026-09-21 against
 [IPv4](https://www.cloudflare.com/ips-v4) and [IPv6](https://www.cloudflare.com/ips-v6).

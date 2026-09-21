@@ -50,7 +50,7 @@ services:
         format: raw
     environment:
       RELEASE_SHA: ${RELEASE_SHA:?RELEASE_SHA required}
-      TRUSTED_PROXY_CIDRS: 172.30.81.1/32
+      TRUSTED_PROXY_CIDRS: 127.0.0.1/32,::1/128,172.16.0.0/12
     depends_on:
       postgres:
         condition: service_healthy
@@ -76,11 +76,3 @@ services:
 volumes:
   postgres-data:
   redis-data:
-
-networks:
-  default:
-    name: typesafe-proxy-admission-v1
-    ipam:
-      config:
-        - subnet: 172.30.81.0/24
-          gateway: 172.30.81.1
