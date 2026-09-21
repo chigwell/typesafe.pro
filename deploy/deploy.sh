@@ -81,8 +81,10 @@ if [[ ${DEPLOY_TEST_FAIL_AFTER_START:-0} == 1 ]]; then
     echo "Injecting a failed verification to exercise rollback" >&2
     false
 fi
-curl --fail --silent --show-error --resolve api.typesafe.pro:443:127.0.0.1 \
-    --max-time 15 https://api.typesafe.pro/health > /dev/null
+# Reload returns after signalling the master, before the new workers accept TLS.
+curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 1 \
+    --resolve api.typesafe.pro:443:127.0.0.1 --max-time 15 https://api.typesafe.pro/health \
+    | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("service")=="typesafe-proxy" and d.get("release")==sys.argv[1] else 1)' "$sha"
 python3 "$release/deploy/smoke.py" --base-url https://api.typesafe.pro \
     --release "$sha" --env-file "$release/runtime.env"
 if [[ -n $previous && -d $previous ]]; then
