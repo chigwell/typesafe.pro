@@ -32,6 +32,7 @@ export function Footer() {
             <a href="https://docs.typesafe.ai/" target="_blank" rel="noopener noreferrer">
               TypeSafe docs
             </a>
+            <a href="mailto:support@typesafe.pro">support@typesafe.pro</a>
             <a href="#faq-independent">About this gateway</a>
           </div>
         </div>
