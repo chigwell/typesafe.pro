@@ -1,11 +1,22 @@
 "use client";
 
 import { ArrowUpRight, Check, Code2, Copy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { copyText } from "@/lib/clipboard";
 import { LANGUAGE_ORDER, LANGUAGES, makeCode, type LanguageId } from "@/lib/codegen";
 import { API_BASE } from "@/lib/playground";
+import { highlightCode } from "@/lib/syntax";
 import type { EvaluationRequest } from "@/lib/typesafe";
+
+const LANGUAGE_MARKS: Record<LanguageId, { label: string; className: string }> = {
+  python: { label: "Py", className: "python" },
+  javascript: { label: "JS", className: "javascript" },
+  typescript: { label: "TS", className: "typescript" },
+  curl: { label: "$", className: "curl" },
+  go: { label: "Go", className: "go" },
+  php: { label: "php", className: "php" },
+  java: { label: "Ja", className: "java" },
+};
 
 export function DeveloperSection({
   request,
@@ -21,6 +32,16 @@ export function DeveloperSection({
     () => (valid ? makeCode(language, request) : `${LANGUAGES[language].comment} Fix the request JSON to generate a matching example.`),
     [language, request, valid],
   );
+  const { displayCode, typing } = useTypingCode(code);
+  const highlightedLines = useMemo(() => highlightCode(displayCode, language), [displayCode, language]);
+  const preRef = useRef<HTMLPreElement>(null);
+
+  useEffect(() => {
+    if (preRef.current) {
+      preRef.current.scrollTop = 0;
+      preRef.current.scrollLeft = 0;
+    }
+  }, [code]);
 
   return (
     <section className="section container" id="developers" aria-labelledby="developers-heading">
@@ -98,13 +119,30 @@ export function DeveloperSection({
                 tabIndex={language === item ? 0 : -1}
                 onClick={() => setLanguage(item)}
               >
+                <LanguageLogo language={item} />
                 {LANGUAGES[item].label}
               </button>
             ))}
           </div>
           <div className="code-body" id="code-panel" role="tabpanel" aria-labelledby={`code-tab-${language}`}>
-            <pre className="code-pre" tabIndex={0} aria-label="Code example">
-              <code>{code}</code>
+            <pre className="code-pre" tabIndex={0} aria-label="Code example" ref={preRef}>
+              <code>
+                {highlightedLines.map((line, lineIndex) => (
+                  <span className="code-line" key={`${lineIndex}-${line.map((token) => token.text).join("")}`}>
+                    <span className="line-number" aria-hidden="true">
+                      {lineIndex + 1}
+                    </span>
+                    <span className="code-line-content">
+                      {line.map((token, tokenIndex) => (
+                        <span className={`token-${token.kind}`} key={`${tokenIndex}-${token.text}`}>
+                          {token.text}
+                        </span>
+                      ))}
+                      {typing && lineIndex === highlightedLines.length - 1 ? <span className="typing-cursor" aria-hidden="true" /> : null}
+                    </span>
+                  </span>
+                ))}
+              </code>
             </pre>
           </div>
           <div className="code-footer">
@@ -126,3 +164,58 @@ export function DeveloperSection({
   );
 }
 
+function LanguageLogo({ language }: { language: LanguageId }) {
+  const mark = LANGUAGE_MARKS[language];
+  return (
+    <span className={`language-logo logo-${mark.className}`} aria-hidden="true">
+      {mark.label}
+    </span>
+  );
+}
+
+function useTypingCode(code: string) {
+  const [displayLength, setDisplayLength] = useState(code.length);
+  const [typing, setTyping] = useState(false);
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion || code.length < 80) {
+      setDisplayLength(code.length);
+      setTyping(false);
+      return;
+    }
+
+    let frame = 0;
+    let lastFrame = 0;
+    const started = performance.now();
+    const duration = Math.min(1350, Math.max(520, code.length * 0.58));
+
+    setDisplayLength(0);
+    setTyping(true);
+
+    const tick = (now: number) => {
+      if (now - lastFrame < 28) {
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+      lastFrame = now;
+      const progress = Math.min(1, (now - started) / duration);
+      const nextLength = Math.floor(code.length * progress);
+      setDisplayLength(nextLength);
+      if (progress < 1) {
+        frame = requestAnimationFrame(tick);
+      } else {
+        setDisplayLength(code.length);
+        setTyping(false);
+      }
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [code]);
+
+  return {
+    displayCode: code.slice(0, displayLength),
+    typing,
+  };
+}
