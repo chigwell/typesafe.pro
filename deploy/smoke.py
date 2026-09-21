@@ -16,7 +16,10 @@ def main():
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
     def call(path, data=None, token=None):
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "typesafe-proxy-deploy/1.0",
+        }
         if token:
             headers["Authorization"] = f"Bearer {token}"
         request = urllib.request.Request(
@@ -30,6 +33,8 @@ def main():
                 return error.code, error.read()
 
     status, raw = call("/health")
+    if status != 200:
+        raise RuntimeError(f"Health check returned HTTP {status}")
     health = json.loads(raw)
     if (
         status != 200
