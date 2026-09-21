@@ -8,21 +8,17 @@
   ],
   "scripts": {
     "dev:web": "npm run dev --workspace @typesafe-pro/web",
-    "dev:api": "npm run dev --workspace @typesafe-pro/api",
-    "check": "npm run check --workspace @typesafe-pro/api",
-    "test": "vitest run",
+    "dev:api": "uv run --project apps/api --env-file .env uvicorn proxy.main:app --app-dir apps/api --port 8010 --reload --no-access-log",
+    "check": "uv run --project apps/api ruff check apps/api deploy && uv run --project apps/api ruff format --check apps/api deploy",
+    "test": "uv run --project apps/api pytest apps/api/tests",
     "cf:pages:create": "bash scripts/cf-env.sh wrangler pages project create typesafe-pro --production-branch=main",
     "cf:pages:ensure": "bash scripts/ensure-pages-project.sh typesafe-pro",
-    "deploy:web": "npm run deploy --workspace @typesafe-pro/web",
-    "deploy:api": "npm run deploy --workspace @typesafe-pro/api"
+    "deploy:web": "npm run deploy --workspace @typesafe-pro/web"
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260921.1",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.1",
     "wrangler": "^4.135.0"
   }
 }

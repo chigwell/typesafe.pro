@@ -2,21 +2,67 @@ name: Deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-main
-  cancel-in-progress: true
-
 jobs:
-  deploy:
-    name: Deploy to Cloudflare
+  check:
+    name: Check proxy
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install uv==0.6.8
+      - run: uv sync --project apps/api --frozen
+      - run: uv run --project apps/api ruff check apps/api deploy
+      - run: uv run --project apps/api ruff format --check apps/api deploy
+      - run: uv run --project apps/api pytest apps/api/tests
+      - name: Check deployment scripts
+        run: |
+          for script in deploy/*.sh; do bash -n "$script"; done
+          shellcheck deploy/*.sh
+          RELEASE_ID=check RELEASE_SHA=check PROXY_ENV_FILE=/dev/null docker compose -f deploy/compose.yml config --quiet
+      - name: Build API image
+        run: docker build -t typesafe-proxy:check apps/api
+
+  deploy-api:
+    name: Deploy API to VPS
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: deploy-api-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy and verify
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          TYPESAFE_TEST_API_TOKEN_1: ${{ secrets.TYPESAFE_TEST_API_TOKEN_1 }}
+          TYPESAFE_MASTER_API_TOKEN_1: ${{ secrets.TYPESAFE_MASTER_API_TOKEN_1 }}
+          RATE_LIMIT_PER_MINUTE: ${{ vars.RATE_LIMIT_PER_MINUTE || '60' }}
+          RATE_LIMIT_BURST: ${{ vars.RATE_LIMIT_BURST || '10' }}
+        run: bash deploy/ci.sh
+
+  deploy-web:
+    name: Deploy web to Cloudflare Pages
+    needs: check
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-web-production
+      cancel-in-progress: false
     env:
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
@@ -33,17 +79,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run check
-
-      - name: Test
-        run: npm test
-
       - name: Ensure Pages project exists
         run: npm run cf:pages:ensure
 
       - name: Deploy web to Cloudflare Pages
         run: npm run deploy:web
-
-      - name: Deploy API Worker
-        run: npm run deploy:api
