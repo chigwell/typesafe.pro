@@ -18,6 +18,7 @@ def test_runtime_environment_files_are_separated_and_private(tmp_path):
     pg = tmp_path / "postgres.env"
     assert pg.read_text() == "POSTGRES_PASSWORD=test-only-db-pass\n"
     assert "master-one" in target.read_text()
+    assert f"ADMIN_PASSWORD={ENV['ADMIN_PASSWORD']}\n" in target.read_text()
     assert "POSTGRES_PASSWORD" not in target.read_text()
     assert "master-one" not in pg.read_text()
     assert target.stat().st_mode & 0o777 == pg.stat().st_mode & 0o777 == 0o600
@@ -52,6 +53,19 @@ def test_runtime_environment_identifies_missing_postgres_password(tmp_path):
     )
     assert result.returncode == 1
     assert "POSTGRES_PASSWORD is required" in result.stderr
+
+
+def test_runtime_environment_requires_admin_password(tmp_path):
+    environment = ENV | {"POSTGRES_PASSWORD": "test-only-db-pass"}
+    environment.pop("ADMIN_PASSWORD")
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "deploy/write_env.py"), str(tmp_path / "runtime.env")],
+        env=environment,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode != 0 and "ADMIN_PASSWORD" in result.stderr
+    assert not (tmp_path / "runtime.env").exists()
 
 
 def test_deploy_shell_syntax():

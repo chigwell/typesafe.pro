@@ -19,12 +19,14 @@ from redis.exceptions import RedisError
 from starlette.requests import ClientDisconnect
 from starlette.responses import JSONResponse, Response
 
+from .admin import admin_router
 from .auth import authenticate, bearer, client_ip, digest
 from .config import MAX_BODY_BYTES, Settings
 from .limiter import Limiter
 from .payload import CAPTURE_BYTES, estimate_tokens, inspect_response, usage_tokens, valid_response
 from .scheduler import BodyBudget, Rejected, Scheduler
 from .storage import Store
+from .system import SystemSampler
 from .telemetry import Telemetry, new_event
 from .transport import ProxyResponse, upstream_request
 
@@ -67,6 +69,38 @@ class RequestID:
             value.decode("ascii") if re.fullmatch(rb"[A-Za-z0-9_-]{1,128}", value) else uuid4().hex
         )
         scope["request_id"] = request_id
+        is_admin = scope["path"] == "/admin" or scope["path"].startswith("/admin/")
+        cors = CORS_HEADERS
+        preflight = CORS_PREFLIGHT_HEADERS
+        if is_admin:
+            origins = [v.decode("latin-1") for k, v in scope["headers"] if k.lower() == b"origin"]
+            allowed = scope["app"].state.settings.admin_allowed_origins
+            if (origins and (len(origins) != 1 or origins[0] not in allowed)) or (
+                scope["method"] == "POST"
+                and not origins
+                and headers.get(b"sec-fetch-site") == b"cross-site"
+            ):
+                return await JSONResponse(
+                    {"detail": "Origin not allowed"},
+                    status_code=403,
+                    headers={"Cache-Control": "no-store", "Vary": "Origin"},
+                )(scope, receive, send)
+            cors = [
+                (b"vary", b"Origin"),
+                (b"cache-control", b"no-store"),
+                (b"x-content-type-options", b"nosniff"),
+            ]
+            if origins:
+                cors += [
+                    (b"access-control-allow-origin", origins[0].encode("latin-1")),
+                    (b"access-control-allow-credentials", b"true"),
+                    (b"access-control-expose-headers", b"Retry-After, X-Request-ID"),
+                ]
+            preflight = cors + [
+                (b"access-control-allow-methods", b"GET, POST"),
+                (b"access-control-allow-headers", b"Content-Type"),
+                (b"access-control-max-age", b"600"),
+            ]
 
         if (
             scope["method"] == "OPTIONS"
@@ -77,7 +111,7 @@ class RequestID:
                 {
                     "type": "http.response.start",
                     "status": 204,
-                    "headers": CORS_PREFLIGHT_HEADERS + [(b"x-request-id", request_id.encode())],
+                    "headers": preflight + [(b"x-request-id", request_id.encode())],
                 }
             )
             await send({"type": "http.response.body", "body": b""})
@@ -88,10 +122,12 @@ class RequestID:
                 response_headers = [
                     (k, v)
                     for k, v in message["headers"]
-                    if k.lower() != b"x-request-id" and not k.lower().startswith(b"access-control-")
+                    if k.lower() != b"x-request-id"
+                    and not k.lower().startswith(b"access-control-")
+                    and not (is_admin and k.lower() in (b"cache-control", b"vary"))
                 ]
                 message["headers"] = (
-                    response_headers + CORS_HEADERS + [(b"x-request-id", request_id.encode())]
+                    response_headers + cors + [(b"x-request-id", request_id.encode())]
                 )
             await send(message)
 
@@ -112,14 +148,19 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
             max_connections=64,
         )
         state.store = store or await Store.connect(config.database_url)
+        state.store.retention_seconds = config.observability_retention_seconds
         try:
             await state.redis.ping()
             await state.store.policies()
             state.limiter = Limiter(state.redis, config)
             state.scheduler = Scheduler(state.limiter, config)
             state.budget = BodyBudget(config)
-            state.telemetry = Telemetry(state.store, state.redis)
+            state.telemetry = Telemetry(
+                state.store, state.redis, config.observability_retention_seconds
+            )
             state.telemetry.start()
+            state.system = SystemSampler(config)
+            state.system.start()
             await state.scheduler.start()
             async with httpx.AsyncClient(
                 transport=transport or httpx.AsyncHTTPTransport(retries=0),
@@ -137,6 +178,7 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
                 finally:
                     await state.scheduler.close()
                     await state.telemetry.close()
+                    await state.system.close()
         finally:
             if store is None:
                 await state.store.close()
@@ -146,6 +188,14 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     app.router.redirect_slashes = False
     app.add_middleware(RequestID)
+    app.include_router(admin_router())
+
+    class AdminNotFound:
+        async def __call__(self, scope, receive, send):
+            await JSONResponse({"detail": "Not found"}, status_code=404)(scope, receive, send)
+
+    app.router.add_route("/admin", AdminNotFound(), methods=None)
+    app.router.add_route("/admin/{path:path}", AdminNotFound(), methods=None)
 
     @app.get("/health")
     async def health(request: Request) -> Response:
@@ -160,11 +210,15 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
             config = state.settings
             started = time.monotonic()
             event = new_event(scope, scope["request_id"])
-            event["ip_hash"] = digest(
-                config.hash_secret, client_ip(scope, config.trusted_proxies).encode(), "ip"
-            )
+            event["client_ip"] = client_ip(scope, config.trusted_proxies)
+            event["ip_hash"] = digest(config.hash_secret, event["client_ip"].encode(), "ip")
             secrets = [key.secret for key in config.masters] + list(config.legacy_tokens)
-            secrets += [config.hash_secret, config.database_url, config.redis_url]
+            secrets += [
+                config.hash_secret,
+                config.database_url,
+                config.redis_url,
+                config.admin_password,
+            ]
             secrets += [v for _, v in parse_qsl(scope["query_string"].decode("latin-1")) if v]
             secrets.append(bearer(scope["headers"]))
             claimed = False
@@ -363,7 +417,7 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
                     state.budget.leave(body_size)
                 event["request_bytes"] = body_size
                 event["duration_ms"] = (time.monotonic() - started) * 1000
-                state.telemetry.count(event)
+                state.telemetry.count(event, secrets)
                 if event["error_code"]:
                     state.telemetry.error(event, secrets)
 

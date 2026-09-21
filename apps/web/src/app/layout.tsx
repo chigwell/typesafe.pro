@@ -92,7 +92,7 @@ gtag('config', 'AW-18465939418');`;
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" data-theme="light">
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <head>
         <meta id="theme-color" name="theme-color" content="#ebf5ff" />
         <meta name="color-scheme" content="light dark" />

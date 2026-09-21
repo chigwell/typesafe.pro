@@ -7,6 +7,7 @@ from collections import Counter
 from datetime import UTC, datetime
 from urllib.parse import quote, unquote
 
+from .activity import Activity
 from .config import RETENTION_SECONDS
 
 logger = logging.getLogger("proxy")
@@ -40,6 +41,7 @@ def new_event(scope, request_id):
         client_tier="unknown",
         client_hash=None,
         ip_hash=None,
+        client_ip=None,
         method=scope["method"][:32],
         path=scope["path"][:1024],
         status=500,
@@ -61,18 +63,21 @@ def new_event(scope, request_id):
 
 
 class Telemetry:
-    def __init__(self, store, redis):
+    def __init__(self, store, redis, retention_seconds=RETENTION_SECONDS):
         self.store, self.redis = store, redis
         self.errors = asyncio.Queue(maxsize=512)
         self.metrics = Counter()
         self.stopped = asyncio.Event()
         self.task = None
         self.dropped = 0
+        self.retention_seconds = retention_seconds
+        self.activity = Activity(redis, retention_seconds)
 
     def start(self):
         self.task = asyncio.create_task(self.run())
 
-    def count(self, event):
+    def count(self, event, secrets=()):
+        self.activity.count(event, sanitize(unquote(event["path"]), secrets, limit=256))
         minute = int(time.time() // 60)
         dimensions = ("all", f"tier:{event['client_tier']}")
         if event["master_key_id"]:
@@ -100,7 +105,12 @@ class Telemetry:
         except asyncio.QueueFull:
             self.dropped += 1
             # Bounded fallback includes the sanitized event, never an exception traceback.
-            logger.error("error_log_overflow %s", json.dumps(event, default=str))
+            logger.error(
+                "error_log_overflow %s",
+                json.dumps(
+                    {key: value for key, value in event.items() if key != "client_ip"}, default=str
+                ),
+            )
 
     async def flush(self):
         events = []
@@ -110,8 +120,15 @@ class Telemetry:
             try:
                 await self.store.write_errors(events)
             except Exception:
+                self.dropped += len(events)
                 for event in events:
-                    logger.error("error_log_unavailable %s", json.dumps(event, default=str))
+                    logger.error(
+                        "error_log_unavailable %s",
+                        json.dumps(
+                            {key: value for key, value in event.items() if key != "client_ip"},
+                            default=str,
+                        ),
+                    )
         metrics, self.metrics = self.metrics, Counter()
         if metrics:
             try:
@@ -119,10 +136,14 @@ class Telemetry:
                     for (key, field), value in metrics.items():
                         pipe.hincrby(key, field, value)
                     for key in {key for key, _ in metrics}:
-                        pipe.expire(key, RETENTION_SECONDS)
+                        pipe.expire(key, self.retention_seconds)
                     await pipe.execute()
             except Exception:
                 logger.warning("metrics_unavailable")
+        try:
+            await self.activity.flush()
+        except Exception:
+            logger.warning("activity_unavailable")
 
     async def run(self):
         next_cleanup = 0

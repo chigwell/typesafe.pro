@@ -15,6 +15,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!apps/web/src/lib/
 lib64/
 parts/
 sdist/
@@ -149,6 +150,7 @@ activemq-data/
 
 # Environments
 .env
+.env.admin-*
 runtime.env
 postgres.env
 .envrc

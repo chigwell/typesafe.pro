@@ -286,7 +286,7 @@ async def test_policies_refresh_and_error_ttl_cleanup(store, redis):
     store._policies_until = 0
     assert (await store.policies())["anonymous"].rpm == 42
     event = new_event(scope(), "old")
-    event["created_at"] = datetime.now(UTC) - timedelta(days=4)
+    event["created_at"] = datetime.now(UTC) - timedelta(days=8)
     current = new_event(scope(), "current")
     await store.write_errors([event, current])
     assert await store.cleanup() == "DELETE 1"

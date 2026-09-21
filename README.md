@@ -162,10 +162,18 @@ The endpoint returns a small JSON status document and does not call the model.
 
 ## Privacy
 
-Keep API tokens server-side. The service records operational error events for a
-short retention period to investigate failed requests. These records use hashed
-client and IP identifiers, omit authorization values and request bodies, and keep
-only a bounded, sanitized portion of an upstream error response.
+Keep API tokens server-side. The service retains operational activity and error
+events for seven days, including real client IP addresses for abuse investigation
+and usage statistics. Client token identifiers are hashed. Error records omit
+authorization values and request bodies and keep only a bounded, sanitized portion
+of an upstream error response. These records are available only through the
+authenticated admin API.
+
+## Operations dashboard
+
+The read-only dashboard at `/admin` uses the protected `/admin/api` routes on the
+API host. See [admin operations](docs/admin.md) for configuration, secrets,
+retention, and local verification.
 
 ## Support
 

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   check:
-    name: Check proxy
+    name: Check API and web
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -40,6 +40,13 @@ jobs:
       - run: uv run --project apps/api ruff check apps/api deploy
       - run: uv run --project apps/api ruff format --check apps/api deploy
       - run: uv run --project apps/api pytest apps/api/tests
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test --workspace @typesafe-pro/web
+      - run: npm run build --workspace @typesafe-pro/web
       - name: Check deployment scripts
         run: |
           for script in deploy/*.sh; do bash -n "$script"; done
@@ -72,6 +79,7 @@ jobs:
           REDIS_URL: redis://redis:6379/0
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           TOKEN_HASH_SECRET: ${{ secrets.TOKEN_HASH_SECRET }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: bash deploy/ci.sh
 
   deploy-web:

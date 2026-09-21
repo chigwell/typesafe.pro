@@ -1,2 +1,7 @@
 /opengraph-image
   Content-Type: image/png
+/admin*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer

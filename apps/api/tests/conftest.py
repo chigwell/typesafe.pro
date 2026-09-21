@@ -24,6 +24,7 @@ ENV = {
     "REDIS_URL": "redis://unused",
     "TOKEN_HASH_SECRET": "test-hash-secret-at-least-32-characters",
     "RELEASE_SHA": "test-release",
+    "ADMIN_PASSWORD": "test-admin-password-at-least-32-characters",
 }
 
 

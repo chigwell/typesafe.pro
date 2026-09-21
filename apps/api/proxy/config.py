@@ -3,6 +3,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from ipaddress import ip_network
+from urllib.parse import urlsplit
 
 UPSTREAM = "https://api.typesafe.ai"
 MAX_BODY_BYTES = 10 * 1024 * 1024
@@ -10,7 +11,7 @@ MASTER_REQUESTS_PER_MINUTE = 1_200
 MASTER_TOKENS_PER_SECOND = 250_000
 MAX_CONTEXT_TOKENS = 64_000
 MAX_STATE_QUESTION_TOKENS = 32_000
-RETENTION_SECONDS = 3 * 24 * 60 * 60
+RETENTION_SECONDS = 7 * 24 * 60 * 60
 TOKEN_NAME = re.compile(r"TYPESAFE_(TEST|MASTER)_API_TOKEN_([1-9][0-9]*)$")
 TIERS = ("paid", "free", "anonymous")
 
@@ -51,6 +52,14 @@ class Settings:
     master_max_inflight: int = 8
     request_timeout: int = 90
     release_sha: str = "development"
+    admin_password: bytes = field(default=b"", repr=False)
+    admin_session_ttl_seconds: int = 28800
+    admin_login_max_attempts: int = 5
+    admin_login_window_seconds: int = 900
+    admin_allowed_origins: tuple[str, ...] = ("https://typesafe.pro",)
+    observability_retention_seconds: int = RETENTION_SECONDS
+    host_proc_path: str = "/proc"
+    host_disk_path: str = "/"
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -84,6 +93,29 @@ class Settings:
             raise ValueError("Missing required settings: " + ", ".join(missing))
         if len(env["TOKEN_HASH_SECRET"]) < 32:
             raise ValueError("TOKEN_HASH_SECRET must contain at least 32 characters")
+        password = env.get("ADMIN_PASSWORD", "")
+        if not re.fullmatch(r"[\x21-\x7e]{32,256}", password):
+            raise ValueError("ADMIN_PASSWORD must contain 32 to 256 printable ASCII characters")
+        origins = tuple(
+            value.strip()
+            for value in env.get("ADMIN_ALLOWED_ORIGINS", "https://typesafe.pro").split(",")
+            if value.strip()
+        )
+        for origin in origins:
+            parsed = urlsplit(origin)
+            if (
+                parsed.scheme not in ("http", "https")
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or (parsed.scheme == "http" and parsed.hostname not in ("localhost", "127.0.0.1"))
+            ):
+                raise ValueError("ADMIN_ALLOWED_ORIGINS must contain exact HTTPS origins")
+        if not origins:
+            raise ValueError("ADMIN_ALLOWED_ORIGINS must not be empty")
 
         def positive(name, default):
             try:
@@ -93,6 +125,10 @@ class Settings:
             except ValueError:
                 pass
             raise ValueError(f"{name} must be a positive integer")
+
+        retention = positive("OBSERVABILITY_RETENTION_SECONDS", RETENTION_SECONDS)
+        if retention < 300 or retention % 60:
+            raise ValueError("OBSERVABILITY_RETENTION_SECONDS must be whole minutes, at least 300")
 
         try:
             trusted = tuple(
@@ -115,4 +151,12 @@ class Settings:
             master_max_inflight=positive("MASTER_MAX_INFLIGHT", 8),
             request_timeout=positive("REQUEST_TIMEOUT_SECONDS", 90),
             release_sha=env.get("RELEASE_SHA", "development"),
+            admin_password=password.encode("ascii"),
+            admin_session_ttl_seconds=positive("ADMIN_SESSION_TTL_SECONDS", 28800),
+            admin_login_max_attempts=positive("ADMIN_LOGIN_MAX_ATTEMPTS", 5),
+            admin_login_window_seconds=positive("ADMIN_LOGIN_WINDOW_SECONDS", 900),
+            admin_allowed_origins=origins,
+            observability_retention_seconds=retention,
+            host_proc_path=env.get("HOST_PROC_PATH", "/proc"),
+            host_disk_path=env.get("HOST_DISK_PATH", "/"),
         )

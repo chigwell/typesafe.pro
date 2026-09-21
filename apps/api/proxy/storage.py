@@ -13,6 +13,7 @@ class Store:
         self._policies = {}
         self._policies_until = 0
         self._policy_lock = asyncio.Lock()
+        self.retention_seconds = RETENTION_SECONDS
 
     @classmethod
     async def connect(cls, url):
@@ -84,5 +85,35 @@ class Store:
             """DELETE FROM proxy_error_events WHERE id IN
                (SELECT id FROM proxy_error_events WHERE created_at < $1
                 ORDER BY created_at LIMIT 2000)""",
-            datetime.now(UTC) - timedelta(seconds=RETENTION_SECONDS),
+            datetime.now(UTC) - timedelta(seconds=self.retention_seconds),
         )
+
+    async def error_page(self, page, page_size, status=None, error_code=None):
+        args = [datetime.now(UTC) - timedelta(seconds=self.retention_seconds)]
+        conditions = ["created_at >= $1"]
+        for column, value in (("status", status), ("error_code", error_code)):
+            if value is not None:
+                args.append(value)
+                conditions.append(f"{column} = ${len(args)}")
+        where = " AND ".join(conditions)
+        # One snapshot keeps the count and page consistent during concurrent writes/cleanup.
+        async with self.pool.acquire() as connection:
+            async with connection.transaction(isolation="repeatable_read", readonly=True):
+                total = await connection.fetchval(
+                    "SELECT count(*) FROM proxy_error_events WHERE " + where, *args
+                )
+                rows = await connection.fetch(
+                    "SELECT * FROM proxy_error_events WHERE "
+                    + where
+                    + f" ORDER BY created_at DESC, id DESC LIMIT ${len(args) + 1}"
+                    + f" OFFSET ${len(args) + 2}",
+                    *args,
+                    page_size,
+                    (page - 1) * page_size,
+                )
+        return {
+            "items": [dict(row) for row in rows],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        }
