@@ -125,12 +125,12 @@ backlog. Query by known minute keys or `SCAN`, not production `KEYS`.
 
 ## Deploy and Verify
 
-Configure GitHub secrets `DATABASE_URL`, `POSTGRES_PASSWORD`, `TOKEN_HASH_SECRET`
-and `TYPESAFE_MASTER_API_TOKEN_1`; the legacy test token is optional. The database
-URL must match the password, with URL encoding where necessary. Keep these values
-stable across releases. The deployment creates separate mode-600 API and Postgres
-env files so PostgreSQL does not receive master keys. Redis/Postgres have no
-published host ports; named volumes survive API replacement and rollback.
+Configure GitHub secrets `POSTGRES_PASSWORD`, `TOKEN_HASH_SECRET` and
+`TYPESAFE_MASTER_API_TOKEN_1`; the legacy test token is optional. Deployment
+derives the internal PostgreSQL URL and URL-encodes the password. Keep the password
+and hash secret stable across releases. The deployment creates separate mode-600 API
+and Postgres env files so PostgreSQL does not receive master keys. Redis/Postgres
+have no published host ports; named volumes survive API replacement and rollback.
 
 Deployment starts data services, runs Alembic, then replaces the API. Migrations
 must stay backward-compatible with the preceding API; rollback never downgrades

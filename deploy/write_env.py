@@ -3,19 +3,29 @@
 import os
 import sys
 from pathlib import Path
+from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/api"))
 from proxy.config import Settings
 
 
 def main():
-    Settings.from_env()
+    password = os.environ.get("POSTGRES_PASSWORD")
+    if not password:
+        raise ValueError("POSTGRES_PASSWORD is required")
+    values_from_env = dict(os.environ)
+    values_from_env.setdefault(
+        "DATABASE_URL",
+        "postgresql://typesafe:" + quote(password, safe="") + "@postgres:5432/typesafe",
+    )
+    values_from_env.setdefault("REDIS_URL", "redis://redis:6379/0")
+    Settings.from_env(values_from_env)
     names = sorted(
         name
         for name in os.environ
         if name.startswith(("TYPESAFE_TEST_API_TOKEN_", "TYPESAFE_MASTER_API_TOKEN_"))
     )
-    values = {name: os.environ[name] for name in names}
+    values = {name: values_from_env[name] for name in names}
     for name in (
         "DATABASE_URL",
         "REDIS_URL",
@@ -27,13 +37,11 @@ def main():
         "MASTER_MAX_INFLIGHT",
         "REQUEST_TIMEOUT_SECONDS",
     ):
-        if name in os.environ:
-            values[name] = os.environ[name]
-    if not values.get("POSTGRES_PASSWORD"):
-        raise ValueError("POSTGRES_PASSWORD is required")
+        if name in values_from_env:
+            values[name] = values_from_env[name]
     if any("\n" in value or "\r" in value for value in values.values()):
         raise ValueError("Runtime values must be single-line")
-    password = values.pop("POSTGRES_PASSWORD")
+    values.pop("POSTGRES_PASSWORD")
     with os.fdopen(
         os.open(sys.argv[1], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w"
     ) as output:

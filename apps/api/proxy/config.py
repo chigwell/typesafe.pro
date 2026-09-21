@@ -77,8 +77,11 @@ class Settings:
         ):
             raise ValueError("Tokens must be unique and client/master tokens must differ")
         required = ("DATABASE_URL", "REDIS_URL", "TOKEN_HASH_SECRET")
-        if any(not env.get(name) or "\n" in env[name] or "\r" in env[name] for name in required):
-            raise ValueError("DATABASE_URL, REDIS_URL and TOKEN_HASH_SECRET are required")
+        missing = [
+            name for name in required if not env.get(name) or "\n" in env[name] or "\r" in env[name]
+        ]
+        if missing:
+            raise ValueError("Missing required settings: " + ", ".join(missing))
         if len(env["TOKEN_HASH_SECRET"]) < 32:
             raise ValueError("TOKEN_HASH_SECRET must contain at least 32 characters")
 

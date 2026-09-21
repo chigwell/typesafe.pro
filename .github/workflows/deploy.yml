@@ -69,7 +69,6 @@ jobs:
           SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
           TYPESAFE_TEST_API_TOKEN_1: ${{ secrets.TYPESAFE_TEST_API_TOKEN_1 }}
           TYPESAFE_MASTER_API_TOKEN_1: ${{ secrets.TYPESAFE_MASTER_API_TOKEN_1 }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           REDIS_URL: redis://redis:6379/0
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           TOKEN_HASH_SECRET: ${{ secrets.TOKEN_HASH_SECRET }}
