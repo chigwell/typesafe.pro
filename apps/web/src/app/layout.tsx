@@ -76,6 +76,20 @@ function ThemeScript() {
   return <script dangerouslySetInnerHTML={{ __html: source }} />;
 }
 
+function GoogleTag() {
+  const source = `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', 'AW-18465939418');`;
+  return (
+    <>
+      <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18465939418" />
+      <script dangerouslySetInnerHTML={{ __html: source }} />
+    </>
+  );
+}
+
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en" data-theme="light">
@@ -83,6 +97,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <meta id="theme-color" name="theme-color" content="#ebf5ff" />
         <meta name="color-scheme" content="light dark" />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
+        <GoogleTag />
         <ThemeScript />
       </head>
       <body>{children}</body>
