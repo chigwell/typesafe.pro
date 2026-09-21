@@ -28,6 +28,17 @@ from .storage import Store
 from .telemetry import Telemetry, new_event
 from .transport import ProxyResponse, upstream_request
 
+CORS_HEADERS = [
+    (b"access-control-allow-origin", b"*"),
+    (b"access-control-expose-headers", b"X-Request-ID, Retry-After"),
+]
+CORS_PREFLIGHT_HEADERS = CORS_HEADERS + [
+    (b"access-control-allow-methods", b"DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT"),
+    (b"access-control-allow-headers", b"Authorization, Content-Type, X-Request-ID"),
+    (b"access-control-max-age", b"600"),
+    (b"cache-control", b"no-store"),
+]
+
 
 def retry_seconds(upstream):
     if upstream.status_code in (401, 403):
@@ -49,6 +60,7 @@ class RequestID:
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
+        headers = dict((k.lower(), v) for k, v in scope["headers"])
         values = [v for k, v in scope["headers"] if k.lower() == b"x-request-id"]
         value = values[0] if len(values) == 1 else b""
         request_id = (
@@ -56,10 +68,31 @@ class RequestID:
         )
         scope["request_id"] = request_id
 
+        if (
+            scope["method"] == "OPTIONS"
+            and b"origin" in headers
+            and b"access-control-request-method" in headers
+        ):
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 204,
+                    "headers": CORS_PREFLIGHT_HEADERS + [(b"x-request-id", request_id.encode())],
+                }
+            )
+            await send({"type": "http.response.body", "body": b""})
+            return
+
         async def with_id(message):
             if message["type"] == "http.response.start":
-                headers = [(k, v) for k, v in message["headers"] if k.lower() != b"x-request-id"]
-                message["headers"] = headers + [(b"x-request-id", request_id.encode())]
+                response_headers = [
+                    (k, v)
+                    for k, v in message["headers"]
+                    if k.lower() != b"x-request-id" and not k.lower().startswith(b"access-control-")
+                ]
+                message["headers"] = (
+                    response_headers + CORS_HEADERS + [(b"x-request-id", request_id.encode())]
+                )
             await send(message)
 
         await self.app(scope, receive, with_id)

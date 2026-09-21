@@ -81,11 +81,38 @@ async def test_health_bypasses_admission(client_for):
         result = await client.get("/health")
         assert result.json() == {"ok": True, "service": "typesafe-proxy", "release": "test-release"}
         assert result.headers["cache-control"] == "no-store"
+        assert result.headers["access-control-allow-origin"] == "*"
+        assert result.headers["access-control-expose-headers"] == "X-Request-ID, Retry-After"
         assert result.headers["x-request-id"]
         assert not calls
         for path in ("/", "/docs", "/openapi.json", "/health/"):
             assert (await client.get(path)).status_code == 200
         assert (await client.post("/health")).status_code == 200
+
+
+async def test_cors_preflight_bypasses_upstream_and_admission(client_for):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return response()
+
+    async with client_for(handler) as client:
+        result = await client.options(
+            "/v1/systemone",
+            headers={
+                "Origin": "https://typesafe.pro",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,authorization",
+            },
+        )
+    assert result.status_code == 204
+    assert result.headers["access-control-allow-origin"] == "*"
+    assert "POST" in result.headers["access-control-allow-methods"]
+    assert "Authorization" in result.headers["access-control-allow-headers"]
+    assert result.headers["access-control-expose-headers"] == "X-Request-ID, Retry-After"
+    assert result.headers["x-request-id"]
+    assert not calls
 
 
 async def test_limiter_concurrency_and_key_isolation(client_for):

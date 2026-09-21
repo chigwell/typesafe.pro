@@ -159,6 +159,13 @@ ENV/
 env.bak/
 venv.bak/
 
+# Node / Next.js
+node_modules/
+.next/
+out/
+apps/web/.next/
+apps/web/out/
+
 # Spyder project settings
 .spyderproject
 .spyproject

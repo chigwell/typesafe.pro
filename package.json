@@ -8,6 +8,8 @@
   ],
   "scripts": {
     "dev:web": "npm run dev --workspace @typesafe-pro/web",
+    "build:web": "npm run build --workspace @typesafe-pro/web",
+    "test:web": "npm run test --workspace @typesafe-pro/web",
     "dev:api": "uv run --project apps/api --env-file .env uvicorn proxy.main:app --app-dir apps/api --port 8010 --reload --no-access-log",
     "check": "uv run --project apps/api ruff check apps/api deploy && uv run --project apps/api ruff format --check apps/api deploy",
     "test": "uv run --project apps/api pytest apps/api/tests",
