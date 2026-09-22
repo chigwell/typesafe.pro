@@ -290,17 +290,23 @@ async def test_stream_closes_upstream_on_client_disconnect():
         {"TYPESAFE_MASTER_API_TOKEN_1": "client-one"},
         {"TYPESAFE_TEST_API_TOKEN_3": "orphan"},
         {"TYPESAFE_TEST_API_TOKEN_bad": "bad"},
+        {"TYPESAFE_ADMIN_API_TOKEN_1": ""},
+        {"TYPESAFE_ADMIN_API_TOKEN_bad": "bad"},
         {"TYPESAFE_TEST_API_TOKEN_1": "line\nbreak"},
         {"MAX_PENDING_REQUESTS": "0"},
         {"MAX_INFLIGHT_REQUESTS": "NaN"},
         {"TOKEN_HASH_SECRET": "short"},
         {"TYPESAFE_MASTER_API_TOKEN_2": "master-one"},
+        {"TYPESAFE_ADMIN_API_TOKEN_1": "master-one"},
+        {"TYPESAFE_ADMIN_API_TOKEN_2": "admin-one"},
     ],
 )
 def test_invalid_configuration_fails_closed_without_secret_values(changes):
     with pytest.raises(ValueError) as error:
         Settings.from_env(ENV | changes)
-    assert "client-one" not in str(error.value) and "master-one" not in str(error.value)
+    assert all(
+        secret not in str(error.value) for secret in ("client-one", "master-one", "admin-one")
+    )
 
 
 def test_empty_configuration_rejected_and_repr_redacted():
@@ -308,3 +314,4 @@ def test_empty_configuration_rejected_and_repr_redacted():
         Settings.from_env({})
     assert "client-one" not in repr(Settings.from_env(ENV))
     assert "master-one" not in repr(Settings.from_env(ENV))
+    assert "admin-one" not in repr(Settings.from_env(ENV))

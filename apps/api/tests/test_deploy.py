@@ -16,11 +16,14 @@ def test_runtime_environment_files_are_separated_and_private(tmp_path):
         check=True,
     )
     pg = tmp_path / "postgres.env"
+    runtime = target.read_text()
     assert pg.read_text() == "POSTGRES_PASSWORD=test-only-db-pass\n"
-    assert "master-one" in target.read_text()
-    assert f"ADMIN_PASSWORD={ENV['ADMIN_PASSWORD']}\n" in target.read_text()
-    assert "POSTGRES_PASSWORD" not in target.read_text()
+    assert "master-one" in runtime
+    assert "admin-one" in runtime
+    assert f"ADMIN_PASSWORD={ENV['ADMIN_PASSWORD']}\n" in runtime
+    assert "POSTGRES_PASSWORD" not in runtime
     assert "master-one" not in pg.read_text()
+    assert "admin-one" not in pg.read_text()
     assert target.stat().st_mode & 0o777 == pg.stat().st_mode & 0o777 == 0o600
 
 

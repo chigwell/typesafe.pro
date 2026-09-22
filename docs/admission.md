@@ -46,6 +46,10 @@ Unknown tokens are not cached, to avoid unbounded negative-cache cardinality.
 `expires_at` and `revoked_at` are optional timestamptz columns. Legacy env tokens
 are always free and are removed by changing env and restarting. Rotating
 `TOKEN_HASH_SECRET` invalidates database tokens and changes hashed identities.
+Server-only `TYPESAFE_ADMIN_API_TOKEN_N` values are trusted incoming API tokens:
+they authenticate as tier `admin`, skip the per-client rate limiter, and still
+use the paid upstream scheduler lane, global queue limits, body validation and
+master capacity controls. Do not expose them to browsers or client-side bundles.
 
 ## Capacity and Memory
 
@@ -126,12 +130,13 @@ backlog. Query by known minute keys or `SCAN`, not production `KEYS`.
 
 ## Deploy and Verify
 
-Configure GitHub secrets `POSTGRES_PASSWORD`, `TOKEN_HASH_SECRET` and
-`TYPESAFE_MASTER_API_TOKEN_1`; the legacy test token is optional. Deployment
-derives the internal PostgreSQL URL and URL-encodes the password. Keep the password
-and hash secret stable across releases. The deployment creates separate mode-600 API
-and Postgres env files so PostgreSQL does not receive master keys. Redis/Postgres
-have no published host ports; named volumes survive API replacement and rollback.
+Configure GitHub secrets `POSTGRES_PASSWORD`, `TOKEN_HASH_SECRET`,
+`TYPESAFE_MASTER_API_TOKEN_1` and any `TYPESAFE_ADMIN_API_TOKEN_N` values. The
+legacy test token is optional. Deployment derives the internal PostgreSQL URL
+and URL-encodes the password. Keep the password and hash secret stable across
+releases. The deployment creates separate mode-600 API and Postgres env files so
+PostgreSQL does not receive API, admin or master keys. Redis/Postgres have no
+published host ports; named volumes survive API replacement and rollback.
 
 Deployment starts data services, runs Alembic, then replaces the API. Migrations
 must stay backward-compatible with the preceding API; rollback never downgrades

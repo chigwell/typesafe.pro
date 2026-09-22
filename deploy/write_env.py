@@ -23,7 +23,13 @@ def main():
     names = sorted(
         name
         for name in os.environ
-        if name.startswith(("TYPESAFE_TEST_API_TOKEN_", "TYPESAFE_MASTER_API_TOKEN_"))
+        if name.startswith(
+            (
+                "TYPESAFE_TEST_API_TOKEN_",
+                "TYPESAFE_MASTER_API_TOKEN_",
+                "TYPESAFE_ADMIN_API_TOKEN_",
+            )
+        )
     )
     values = {name: values_from_env[name] for name in names}
     for name in (

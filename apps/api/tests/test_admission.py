@@ -13,7 +13,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from proxy.auth import Identity, authenticate, client_ip, digest
 from proxy.config import DEFAULT_POLICIES, MAX_CONTEXT_TOKENS, RETENTION_SECONDS, Settings
 from proxy.limiter import Limiter
-from proxy.main import create_app, retry_seconds
+from proxy.main import admission_policy, create_app, retry_seconds
 from proxy.payload import inspect_response, usage_tokens, valid_response
 from proxy.scheduler import BodyBudget, Rejected, Scheduler
 from proxy.telemetry import Telemetry, new_event, sanitize
@@ -56,6 +56,18 @@ async def test_database_token_hash_lookup_cache_expiry_and_revocation(tier, stor
     )
     assert (await authenticate(request, settings, store, redis)).tier == "anonymous"
     assert await redis.get("ts:auth:" + hashed) is None
+
+
+async def test_admin_env_token_authenticates_as_admin(store, redis):
+    settings = Settings.from_env(ENV)
+    request = scope([(b"authorization", b"Bearer admin-one")])
+    identity = await authenticate(request, settings, store, redis)
+    assert identity.tier == "admin"
+    assert identity.client_hash == digest(settings.hash_secret, b"admin-one")
+
+
+def test_admin_tier_uses_paid_scheduler_policy():
+    assert admission_policy(DEFAULT_POLICIES, "admin") is DEFAULT_POLICIES["paid"]
 
 
 @pytest.mark.parametrize(
@@ -280,6 +292,21 @@ async def test_response_validation_and_compressed_usage(client_for, store, redis
         await store.pool.fetchval("SELECT error_code FROM proxy_error_events")
         == "invalid_upstream_response"
     )
+
+
+async def test_admin_token_still_validates_request_body(client_for, monkeypatch):
+    async def fail_client_retry(identity, policy):
+        pytest.fail("admin tokens must bypass the per-client limiter")
+
+    async with client_for(lambda request: pytest.fail("invalid body reached upstream")) as client:
+        monkeypatch.setattr(client.app.state.limiter, "client_retry", fail_client_retry)
+        result = await client.post(
+            "/v1/systemone",
+            headers={"Authorization": "Bearer admin-one", "Content-Type": "application/json"},
+            content=b"{",
+        )
+    assert result.status_code == 400
+    assert result.json()["error"] == "invalid_json"
 
 
 async def test_policies_refresh_and_error_ttl_cleanup(store, redis):

@@ -56,6 +56,10 @@ def retry_seconds(upstream):
             return 1
 
 
+def admission_policy(policies, tier):
+    return policies["paid"] if tier == "admin" else policies[tier]
+
+
 class RequestID:
     def __init__(self, app):
         self.app = app
@@ -222,6 +226,7 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
             event["ip_hash"] = digest(config.hash_secret, event["client_ip"].encode(), "ip")
             secrets = [key.secret for key in config.masters] + list(config.legacy_tokens)
             secrets += [
+                *config.admin_tokens,
                 config.hash_secret,
                 config.database_url,
                 config.redis_url,
@@ -348,10 +353,11 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
                     client_hash=identity.client_hash,
                     ip_hash=identity.ip_hash,
                 )
-                policy = (await state.store.policies())[identity.tier]
-                retry = await state.limiter.client_retry(identity, policy)
-                if retry:
-                    raise Rejected("rate_limit_exceeded", 429, retry)
+                policy = admission_policy(await state.store.policies(), identity.tier)
+                if identity.tier != "admin":
+                    retry = await state.limiter.client_retry(identity, policy)
+                    if retry:
+                        raise Rejected("rate_limit_exceeded", 429, retry)
                 validate_media(scope["headers"])
                 stage = "upload"
                 body = bytearray()

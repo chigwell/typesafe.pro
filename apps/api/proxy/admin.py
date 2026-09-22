@@ -168,6 +168,7 @@ def admin_router():
             config.hash_secret,
             config.database_url,
             config.redis_url,
+            *config.admin_tokens,
             *config.legacy_tokens,
             *(key.secret for key in config.masters),
         ]

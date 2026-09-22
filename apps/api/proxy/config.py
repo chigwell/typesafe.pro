@@ -12,7 +12,7 @@ MASTER_TOKENS_PER_SECOND = 250_000
 MAX_CONTEXT_TOKENS = 64_000
 MAX_STATE_QUESTION_TOKENS = 32_000
 RETENTION_SECONDS = 7 * 24 * 60 * 60
-TOKEN_NAME = re.compile(r"TYPESAFE_(TEST|MASTER)_API_TOKEN_([1-9][0-9]*)$")
+TOKEN_NAME = re.compile(r"TYPESAFE_(TEST|MASTER|ADMIN)_API_TOKEN_([1-9][0-9]*)$")
 TIERS = ("paid", "free", "anonymous")
 
 
@@ -60,13 +60,21 @@ class Settings:
     observability_retention_seconds: int = RETENTION_SECONDS
     host_proc_path: str = "/proc"
     host_disk_path: str = "/"
+    admin_tokens: tuple[bytes, ...] = field(default=(), repr=False)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
         env = os.environ if env is None else env
         keys: dict[str, dict[str, bytes]] = {}
+        admins: dict[str, bytes] = {}
         for name, value in env.items():
-            if not name.startswith(("TYPESAFE_TEST_API_TOKEN_", "TYPESAFE_MASTER_API_TOKEN_")):
+            if not name.startswith(
+                (
+                    "TYPESAFE_TEST_API_TOKEN_",
+                    "TYPESAFE_MASTER_API_TOKEN_",
+                    "TYPESAFE_ADMIN_API_TOKEN_",
+                )
+            ):
                 continue
             match = TOKEN_NAME.fullmatch(name)
             if match is not None and match.group(1) == "TEST" and not value:
@@ -74,17 +82,24 @@ class Settings:
             if match is None or not re.fullmatch(r"[\x21-\x7e]+", value):
                 raise ValueError("Invalid token configuration (names or values)")
             kind, key_id = match.groups()
+            if kind == "ADMIN":
+                admins[key_id] = value.encode("ascii")
+                continue
             keys.setdefault(key_id, {})[kind] = value.encode("ascii")
         if not keys or any("MASTER" not in pair for pair in keys.values()):
             raise ValueError("At least one master is required; legacy tokens need a matching index")
         clients = [pair["TEST"] for pair in keys.values() if "TEST" in pair]
         masters = [pair["MASTER"] for pair in keys.values()]
+        admin_tokens = list(admins.values())
         if (
             len(set(clients)) != len(clients)
             or len(set(masters)) != len(masters)
+            or len(set(admin_tokens)) != len(admin_tokens)
             or set(clients) & set(masters)
+            or set(clients) & set(admin_tokens)
+            or set(masters) & set(admin_tokens)
         ):
-            raise ValueError("Tokens must be unique and client/master tokens must differ")
+            raise ValueError("Tokens must be unique and client/master/admin tokens must differ")
         required = ("DATABASE_URL", "REDIS_URL", "TOKEN_HASH_SECRET")
         missing = [
             name for name in required if not env.get(name) or "\n" in env[name] or "\r" in env[name]
@@ -159,4 +174,5 @@ class Settings:
             observability_retention_seconds=retention,
             host_proc_path=env.get("HOST_PROC_PATH", "/proc"),
             host_disk_path=env.get("HOST_DISK_PATH", "/"),
+            admin_tokens=tuple(admins[key] for key in sorted(admins, key=int)),
         )

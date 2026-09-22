@@ -26,6 +26,7 @@ ENV = {
     "TYPESAFE_MASTER_API_TOKEN_1": "master-one",
     "TYPESAFE_TEST_API_TOKEN_2": "client-two",
     "TYPESAFE_MASTER_API_TOKEN_2": "master-two",
+    "TYPESAFE_ADMIN_API_TOKEN_1": "admin-one",
     "DATABASE_URL": "postgresql://unused",
     "REDIS_URL": "redis://unused",
     "TOKEN_HASH_SECRET": "test-hash-secret-at-least-32-characters",

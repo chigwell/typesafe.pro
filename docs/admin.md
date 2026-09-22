@@ -21,6 +21,10 @@ It must never be named `NEXT_PUBLIC_ADMIN_PASSWORD`. Deploy runs the additive
 `0002_observability` migration before starting the new API. Existing error rows
 remain available with a null real IP.
 
+`ADMIN_PASSWORD` is only for the `/admin` dashboard login. Trusted incoming
+programmatic API access uses separate server-only `TYPESAFE_ADMIN_API_TOKEN_N`
+values documented in `docs/admission.md`.
+
 | Setting | Default |
 | --- | --- |
 | `ADMIN_PASSWORD` | Required |

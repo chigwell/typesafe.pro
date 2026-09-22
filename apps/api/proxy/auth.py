@@ -51,6 +51,8 @@ async def authenticate(scope, settings: Settings, store, redis) -> Identity:
     candidate = bearer(scope["headers"])
     if candidate:
         hashed = digest(settings.hash_secret, candidate)
+        if any(compare_digest(candidate, token) for token in settings.admin_tokens):
+            return Identity("admin", hashed, ip_hash)
         if any(compare_digest(candidate, token) for token in settings.legacy_tokens):
             return Identity("free", hashed, ip_hash)
         # Unknown tokens are not cached: rotating random credentials must not fill Redis.
