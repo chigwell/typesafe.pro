@@ -10,18 +10,11 @@ const API_BASE = (
 export function PublicPageViewTracker({ path }: { path: string }) {
   useEffect(() => {
     const body = JSON.stringify({ path });
-    const url = `${API_BASE}/analytics/view`;
-    if (navigator.sendBeacon) {
-      const sent = navigator.sendBeacon(
-        url,
-        new Blob([body], { type: "application/json" }),
-      );
-      if (sent) return;
-    }
-    void fetch(url, {
+    void fetch(`${API_BASE}/analytics/view`, {
       method: "POST",
       body,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "text/plain;charset=UTF-8" },
+      credentials: "omit",
       keepalive: true,
       cache: "no-store",
     }).catch(() => {});

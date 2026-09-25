@@ -23,7 +23,10 @@ describe("public page view tracking", () => {
           ([url, options]) =>
             String(url).endsWith("/analytics/view") &&
             options?.method === "POST" &&
-            options?.body === JSON.stringify({ path: "/" }),
+            options?.body === JSON.stringify({ path: "/" }) &&
+            options.credentials === "omit" &&
+            (options.headers as Record<string, string>)["Content-Type"] ===
+              "text/plain;charset=UTF-8",
         ),
       ).toBe(true),
     );
