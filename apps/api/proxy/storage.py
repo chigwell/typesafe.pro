@@ -1,10 +1,14 @@
 import asyncio
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import asyncpg
 
 from .config import RETENTION_SECONDS, Policy
+
+
+def iso(value):
+    return value.isoformat().replace("+00:00", "Z")
 
 
 class Store:
@@ -87,6 +91,67 @@ class Store:
                 ORDER BY created_at LIMIT 2000)""",
             datetime.now(UTC) - timedelta(seconds=self.retention_seconds),
         )
+
+    async def record_page_view(self, path: str, visitor_hash: str, now: datetime):
+        return await self.pool.fetchrow(
+            """INSERT INTO page_views
+               (view_date, path, visitor_hash, first_seen_at, last_seen_at, hits)
+               VALUES ($1, $2, $3, $4, $4, 1)
+               ON CONFLICT (view_date, path, visitor_hash)
+               DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at,
+                             hits = page_views.hits + 1
+               RETURNING view_date, path, first_seen_at, last_seen_at, hits""",
+            now.date(),
+            path,
+            visitor_hash,
+            now,
+        )
+
+    async def page_view_page(self, start: date, end: date, page: int, page_size: int):
+        async with self.pool.acquire() as connection:
+            async with connection.transaction(isolation="repeatable_read", readonly=True):
+                total = await connection.fetchval(
+                    """SELECT count(*) FROM (
+                           SELECT 1 FROM page_views
+                           WHERE view_date BETWEEN $1 AND $2
+                           GROUP BY view_date, path
+                       ) grouped""",
+                    start,
+                    end,
+                )
+                rows = await connection.fetch(
+                    """SELECT view_date, path, count(*) AS unique_visitors,
+                              coalesce(sum(hits), 0) AS total_hits,
+                              min(first_seen_at) AS first_seen_at,
+                              max(last_seen_at) AS last_seen_at
+                       FROM page_views
+                       WHERE view_date BETWEEN $1 AND $2
+                       GROUP BY view_date, path
+                       ORDER BY view_date DESC, unique_visitors DESC, total_hits DESC, path
+                       LIMIT $3 OFFSET $4""",
+                    start,
+                    end,
+                    page_size,
+                    (page - 1) * page_size,
+                )
+        return {
+            "items": [
+                {
+                    "date": row["view_date"].isoformat(),
+                    "path": row["path"],
+                    "unique_visitors": row["unique_visitors"],
+                    "total_hits": row["total_hits"],
+                    "first_seen_at": iso(row["first_seen_at"]),
+                    "last_seen_at": iso(row["last_seen_at"]),
+                }
+                for row in rows
+            ],
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "from": start.isoformat(),
+            "to": end.isoformat(),
+        }
 
     async def error_page(self, page, page_size, status=None, error_code=None):
         args = [datetime.now(UTC) - timedelta(seconds=self.retention_seconds)]

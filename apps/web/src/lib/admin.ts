@@ -66,6 +66,14 @@ export interface IpActivity {
   errors: number;
   last_seen: number | null;
 }
+export interface PageViewRow {
+  date: string;
+  path: string;
+  unique_visitors: number;
+  total_hits: number;
+  first_seen_at: string;
+  last_seen_at: string;
+}
 export interface ErrorEvent {
   id: string;
   created_at: string;

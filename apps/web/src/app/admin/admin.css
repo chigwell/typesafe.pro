@@ -459,6 +459,15 @@
   color: var(--a-ink);
   font-size: 12px;
 }
+.admin-filters input[type="date"] {
+  min-height: 34px;
+  max-width: 150px;
+  padding: 5px 9px;
+  border: 1px solid var(--a-line);
+  background: var(--a-surface);
+  color: var(--a-ink);
+  font-size: 12px;
+}
 .admin-alert,
 .admin-notice {
   padding: 10px 12px;

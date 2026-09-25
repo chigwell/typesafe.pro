@@ -92,6 +92,22 @@ function mockApi({
           page,
           page_size: 25,
         });
+      if (url.pathname.endsWith("/page-views"))
+        return reply({
+          items: [
+            {
+              date: "2026-09-25",
+              path: "/",
+              unique_visitors: 9,
+              total_hits: 14,
+              first_seen_at: "2026-09-25T10:00:00Z",
+              last_seen_at: "2026-09-25T12:00:00Z",
+            },
+          ],
+          total: 26,
+          page,
+          page_size: 25,
+        });
       if (url.pathname.endsWith("/errors"))
         return reply({
           items: [
@@ -134,6 +150,9 @@ describe("AdminDashboard", () => {
     expect(screen.getByText("60%")).toBeInTheDocument();
     expect(screen.getByText("35%")).toBeInTheDocument();
     expect(screen.getByText("Usage tokens")).toBeInTheDocument();
+    expect(screen.getByText("Page views")).toBeInTheDocument();
+    expect(screen.getByText("Unique visitors")).toBeInTheDocument();
+    expect(screen.getByText("14")).toBeInTheDocument();
     const login = fetch.mock.calls.find(([url]) =>
       String(url).endsWith("/auth/login"),
     );
@@ -155,7 +174,7 @@ describe("AdminDashboard", () => {
     expect(screen.queryByText("IP activity")).not.toBeInTheDocument();
   });
 
-  it("paginates IPs and errors and resets IP page when the window changes", async () => {
+  it("paginates IPs, page views and errors and resets IP page when the window changes", async () => {
     const fetch = mockApi();
     const user = userEvent.setup();
     render(<AdminDashboard />);
@@ -171,6 +190,14 @@ describe("AdminDashboard", () => {
     await screen.findByText("request-2");
     expect(
       fetch.mock.calls.some(([url]) => String(url).includes("errors?page=2")),
+    ).toBe(true);
+    await user.click(
+      screen.getByRole("button", { name: "Next page views page" }),
+    );
+    expect(
+      fetch.mock.calls.some(([url]) =>
+        String(url).includes("page-views?from=") && String(url).includes("page=2"),
+      ),
     ).toBe(true);
     await user.click(screen.getByRole("button", { name: "7d" }));
     await waitFor(() =>

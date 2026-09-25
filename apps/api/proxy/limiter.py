@@ -88,6 +88,14 @@ class Limiter:
             )
         )
 
+    async def analytics_view_retry(self, ip_hash):
+        return int(
+            await self._client(
+                keys=[f"ts:analytics:view:{ip_hash}"],
+                args=[self.settings.analytics_view_rpm, self.settings.analytics_view_burst],
+            )
+        )
+
     async def acquire(self, owner):
         keys = []
         for master in self.settings.masters:

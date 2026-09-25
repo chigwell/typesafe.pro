@@ -139,7 +139,7 @@ async def redis(redis_url):
 @pytest.fixture
 async def store(migrated):
     store = await Store.connect(migrated)
-    await store.pool.execute("TRUNCATE api_client_tokens, proxy_error_events")
+    await store.pool.execute("TRUNCATE api_client_tokens, proxy_error_events, page_views")
     await store.pool.execute("""UPDATE rate_limit_policies SET
         rpm = CASE tier WHEN 'anonymous' THEN 30 WHEN 'free' THEN 120 ELSE 1000 END,
         burst = CASE tier WHEN 'anonymous' THEN 5 WHEN 'free' THEN 10 ELSE 20 END,

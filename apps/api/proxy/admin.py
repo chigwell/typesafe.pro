@@ -4,6 +4,7 @@ import hmac
 import json
 import secrets
 import time
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -179,6 +180,26 @@ def admin_router():
                 if isinstance(value, str):
                     row[key] = sanitize(value, credentials)
         return JSONResponse(jsonable_encoder(result))
+
+    @protected.get("/page-views")
+    async def page_views(
+        request: Request,
+        start: Annotated[date | None, Query(alias="from")] = None,
+        end: Annotated[date | None, Query(alias="to")] = None,
+        page: Annotated[int, Query(ge=1, le=100000)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 25,
+    ):
+        today = datetime.now(UTC).date()
+        start = today - timedelta(days=6) if start is None else start
+        end = today if end is None else end
+        if start > end:
+            raise HTTPException(400, "Date range is invalid")
+        if (end - start).days > 366:
+            raise HTTPException(400, "Date range is too large")
+        try:
+            return await request.app.state.store.page_view_page(start, end, page, page_size)
+        except Exception:
+            raise HTTPException(503, "Page view data temporarily unavailable") from None
 
     router.include_router(protected)
     return router

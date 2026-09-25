@@ -32,7 +32,9 @@ def test_signed_session_expiry_tampering_and_rotation():
     assert not valid_session(value, Settings.from_env(ENV | {"ADMIN_PASSWORD": "x" * 40}), now=101)
 
 
-@pytest.mark.parametrize("path", ["auth/session", "system", "summary", "ip-activity", "errors"])
+@pytest.mark.parametrize(
+    "path", ["auth/session", "system", "summary", "ip-activity", "errors", "page-views"]
+)
 async def test_all_data_requires_session(client_for, path):
     async with client_for(no_upstream) as client:
         response = await client.get("/admin/api/" + path, headers=ORIGIN)

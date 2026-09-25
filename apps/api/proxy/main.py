@@ -13,7 +13,7 @@ from uuid import uuid4
 import anyio
 import asyncpg
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from starlette.requests import ClientDisconnect
@@ -41,6 +41,7 @@ CORS_PREFLIGHT_HEADERS = CORS_HEADERS + [
     (b"access-control-max-age", b"600"),
     (b"cache-control", b"no-store"),
 ]
+PUBLIC_PAGE_PATH = re.compile(r"/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*")
 
 
 def retry_seconds(upstream):
@@ -114,7 +115,7 @@ class RequestID:
             and (
                 is_admin
                 or (
-                    scope["path"] == "/v1/systemone"
+                    scope["path"] in ("/v1/systemone", "/analytics/view")
                     and headers[b"access-control-request-method"] == b"POST"
                 )
             )
@@ -215,6 +216,57 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
             {"ok": True, "service": "typesafe-proxy", "release": app.state.settings.release_sha},
             headers={"Cache-Control": "no-store"},
         )
+
+    @app.post("/analytics/view")
+    async def analytics_view(request: Request) -> Response:
+        state = request.app.state
+        config = state.settings
+        try:
+            body = bytearray()
+            async with asyncio.timeout(5):
+                async for chunk in request.stream():
+                    if len(body) + len(chunk) > 2048:
+                        raise HTTPException(413, "Analytics request too large")
+                    body.extend(chunk)
+            data = json.loads(body)
+            path = data.get("path") if isinstance(data, dict) else None
+        except HTTPException:
+            raise
+        except (ValueError, UnicodeError, TimeoutError, RecursionError):
+            raise HTTPException(400, "Invalid analytics request") from None
+        if (
+            not isinstance(path, str)
+            or not path
+            or len(path) > 1024
+            or path != path.strip()
+            or not PUBLIC_PAGE_PATH.fullmatch(path)
+            or "?" in path
+            or "#" in path
+            or path == "/admin"
+            or path.startswith("/admin/")
+        ):
+            raise HTTPException(400, "Path is not a public canonical path")
+        ip = client_ip(request.scope, config.trusted_proxies)
+        ip_hash = digest(config.hash_secret, ip.encode(), "analytics-ip")
+        try:
+            retry = await state.limiter.analytics_view_retry(ip_hash)
+        except Exception:
+            raise HTTPException(
+                503, "Analytics temporarily unavailable", headers={"Retry-After": "5"}
+            ) from None
+        if retry:
+            raise HTTPException(429, "Too many views", headers={"Retry-After": str(retry)})
+        now = datetime.now(UTC)
+        visitor_hash = digest(
+            config.hash_secret,
+            f"{now.date().isoformat()}:{ip}".encode(),
+            "analytics-visitor",
+        )
+        try:
+            await state.store.record_page_view(path, visitor_hash, now)
+        except asyncpg.PostgresError:
+            raise HTTPException(503, "Analytics temporarily unavailable") from None
+        return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
     class ProxyEndpoint:
         async def __call__(self, scope, receive, send):

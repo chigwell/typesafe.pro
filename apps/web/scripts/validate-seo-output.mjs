@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 const ROOT = resolve(new URL("..", import.meta.url).pathname);
 const OUT = resolve(ROOT, "out");
 const SITE_URL = "https://typesafe.pro";
+const GOOGLE_ADS_ID = "AW-18465939418";
 const errors = [];
 
 function assert(condition, message) {
@@ -109,6 +110,18 @@ function assertJsonLd(source) {
   assert(types.has("SoftwareApplication") || types.has("WebApplication"), "JSON-LD lacks application schema");
 }
 
+function assertGoogleTag(source) {
+  const encodedId = GOOGLE_ADS_ID.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  assert(
+    new RegExp(`<script\\s+[^>]*src="https://www\\.googletagmanager\\.com/gtag/js\\?id=${encodedId}"`).test(source),
+    `Homepage lacks Google tag script for ${GOOGLE_ADS_ID}`,
+  );
+  assert(
+    source.includes(`gtag('config', '${GOOGLE_ADS_ID}')`),
+    `Homepage lacks Google tag config for ${GOOGLE_ADS_ID}`,
+  );
+}
+
 async function main() {
   const index = await readFile(resolve(OUT, "index.html"), "utf8");
 
@@ -138,6 +151,7 @@ async function main() {
   }
 
   assertJsonLd(index);
+  assertGoogleTag(index);
 
   const sitemap = await readFile(resolve(OUT, "sitemap.xml"), "utf8");
   assert(sitemap.includes(`<loc>${SITE_URL}/</loc>`), "Sitemap lacks homepage URL");
@@ -159,7 +173,7 @@ async function main() {
     return;
   }
 
-  console.log("SEO validation passed for homepage metadata, JSON-LD, sitemap, robots, and OG image.");
+  console.log("SEO validation passed for homepage metadata, Google tag, JSON-LD, sitemap, robots, and OG image.");
 }
 
 main().catch((error) => {

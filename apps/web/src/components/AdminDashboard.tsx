@@ -6,6 +6,7 @@ import {
   Activity,
   ArrowLeft,
   ArrowRight,
+  BarChart3,
   ChevronDown,
   Cpu,
   Database,
@@ -21,6 +22,7 @@ import type {
   ErrorEvent,
   IpActivity,
   Page,
+  PageViewRow,
   Sample,
   Summary,
   SystemStatus,
@@ -44,6 +46,11 @@ const date = (value?: number | string | null) =>
     : new Date(
         typeof value === "number" ? value * 1000 : value,
       ).toLocaleString();
+const dayInput = (offsetDays = 0) => {
+  const value = new Date();
+  value.setUTCDate(value.getUTCDate() + offsetDays);
+  return value.toISOString().slice(0, 10);
+};
 const message = (error: unknown) =>
   error instanceof Error ? error.message : "Connection unavailable";
 
@@ -186,6 +193,9 @@ export default function AdminDashboard() {
   const [clock, setClock] = useState(Date.now());
   const [window, setWindow] = useState<ActivityWindow>("24h");
   const [ipPage, setIpPage] = useState(1);
+  const [viewPage, setViewPage] = useState(1);
+  const [viewsFrom, setViewsFrom] = useState(() => dayInput(-6));
+  const [viewsTo, setViewsTo] = useState(() => dayInput());
   const [errorPage, setErrorPage] = useState(1);
   const [expandedError, setExpandedError] = useState<string | null>(null);
   const [status, setStatus] = useState("");
@@ -196,6 +206,7 @@ export default function AdminDashboard() {
   const [system, setSystem] = useState<SystemStatus>();
   const [summary, setSummary] = useState<Summary>();
   const [ips, setIps] = useState<Page<IpActivity>>();
+  const [pageViews, setPageViews] = useState<Page<PageViewRow>>();
   const [errors, setErrors] = useState<Page<ErrorEvent>>();
   const [failures, setFailures] = useState<string[]>([]);
 
@@ -240,6 +251,10 @@ export default function AdminDashboard() {
           `/ip-activity?window=${window}&page=${ipPage}&page_size=25`,
           opts,
         ),
+        adminFetch<Page<PageViewRow>>(
+          `/page-views?from=${viewsFrom}&to=${viewsTo}&page=${viewPage}&page_size=25`,
+          opts,
+        ),
         adminFetch<Page<ErrorEvent>>(`/errors?${query}`, opts),
       ] as const);
       if (controller.signal.aborted) return;
@@ -254,6 +269,7 @@ export default function AdminDashboard() {
         setSystem(undefined);
         setSummary(undefined);
         setIps(undefined);
+        setPageViews(undefined);
         setErrors(undefined);
         setAuthError("Session expired. Sign in again.");
         setAuth("login");
@@ -268,9 +284,18 @@ export default function AdminDashboard() {
           results[2].status === "fulfilled" ? results[2].value : undefined,
         );
         setErrors(
+          results[4].status === "fulfilled" ? results[4].value : undefined,
+        );
+        setPageViews(
           results[3].status === "fulfilled" ? results[3].value : undefined,
         );
-        const labels = ["System", "Activity", "IP activity", "Errors"];
+        const labels = [
+          "System",
+          "Activity",
+          "IP activity",
+          "Page views",
+          "Errors",
+        ];
         setFailures(
           results.flatMap((result, index) =>
             result.status === "rejected"
@@ -289,7 +314,18 @@ export default function AdminDashboard() {
       controller.abort();
       clearInterval(timer);
     };
-  }, [auth, window, ipPage, errorPage, status, errorCode, refresh]);
+  }, [
+    auth,
+    window,
+    ipPage,
+    viewPage,
+    viewsFrom,
+    viewsTo,
+    errorPage,
+    status,
+    errorCode,
+    refresh,
+  ]);
 
   async function login(event: FormEvent) {
     event.preventDefault();
@@ -323,6 +359,7 @@ export default function AdminDashboard() {
       setSystem(undefined);
       setSummary(undefined);
       setIps(undefined);
+      setPageViews(undefined);
       setErrors(undefined);
       setAuth("login");
     } catch (error) {
@@ -669,6 +706,99 @@ export default function AdminDashboard() {
               ))}
               {summary?.paths.length === 0 && <p>No activity</p>}
             </details>
+          </section>
+
+          <section
+            className="admin-section"
+            aria-labelledby="page-views-heading"
+          >
+            <div className="admin-section-heading">
+              <h2 id="page-views-heading">
+                <BarChart3 size={18} /> Page views
+              </h2>
+              <div className="admin-filters">
+                <label>
+                  From
+                  <input
+                    type="date"
+                    aria-label="Page views from"
+                    value={viewsFrom}
+                    max={viewsTo}
+                    required
+                    onChange={(event) => {
+                      setViewsFrom(event.target.value);
+                      setViewPage(1);
+                      setPageViews(undefined);
+                    }}
+                  />
+                </label>
+                <label>
+                  To
+                  <input
+                    type="date"
+                    aria-label="Page views to"
+                    value={viewsTo}
+                    min={viewsFrom}
+                    required
+                    onChange={(event) => {
+                      setViewsTo(event.target.value);
+                      setViewPage(1);
+                      setPageViews(undefined);
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="admin-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Path</th>
+                    <th>Unique visitors</th>
+                    <th>Total hits</th>
+                    <th>Last seen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageViews?.items.map((row) => (
+                    <tr key={`${row.date}:${row.path}`}>
+                      <td>{row.date}</td>
+                      <td>
+                        <code>{row.path}</code>
+                      </td>
+                      <td>{number(row.unique_visitors)}</td>
+                      <td>{number(row.total_hits)}</td>
+                      <td>
+                        {date(row.last_seen_at)}
+                        <small>First {date(row.first_seen_at)}</small>
+                      </td>
+                    </tr>
+                  ))}
+                  {!pageViews?.items.length && (
+                    <tr>
+                      <td colSpan={5} className="admin-empty">
+                        {pageViews
+                          ? "No public page views in this range"
+                          : loading
+                            ? "Loading page views..."
+                            : "Page views unavailable"}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              label="page views"
+              data={pageViews}
+              page={viewPage}
+              onPage={(page) => {
+                setViewPage(page);
+                setPageViews(undefined);
+              }}
+              disabled={loading || !pageViews}
+            />
           </section>
 
           <section className="admin-section" aria-labelledby="ips-heading">

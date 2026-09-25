@@ -61,6 +61,8 @@ class Settings:
     host_proc_path: str = "/proc"
     host_disk_path: str = "/"
     admin_tokens: tuple[bytes, ...] = field(default=(), repr=False)
+    analytics_view_rpm: int = 30
+    analytics_view_burst: int = 10
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -175,4 +177,6 @@ class Settings:
             host_proc_path=env.get("HOST_PROC_PATH", "/proc"),
             host_disk_path=env.get("HOST_DISK_PATH", "/"),
             admin_tokens=tuple(admins[key] for key in sorted(admins, key=int)),
+            analytics_view_rpm=positive("ANALYTICS_VIEW_RPM", 30),
+            analytics_view_burst=positive("ANALYTICS_VIEW_BURST", 10),
         )
