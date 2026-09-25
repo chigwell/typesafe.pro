@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "baseline_slugs": [],
+  "report": {
+    "run_id": "36156289513",
+    "source_sha": "edc2993a8af60afa82c9776d07ffbd55bbe0cd0f",
+    "status": "prepared",
+    "reason": "verified_pages_ready",
+    "started_at": "2026-09-25T15:47:51.836391Z",
+    "finished_at": "2026-09-25T15:56:26.916000Z",
+    "duration_seconds": 515.08,
+    "seed": 3967341044,
+    "rounds": 5,
+    "api_calls": 96,
+    "input_tokens": 191951,
+    "output_tokens": 105622,
+    "generated_count": 2,
+    "rejected_count": 48,
+    "rejections": {
+      "uncertain_novelty": 37,
+      "semantic_duplicate": 7,
+      "quality_threshold_failed": 1,
+      "llm_stage_failed": 3
+    },
+    "catalog_hash": "b453c75c2e380b60eb258acda4226117924b005b622e00e45e41002044a4f381"
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "36156289513",
+    "source_sha": "edc2993a8af60afa82c9776d07ffbd55bbe0cd0f",
+    "catalog_hash": "b453c75c2e380b60eb258acda4226117924b005b622e00e45e41002044a4f381",
+    "generated_at": "2026-09-25T15:56:26.912563Z",
+    "pages": [
+      {
+        "slug": "library-catalog-routing",
+        "title": "Automating Library Reference Query Routing with Intent Classification",
+        "created_at": "2026-09-25T15:31:20.467624Z",
+        "updated_at": "2026-09-25T15:35:00.990043Z"
+      },
+      {
+        "slug": "permission-software-license",
+        "title": "Check Software License Justifications Before Procurement Review",
+        "created_at": "2026-09-25T15:33:55.274202Z",
+        "updated_at": "2026-09-25T15:36:02.408494Z"
+      },
+      {
+        "slug": "ingredient-allergen-screening",
+        "title": "Screen Ingredient Spec Sheets for Allergen Disclosures",
+        "created_at": "2026-09-25T15:53:34.323318Z",
+        "updated_at": "2026-09-25T15:53:34.323318Z"
+      },
+      {
+        "slug": "facility-maintenance-severity-scoring",
+        "title": "Scoring Maintenance Request Severity for Facility Dispatch",
+        "created_at": "2026-09-25T15:55:29.066891Z",
+        "updated_at": "2026-09-25T15:55:29.066891Z"
+      }
+    ]
+  }
+}

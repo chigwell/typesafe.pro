@@ -24,6 +24,30 @@
       "input_description": "The 'justification' field submitted in the procurement form.",
       "decision": "Noul: Does the justification state a concrete work purpose and include a specific project identifier?",
       "action": "Send sufficiently complete requests to procurement review; ask the requester for more detail when the justification is incomplete."
+    },
+    {
+      "slug": "ingredient-allergen-screening",
+      "industry": "Food Manufacturing",
+      "audience": "Quality Assurance Specialists",
+      "task_type": "content-screening",
+      "search_intent": "Screen raw material specification sheets for undeclared allergen risks.",
+      "summary": "Triage supplier ingredient specification sheets to flag potential unlabeled common food allergens before inventory intake.",
+      "problem": "The input provides supplier-submitted ingredient compositions, processing aid descriptions, and facility handling statements. Suppliers use varied phrasing for cross-contact risks, making basic keyword searches prone to confusing trace warnings with active ingredients or omitting unmentioned allergens entirely. The application must classify the text disclosure so downstream services can route ambiguous or incomplete records to specialists for review before intake. This text-based triage evaluates only what the supplier documented; it does not replace independent laboratory testing or authoritative verification of facility sanitation.",
+      "input_description": "A JSON object containing the supplier ingredient notes, facility handling notes, and stated composition.",
+      "decision": "Choice: Classify the ingredient profile into allergen-free-declared, allergen-present-declared, ambiguous-trace-warning, or missing-disclosure.",
+      "action": "Downstream code marks the batch profile for immediate warehouse release, routes it to an allergen specialist for audit, or returns the form to the supplier requesting missing documentation."
+    },
+    {
+      "slug": "facility-maintenance-severity-scoring",
+      "industry": "Commercial Real Estate Operations",
+      "audience": "Facilities Dispatchers",
+      "task_type": "urgency-scoring",
+      "search_intent": "Score tenant maintenance requests to identify urgent building safety hazards versus routine repairs.",
+      "summary": "Score the operational urgency of commercial tenant maintenance work orders to prioritize technician dispatch.",
+      "problem": "The system receives a JSON payload detailing the tenant issue description, affected room type, and reported operational impact. Critical issues like active leaks or sparking electrical panels easily get buried behind non-urgent cosmetic requests when dispatchers face heavy ticket volume. Your application must evaluate the stated severity from the submitted text so downstream dispatch rules can prioritize technician paging for urgent hazards.",
+      "input_description": "A JSON object containing the tenant issue description, affected room type, and reported impact on daily business.",
+      "decision": "Score: Score the reported hazard severity from 0 (purely aesthetic preference) to 4 (immediate life safety hazard or uncontrolled flooding).",
+      "action": "Work order software automatically triggers immediate on-call technician paging for high-severity scores or enqueues the request in the regular maintenance queue."
     }
   ]
 }
