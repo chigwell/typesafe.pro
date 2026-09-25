@@ -21,9 +21,7 @@ def upgrade():
             UNIQUE (view_date, path, visitor_hash)
         )
     """)
-    op.execute(
-        "CREATE INDEX page_views_rollup ON page_views (view_date DESC, path)"
-    )
+    op.execute("CREATE INDEX page_views_rollup ON page_views (view_date DESC, path)")
 
 
 def downgrade():
