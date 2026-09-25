@@ -15,19 +15,20 @@ export function Header() {
       <div className="container header-inner">
         <Brand />
         <nav className={`nav-links ${open ? "is-open" : ""}`} id="main-nav" aria-label="Main navigation">
-          <a href="#playground" onClick={close}>
+          <a href="/#playground" onClick={close}>
             Playground
           </a>
-          <a href="#examples" onClick={close}>
+          <a href="/#examples" onClick={close}>
             Examples
           </a>
-          <a href="#developers" onClick={close}>
+          <a href="/#developers" onClick={close}>
             For developers
           </a>
+          <a href="/use-cases" onClick={close}>Use cases</a>
         </nav>
         <div className="header-actions">
           <ThemeControl />
-          <a className="btn btn-primary btn-small header-cta" href="#playground">
+          <a className="btn btn-primary btn-small header-cta" href="/#playground">
             Try for free <ArrowUpRight aria-hidden="true" />
           </a>
           <button
@@ -45,4 +46,3 @@ export function Header() {
     </header>
   );
 }
-

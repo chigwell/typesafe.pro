@@ -56,7 +56,7 @@ export function BrandMark({ className = "brand-mark" }: { className?: string }) 
 
 export function Brand() {
   return (
-    <a className="brand" href="#top" aria-label="typesafe.pro home">
+    <a className="brand" href="/" aria-label="typesafe.pro home">
       <BrandMark />
       <span className="brand-word">
         typesafe<span className="suffix">.pro</span>
@@ -66,4 +66,3 @@ export function Brand() {
 }
 
 export { Check, Copy };
-

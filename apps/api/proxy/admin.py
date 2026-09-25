@@ -12,6 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from starlette.responses import JSONResponse
 
 from .auth import client_ip, digest
+from .seo import SeoJournal
 from .telemetry import sanitize
 
 COOKIE = "__Secure-typesafe_admin"
@@ -200,6 +201,35 @@ def admin_router():
             return await request.app.state.store.page_view_page(start, end, page, page_size)
         except Exception:
             raise HTTPException(503, "Page view data temporarily unavailable") from None
+
+    @protected.get("/seo/summary")
+    async def seo_summary(request: Request):
+        try:
+            return await SeoJournal(request.app.state.store).summary()
+        except Exception:
+            raise HTTPException(503, "Generated pages data temporarily unavailable") from None
+
+    @protected.get("/seo/pages")
+    async def seo_pages(
+        request: Request,
+        page: Annotated[int, Query(ge=1, le=100000)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 25,
+    ):
+        try:
+            return await SeoJournal(request.app.state.store).pages(page, page_size)
+        except Exception:
+            raise HTTPException(503, "Generated pages data temporarily unavailable") from None
+
+    @protected.get("/seo/runs")
+    async def seo_runs(
+        request: Request,
+        page: Annotated[int, Query(ge=1, le=100000)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 25,
+    ):
+        try:
+            return await SeoJournal(request.app.state.store).runs(page, page_size)
+        except Exception:
+            raise HTTPException(503, "Generation history temporarily unavailable") from None
 
     router.include_router(protected)
     return router

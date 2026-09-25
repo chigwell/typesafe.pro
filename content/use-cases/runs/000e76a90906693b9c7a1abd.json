@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "baseline_slugs": [],
+  "report": {
+    "run_id": "initial-live-20260925",
+    "source_sha": "c81f009b0e867d84bbc8fc42abe4cec5736494d6",
+    "status": "skipped",
+    "reason": "budget_exhausted",
+    "started_at": "2026-09-25T15:10:42.778908Z",
+    "finished_at": "2026-09-25T15:18:19.029622Z",
+    "duration_seconds": 456.249,
+    "seed": 18688122,
+    "rounds": 4,
+    "api_calls": 200,
+    "input_tokens": 301980,
+    "output_tokens": 62978,
+    "generated_count": 0,
+    "rejected_count": 31,
+    "rejections": {
+      "quality_threshold_failed": 16,
+      "example_expectation_failed": 14,
+      "llm_stage_failed": 1
+    },
+    "catalog_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "initial-live-20260925",
+    "source_sha": "c81f009b0e867d84bbc8fc42abe4cec5736494d6",
+    "catalog_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "generated_at": "2026-09-25T15:18:18.990781Z",
+    "pages": []
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "baseline_slugs": [],
+  "report": {
+    "run_id": "initial-live-20260925-v3",
+    "source_sha": "c81f009b0e867d84bbc8fc42abe4cec5736494d6",
+    "status": "prepared",
+    "reason": "verified_pages_ready",
+    "started_at": "2026-09-25T15:31:00.682316Z",
+    "finished_at": "2026-09-25T15:36:34.523401Z",
+    "duration_seconds": 333.849,
+    "seed": 1475914761,
+    "rounds": 5,
+    "api_calls": 140,
+    "input_tokens": 208439,
+    "output_tokens": 31835,
+    "generated_count": 2,
+    "rejected_count": 48,
+    "rejections": {
+      "example_expectation_failed": 13,
+      "uncertain_novelty": 29,
+      "semantic_duplicate": 4,
+      "quality_threshold_failed": 2
+    },
+    "catalog_hash": "6a54d089fa8ef0600596669c5910660b2de106f5abbc87098c609c61eefc8a13"
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "initial-live-20260925-v3",
+    "source_sha": "c81f009b0e867d84bbc8fc42abe4cec5736494d6",
+    "catalog_hash": "6a54d089fa8ef0600596669c5910660b2de106f5abbc87098c609c61eefc8a13",
+    "generated_at": "2026-09-25T15:36:34.509168Z",
+    "pages": [
+      {
+        "slug": "library-catalog-routing",
+        "title": "Automating Library Reference Query Routing with Intent Classification",
+        "created_at": "2026-09-25T15:31:20.467624Z",
+        "updated_at": "2026-09-25T15:31:20.467624Z"
+      },
+      {
+        "slug": "permission-software-license",
+        "title": "Automate Software License Justification Verification with Jev",
+        "created_at": "2026-09-25T15:33:55.274202Z",
+        "updated_at": "2026-09-25T15:33:55.274202Z"
+      }
+    ]
+  }
+}

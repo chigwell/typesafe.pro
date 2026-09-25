@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "baseline_slugs": [],
+  "report": {
+    "run_id": "initial-live-20260925-v2",
+    "source_sha": "c81f009b0e867d84bbc8fc42abe4cec5736494d6",
+    "status": "skipped",
+    "reason": "budget_exhausted",
+    "started_at": "2026-09-25T15:23:34.568215Z",
+    "finished_at": "2026-09-25T15:30:49.643244Z",
+    "duration_seconds": 422.174,
+    "seed": 936683644,
+    "rounds": 4,
+    "api_calls": 200,
+    "input_tokens": 352900,
+    "output_tokens": 49654,
+    "generated_count": 0,
+    "rejected_count": 29,
+    "rejections": {
+      "quality_threshold_failed": 17,
+      "example_expectation_failed": 9,
+      "llm_stage_failed": 3
+    },
+    "catalog_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "initial-live-20260925-v2",
+    "source_sha": "c81f009b0e867d84bbc8fc42abe4cec5736494d6",
+    "catalog_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "generated_at": "2026-09-25T15:30:49.580329Z",
+    "pages": []
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "baseline_slugs": [],
+  "report": {
+    "run_id": "initial-reviewed-20260925",
+    "source_sha": "c81f009b0e867d84bbc8fc42abe4cec5736494d6",
+    "status": "prepared",
+    "reason": "verified_pages_ready",
+    "started_at": "2026-09-25T15:37:38.795535Z",
+    "finished_at": "2026-09-25T15:37:38.807281Z",
+    "duration_seconds": 0.012,
+    "seed": 2977935121,
+    "rounds": 0,
+    "api_calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "generated_count": 0,
+    "rejected_count": 0,
+    "rejections": {},
+    "catalog_hash": "1142de9d112844d22bed64df2586126a3f408154aac103122e8d06acdf2ecc5a"
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "initial-reviewed-20260925",
+    "source_sha": "c81f009b0e867d84bbc8fc42abe4cec5736494d6",
+    "catalog_hash": "1142de9d112844d22bed64df2586126a3f408154aac103122e8d06acdf2ecc5a",
+    "generated_at": "2026-09-25T15:37:38.797671Z",
+    "pages": [
+      {
+        "slug": "library-catalog-routing",
+        "title": "Automating Library Reference Query Routing with Intent Classification",
+        "created_at": "2026-09-25T15:31:20.467624Z",
+        "updated_at": "2026-09-25T15:35:00.990043Z"
+      },
+      {
+        "slug": "permission-software-license",
+        "title": "Check Software License Justifications Before Procurement Review",
+        "created_at": "2026-09-25T15:33:55.274202Z",
+        "updated_at": "2026-09-25T15:36:02.408494Z"
+      }
+    ]
+  }
+}

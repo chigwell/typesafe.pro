@@ -164,6 +164,7 @@ venv.bak/
 # Node / Next.js
 node_modules/
 .next/
+*.tsbuildinfo
 out/
 apps/web/.next/
 apps/web/out/

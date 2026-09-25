@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-${{ github.event_name == 'pull_request' && github.ref || 'production' }}
+  cancel-in-progress: false
+
 jobs:
   check:
     name: Check API and web
@@ -37,9 +41,14 @@ jobs:
       - name: Install uv
         run: python -m pip install uv==0.6.8
       - run: uv sync --project apps/api --frozen
+      - run: uv sync --project tools/seo --frozen
       - run: uv run --project apps/api ruff check apps/api deploy
       - run: uv run --project apps/api ruff format --check apps/api deploy
-      - run: uv run --project apps/api pytest apps/api/tests
+      - run: uv run --project apps/api pytest apps/api/tests deploy/tests
+      - run: uv run --project tools/seo ruff check tools/seo
+      - run: uv run --project tools/seo ruff format --check tools/seo
+      - run: uv run --project tools/seo pytest tools/seo/tests
+      - run: uv run --project tools/seo python -m seo_content validate
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -57,23 +66,42 @@ jobs:
       - name: Check nginx configuration
         run: bash deploy/check-nginx.sh
 
-  deploy-api:
-    name: Deploy API to VPS
+  production:
+    name: Publish API and verified content
     needs: check
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    concurrency:
-      group: deploy-api-production
-      cancel-in-progress: false
+    timeout-minutes: 50
+    permissions:
+      contents: write
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reuse content checkpoints and reject superseded source releases
+        run: python3 deploy/content_release.py checkout-current
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install uv and content dependencies
+        run: |
+          python -m pip install uv==0.6.8
+          uv sync --project tools/seo --frozen
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       - name: Deploy and verify
+        id: api
         env:
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
           TYPESAFE_TEST_API_TOKEN_1: ${{ secrets.TYPESAFE_TEST_API_TOKEN_1 }}
           TYPESAFE_MASTER_API_TOKEN_1: ${{ secrets.TYPESAFE_MASTER_API_TOKEN_1 }}
           TYPESAFE_ADMIN_API_TOKEN_1: ${{ secrets.TYPESAFE_ADMIN_API_TOKEN_1 }}
@@ -82,33 +110,51 @@ jobs:
           TOKEN_HASH_SECRET: ${{ secrets.TOKEN_HASH_SECRET }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
         run: bash deploy/ci.sh
-
-  deploy-web:
-    name: Deploy web to Cloudflare Pages
-    needs: check
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    concurrency:
-      group: deploy-web-production
-      cancel-in-progress: false
-    env:
-      CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
-      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
+      - name: Reconcile the last successful publication
+        run: python3 deploy/content_release.py baseline --output "$RUNNER_TEMP/seo-baseline.json"
+      - name: Generate and verify up to five new use cases
+        env:
+          LLM7_BASE_URL: ${{ secrets.LLM7_BASE_URL }}
+          LLM7_TOKEN: ${{ secrets.LLM7_TOKEN }}
+          LLM7_MODEL: ${{ secrets.LLM7_MODEL }}
+          TYPESAFE_ADMIN_API_TOKEN_1: ${{ secrets.TYPESAFE_ADMIN_API_TOKEN_1 }}
+        run: >-
+          uv run --frozen --project tools/seo python -m seo_content generate
+          --run-id "$GITHUB_RUN_ID" --source-sha "$GITHUB_SHA"
+          --baseline "$RUNNER_TEMP/seo-baseline.json"
+          --report "$RUNNER_TEMP/seo-report.json"
+      - name: Record generation result
+        run: python3 deploy/content_release.py record --report "$RUNNER_TEMP/seo-report.json"
+      - name: Build and validate the exact publication artifact
+        run: |
+          uv run --frozen --project tools/seo python -m seo_content validate
+          npm run build:web
+      - name: Preserve verified content in Git
+        id: content
+        run: python3 deploy/content_release.py persist
       - name: Ensure Pages project exists
         run: npm run cf:pages:ensure
-
-      - name: Deploy web to Cloudflare Pages
-        run: npm run deploy:web
+      - name: Publish the validated artifact
+        env:
+          CONTENT_SHA: ${{ steps.content.outputs.content_sha }}
+        run: |
+          python3 deploy/content_release.py assert-current
+          bash scripts/cf-env.sh wrangler pages deploy apps/web/out --project-name=typesafe-pro --branch=main --commit-hash="$CONTENT_SHA" --commit-dirty=false
+      - name: Verify public pages and record publication
+        run: >-
+          python3 deploy/content_release.py verify
+          --manifest content/use-cases/release.json
+          --baseline "$RUNNER_TEMP/seo-baseline.json"
+      - name: Record a failed publication attempt
+        if: failure() && steps.api.outcome == 'success'
+        run: python3 deploy/content_release.py record --report "$RUNNER_TEMP/seo-report.json" --failed
+      - name: Keep the release report for recovery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seo-release-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/seo-report.json
+            ${{ runner.temp }}/seo-baseline.json
+            content/use-cases/release.json
+          if-no-files-found: ignore

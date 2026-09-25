@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "pages": [
+    {
+      "slug": "library-catalog-routing",
+      "industry": "Public Library Systems",
+      "audience": "Reference Librarians",
+      "task_type": "intent-routing",
+      "search_intent": "Classify incoming reference queries into appropriate administrative departments.",
+      "summary": "Automated routing of digital library reference requests to specialized archival or research teams.",
+      "problem": "Public library systems receive diverse user queries that often span multiple subjects. Manual sorting results in frequent misrouting of interdisciplinary requests and increased administrative overhead. The application must analyze the query text and provide a consistent department selection to trigger an automated ticketing system update.",
+      "input_description": "A user-submitted query text string regarding research assistance.",
+      "decision": "Choice: Map the input to a specific department (e.g., genealogy, digital-media, technical-services) or route to manual review.",
+      "action": "Downstream code updates the ticketing system status and routes the request to the chosen department queue.",
+      "schema_version": 1,
+      "seo": {
+        "title": "Automating Library Reference Query Routing with Intent Classification",
+        "description": "Learn how to build an automated routing system for library reference requests by classifying user queries into specialized department queues using Choice questions."
+      },
+      "intro": "Librarians must manually sort incoming reference queries into specialized department queues. This example demonstrates how to automate routing decisions by classifying queries into specific archival or research departments.",
+      "solution": "The application sends user queries as 'state' and uses the 'dept_routing' Choice question to categorize intent. When the API returns a 'choice' value like 'genealogy' or 'digital_media', your application code interprets the returned string to map the ticket to the corresponding internal database queue. If the API returns 'manual_review', your code can trigger an escalation flow to alert a human librarian. You can implement custom logic to verify the 'confidence' level before taking action, such as automatically routing high-confidence results while holding lower-confidence classifications for secondary review.",
+      "limitations": [
+        "A single Choice question provides only one classification label, though you can support multi-label workflows by defining additional independent questions within the same request.",
+        "The API's output is an observed judgment based on provided criteria and does not constitute a rigid guarantee of accuracy for all future inputs."
+      ],
+      "examples": [
+        {
+          "name": "Standard Genealogy Request",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": "I need help finding birth records for my grandfather, born in 1920 in Chicago.",
+            "questions": {
+              "dept_routing": {
+                "type": "choice",
+                "instructions": "Determine the appropriate department for this library query.",
+                "criteria": {
+                  "genealogy": "Requests for family history and vital records",
+                  "digital_media": "Requests for access to media equipment or digital archives",
+                  "technical_services": "Requests for cataloging or procurement assistance",
+                  "manual_review": "Unclear or interdisciplinary requests"
+                }
+              }
+            }
+          },
+          "expected": {
+            "dept_routing": {
+              "type": "choice",
+              "choice": "genealogy"
+            }
+          },
+          "expected_description": "The query specifically mentions birth records and family history, mapping directly to the genealogy department.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "dept_routing": {
+                "type": "choice",
+                "choice": "genealogy",
+                "probabilities": {
+                  "manual_review": 0.0,
+                  "technical_services": 0.0,
+                  "digital_media": 0.0,
+                  "genealogy": 1.0
+                },
+                "confidence": 1.0
+              }
+            },
+            "usage": {
+              "input_tokens": 385,
+              "output_tokens": 53
+            }
+          },
+          "verified_at": "2026-09-25T15:35:00.120376Z"
+        },
+        {
+          "name": "Equipment reservation request",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": "Can I reserve the 3D printer for a session on Saturday?",
+            "questions": {
+              "dept_routing": {
+                "type": "choice",
+                "instructions": "Determine the appropriate department for this library query.",
+                "criteria": {
+                  "genealogy": "Requests for family history and vital records",
+                  "digital_media": "Requests for access to media equipment or digital archives",
+                  "technical_services": "Requests for cataloging or procurement assistance",
+                  "manual_review": "Unclear or interdisciplinary requests"
+                }
+              }
+            }
+          },
+          "expected": {
+            "dept_routing": {
+              "type": "choice",
+              "choice": "digital_media"
+            }
+          },
+          "expected_description": "The request for 3D printer equipment falls under the purview of digital media services.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "dept_routing": {
+                "type": "choice",
+                "choice": "digital_media",
+                "probabilities": {
+                  "manual_review": 0.04,
+                  "genealogy": 0.0,
+                  "technical_services": 0.01,
+                  "digital_media": 0.95
+                },
+                "confidence": 0.93
+              }
+            },
+            "usage": {
+              "input_tokens": 379,
+              "output_tokens": 53
+            }
+          },
+          "verified_at": "2026-09-25T15:35:00.417274Z"
+        },
+        {
+          "name": "Punctuation-only query",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": "...",
+            "questions": {
+              "dept_routing": {
+                "type": "choice",
+                "instructions": "Determine the appropriate department for this library query.",
+                "criteria": {
+                  "genealogy": "Requests for family history and vital records",
+                  "digital_media": "Requests for access to media equipment or digital archives",
+                  "technical_services": "Requests for cataloging or procurement assistance",
+                  "manual_review": "Unclear or interdisciplinary requests"
+                }
+              }
+            }
+          },
+          "expected": {
+            "dept_routing": {
+              "type": "choice",
+              "choice": "manual_review"
+            }
+          },
+          "expected_description": "The punctuation-only input contains no reference question; the expected label is manual_review.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "dept_routing": {
+                "type": "choice",
+                "choice": "manual_review",
+                "probabilities": {
+                  "digital_media": 0.0,
+                  "technical_services": 0.0,
+                  "genealogy": 0.0,
+                  "manual_review": 1.0
+                },
+                "confidence": 1.0
+              }
+            },
+            "usage": {
+              "input_tokens": 366,
+              "output_tokens": 53
+            }
+          },
+          "verified_at": "2026-09-25T15:35:00.714945Z"
+        }
+      ],
+      "verification": {
+        "model": "jev-1.13.0",
+        "verified_at": "2026-09-25T15:35:00.990011Z",
+        "quality": {
+          "useful": 0.96,
+          "supported": 0.89,
+          "consistent": 0.9
+        },
+        "novelty_probability": 1.0
+      },
+      "created_at": "2026-09-25T15:31:20.467624Z",
+      "updated_at": "2026-09-25T15:35:00.990043Z"
+    },
+    {
+      "slug": "permission-software-license",
+      "industry": "Software Asset Management",
+      "audience": "IT Procurement",
+      "task_type": "evidence-checking",
+      "search_intent": "Check whether software license request justifications include a purpose and project reference.",
+      "summary": "Triage software license requests for missing business context before procurement review.",
+      "problem": "Software license requests often arrive with vague justifications. A procurement reviewer needs a stated purpose and project reference before checking budget, entitlement and approval rules. This example checks whether the submitted text supplies those two details so the application can request missing information first.",
+      "input_description": "The 'justification' field submitted in the procurement form.",
+      "decision": "Noul: Does the justification state a concrete work purpose and include a specific project identifier?",
+      "action": "Send sufficiently complete requests to procurement review; ask the requester for more detail when the justification is incomplete.",
+      "schema_version": 1,
+      "seo": {
+        "title": "Check Software License Justifications Before Procurement Review",
+        "description": "Use a TypeSafe Noul question to check whether software license requests state a purpose and project reference before sending them to procurement review."
+      },
+      "intro": "A request such as “I need software for work” leaves a procurement reviewer with little to assess. Use this example to check for a stated work purpose and project reference before starting the approval process.",
+      "solution": "Send the justification text as state and ask v_01 whether it includes a concrete purpose and a specific project identifier. The primary example supplies both details, while the vague and empty examples do not. Your application can use the returned Noul probability to separate requests that are ready for procurement review from requests that need more information. Choose that threshold using your own labeled examples, then check project records, budget and approval rules separately before granting a license.",
+      "limitations": [
+        "A project identifier in text does not establish that the project exists or is active. Check an authoritative project registry separately.",
+        "This request checks the completeness of a justification. It does not establish entitlement, budget availability or procurement approval.",
+        "A single Noul answer does not identify which detail is missing. Separate questions can check purpose and project reference individually."
+      ],
+      "examples": [
+        {
+          "name": "Standard Justification Check",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "justification": "I need the Adobe Creative Cloud license to complete the UI assets for Project X-402."
+            },
+            "questions": {
+              "v_01": {
+                "type": "noul",
+                "instructions": "Does the justification state a concrete work purpose and include a specific project identifier? Check only whether these details are present, not whether a project is active or a license is approved.",
+                "criteria": {
+                  "true": "Request contains clear intent and specific project ID",
+                  "false": "Request is vague or missing identifiers"
+                }
+              }
+            }
+          },
+          "expected": {
+            "v_01": {
+              "type": "noul",
+              "min": 0.8,
+              "max": 1.0
+            }
+          },
+          "expected_description": "The justification contains a clear software purpose and a recognizable project identifier, warranting a high probability of 'true'.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "v_01": {
+                "type": "noul",
+                "noul": 0.98
+              }
+            },
+            "usage": {
+              "input_tokens": 359,
+              "output_tokens": 23
+            }
+          },
+          "verified_at": "2026-09-25T15:36:01.457617Z"
+        },
+        {
+          "name": "Vague Justification Check",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "justification": "I need software tools for my daily work."
+            },
+            "questions": {
+              "v_01": {
+                "type": "noul",
+                "instructions": "Does the justification state a concrete work purpose and include a specific project identifier? Check only whether these details are present, not whether a project is active or a license is approved.",
+                "criteria": {
+                  "true": "Request contains clear intent and specific project ID",
+                  "false": "Request is vague or missing identifiers"
+                }
+              }
+            }
+          },
+          "expected": {
+            "v_01": {
+              "type": "noul",
+              "min": 0.0,
+              "max": 0.2
+            }
+          },
+          "expected_description": "The justification is generic and lacks a specific project identifier, yielding a low probability of 'true'.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "v_01": {
+                "type": "noul",
+                "noul": 0.04
+              }
+            },
+            "usage": {
+              "input_tokens": 348,
+              "output_tokens": 23
+            }
+          },
+          "verified_at": "2026-09-25T15:36:01.831761Z"
+        },
+        {
+          "name": "Empty Justification Edge Case",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "justification": ""
+            },
+            "questions": {
+              "v_01": {
+                "type": "noul",
+                "instructions": "Does the justification state a concrete work purpose and include a specific project identifier? Check only whether these details are present, not whether a project is active or a license is approved.",
+                "criteria": {
+                  "true": "Request contains clear intent and specific project ID",
+                  "false": "Request is vague or missing identifiers"
+                }
+              }
+            }
+          },
+          "expected": {
+            "v_01": {
+              "type": "noul",
+              "min": 0.0,
+              "max": 0.1
+            }
+          },
+          "expected_description": "The empty justification contains neither a purpose nor a project reference, so the expected probability is low. The application can ask the requester to fill in these details.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "v_01": {
+                "type": "noul",
+                "noul": 0.02
+              }
+            },
+            "usage": {
+              "input_tokens": 339,
+              "output_tokens": 23
+            }
+          },
+          "verified_at": "2026-09-25T15:36:02.102479Z"
+        }
+      ],
+      "verification": {
+        "model": "jev-1.13.0",
+        "verified_at": "2026-09-25T15:36:02.408465Z",
+        "quality": {
+          "useful": 0.96,
+          "supported": 0.9,
+          "consistent": 0.91
+        },
+        "novelty_probability": 0.94
+      },
+      "created_at": "2026-09-25T15:33:55.274202Z",
+      "updated_at": "2026-09-25T15:36:02.408494Z"
+    }
+  ]
+}

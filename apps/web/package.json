@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npm run validate:seo",
+    "build": "next build && node scripts/finalize-static-export.mjs && npm run validate:seo",
     "preview": "bash ../../scripts/cf-env.sh wrangler pages dev out --compatibility-date=2026-09-21",
-    "deploy": "npm run build && bash ../../scripts/cf-env.sh wrangler pages deploy out --project-name=typesafe-pro --branch=main",
+    "deploy": "gh workflow run deploy.yml --ref main --repo chigwell/typesafe.pro",
     "test": "vitest run",
     "test:watch": "vitest",
     "validate:seo": "node scripts/validate-seo-output.mjs"

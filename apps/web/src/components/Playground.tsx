@@ -586,7 +586,7 @@ function AnswerOptions({ question }: { question?: Question }) {
   );
 }
 
-function ResultPanel({
+export function ResultPanel({
   result,
   request,
   badge,

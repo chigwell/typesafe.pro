@@ -8,6 +8,10 @@ The API is compatible with the TypeSafe evaluation endpoint. See the
 [TypeSafe API reference](https://docs.typesafe.ai/api) for the full request and
 response schema.
 
+The website also provides verified, interactive use-case guides. Their JSON
+catalog, LLM7/Jev generation pipeline, deployment recovery, and admin publication
+statistics are documented in [Generated use-case pages](docs/generated-pages.md).
+
 ## Quick start
 
 Call `POST https://api.typesafe.pro/v1/systemone` with JSON. Authentication is

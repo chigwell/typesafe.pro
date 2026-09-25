@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "generation_run_id": "initial-live-20260925-v3",
+  "review_release_run_id": "initial-reviewed-20260925",
+  "catalog_hash": "1142de9d112844d22bed64df2586126a3f408154aac103122e8d06acdf2ecc5a",
+  "review_api_calls": 9,
+  "pages": [
+    {
+      "slug": "library-catalog-routing",
+      "verified_at": "2026-09-25T15:35:00.990011Z",
+      "quality": {
+        "useful": 0.96,
+        "supported": 0.89,
+        "consistent": 0.9
+      },
+      "novelty_probability": 1.0
+    },
+    {
+      "slug": "permission-software-license",
+      "verified_at": "2026-09-25T15:36:02.408465Z",
+      "quality": {
+        "useful": 0.96,
+        "supported": 0.9,
+        "consistent": 0.91
+      },
+      "novelty_probability": 0.94
+    }
+  ],
+  "notes": [
+    "Reviewed both initial articles against their actual requests and saved responses.",
+    "Corrected punctuation-only input wording and an unsupported routing guarantee.",
+    "Reframed license justification checks as completeness triage; project status, budget and approval require authoritative data.",
+    "Re-executed all six examples and both quality checks; repeated novelty verification for the revised procurement scenario."
+  ]
+}

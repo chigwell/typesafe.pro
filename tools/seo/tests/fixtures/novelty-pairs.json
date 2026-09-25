@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "pairs": [
+    {
+      "name": "paraphrased_same_workflow",
+      "expected_duplicate": true,
+      "candidate": {
+        "slug": "dispatch-helpdesk-ticket",
+        "industry": "software support",
+        "audience": "application developers",
+        "task_type": "intent-routing",
+        "search_intent": "Dispatch incoming helpdesk tickets",
+        "summary": "Dispatch incoming helpdesk tickets",
+        "problem": "Send requests to payments, technical assistance, or sales based on their meaning.",
+        "input_description": "Ticket text and descriptions of available departments",
+        "decision": "Choose the department responsible for the issue",
+        "action": "Assign the ticket to that department"
+      },
+      "existing": {
+        "slug": "route-support-message",
+        "industry": "software support",
+        "audience": "application developers",
+        "task_type": "intent-routing",
+        "search_intent": "Route a support message to the right team",
+        "summary": "Route a support message to the right team",
+        "problem": "Incoming support tickets need semantic routing to billing, technical support, or sales.",
+        "input_description": "A customer message and department descriptions",
+        "decision": "Select the department matching the message",
+        "action": "Place the ticket in the selected department queue"
+      }
+    },
+    {
+      "name": "industry_only_substitution",
+      "expected_duplicate": true,
+      "candidate": {
+        "slug": "route-museum-inquiry",
+        "industry": "museums",
+        "audience": "application developers",
+        "task_type": "intent-routing",
+        "search_intent": "Route visitor inquiries to a museum team",
+        "summary": "Route visitor inquiries to a museum team",
+        "problem": "Incoming visitor inquiries need semantic routing to ticket billing, technical support, or group sales.",
+        "input_description": "A visitor message and museum department descriptions",
+        "decision": "Select the department matching the inquiry",
+        "action": "Place the inquiry in the selected department queue"
+      },
+      "existing": {
+        "slug": "route-support-message",
+        "industry": "software support",
+        "audience": "application developers",
+        "task_type": "intent-routing",
+        "search_intent": "Route a support message to the right team",
+        "summary": "Route a support message to the right team",
+        "problem": "Incoming support tickets need semantic routing to billing, technical support, or sales.",
+        "input_description": "A customer message and department descriptions",
+        "decision": "Select the department matching the message",
+        "action": "Place the ticket in the selected department queue"
+      }
+    },
+    {
+      "name": "shared_domain_different_decision",
+      "expected_duplicate": false,
+      "candidate": {
+        "slug": "verify-support-answer",
+        "industry": "software support",
+        "audience": "application developers",
+        "task_type": "evidence-checking",
+        "search_intent": "Verify claims in support answers against a policy",
+        "summary": "Verify claims in support answers against a policy",
+        "problem": "Draft replies may contain promises unsupported by the supplied refund policy.",
+        "input_description": "A drafted response and the applicable policy text",
+        "decision": "Determine whether each factual claim is supported",
+        "action": "Hold unsupported responses for editing before sending"
+      },
+      "existing": {
+        "slug": "route-support-message",
+        "industry": "software support",
+        "audience": "application developers",
+        "task_type": "intent-routing",
+        "search_intent": "Route a support message to the right team",
+        "summary": "Route a support message to the right team",
+        "problem": "Incoming support tickets need semantic routing to billing, technical support, or sales.",
+        "input_description": "A customer message and department descriptions",
+        "decision": "Select the department matching the message",
+        "action": "Place the ticket in the selected department queue"
+      }
+    },
+    {
+      "name": "shared_input_different_judgment",
+      "expected_duplicate": false,
+      "candidate": {
+        "slug": "detect-urgent-report",
+        "industry": "property management",
+        "audience": "application developers",
+        "task_type": "urgency-checking",
+        "search_intent": "Flag maintenance messages asking for immediate action",
+        "summary": "Flag maintenance messages asking for immediate action",
+        "problem": "The dispatch desk needs to detect whether a sender explicitly requests immediate assistance.",
+        "input_description": "A maintenance message",
+        "decision": "Determine whether the wording communicates urgency",
+        "action": "Add an urgency flag for dispatcher review"
+      },
+      "existing": {
+        "slug": "rank-maintenance-reports",
+        "industry": "property management",
+        "audience": "application developers",
+        "task_type": "severity-scoring",
+        "search_intent": "Rank maintenance reports by disruption",
+        "summary": "Rank maintenance reports by disruption",
+        "problem": "Maintenance reports need ordering by concrete disruption to building occupants.",
+        "input_description": "A maintenance report and ordered disruption levels",
+        "decision": "Score the degree of current operational disruption",
+        "action": "Sort work orders by the resulting score"
+      }
+    },
+    {
+      "name": "unrelated_domains_and_actions",
+      "expected_duplicate": false,
+      "candidate": {
+        "slug": "rank-maintenance-reports",
+        "industry": "property management",
+        "audience": "application developers",
+        "task_type": "severity-scoring",
+        "search_intent": "Rank maintenance reports by disruption",
+        "summary": "Rank maintenance reports by disruption",
+        "problem": "Maintenance reports need ordering by concrete disruption to building occupants.",
+        "input_description": "A maintenance report and ordered disruption levels",
+        "decision": "Score the degree of current operational disruption",
+        "action": "Sort work orders by the resulting score"
+      },
+      "existing": {
+        "slug": "verify-support-answer",
+        "industry": "software support",
+        "audience": "application developers",
+        "task_type": "evidence-checking",
+        "search_intent": "Verify claims in support answers against a policy",
+        "summary": "Verify claims in support answers against a policy",
+        "problem": "Draft replies may contain promises unsupported by the supplied refund policy.",
+        "input_description": "A drafted response and the applicable policy text",
+        "decision": "Determine whether each factual claim is supported",
+        "action": "Hold unsupported responses for editing before sending"
+      }
+    }
+  ]
+}

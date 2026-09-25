@@ -153,10 +153,56 @@ async function main() {
   assertJsonLd(index);
   assertGoogleTag(index);
 
-  const sitemap = await readFile(resolve(OUT, "sitemap.xml"), "utf8");
-  assert(sitemap.includes(`<loc>${SITE_URL}/</loc>`), "Sitemap lacks homepage URL");
-  assert(/<lastmod>[^<]+<\/lastmod>/.test(sitemap), "Sitemap lacks lastmod");
-  assert(/<changefreq>weekly<\/changefreq>/.test(sitemap), "Sitemap should mark weekly change frequency");
+  const sitemapIndex = await readFile(resolve(OUT, "sitemap.xml"), "utf8");
+  assert(sitemapIndex.includes("<sitemapindex"), "Sitemap must be a chunked sitemap index");
+  const chunks = [...sitemapIndex.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  const sitemapUrls = [];
+  for (const chunk of chunks) {
+    assert(new RegExp(`^${SITE_URL.replaceAll(".", "\\.")}/sitemaps/\\d+\\.xml$`).test(chunk), "Unexpected sitemap chunk URL");
+    if (!chunk.startsWith(`${SITE_URL}/sitemaps/`)) continue;
+    const xml = await readFile(resolve(OUT, new URL(chunk).pathname.slice(1)), "utf8");
+    const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+    assert(urls.length <= 10_000, "Sitemap chunk exceeds 10,000 URLs");
+    assert(/<lastmod>[^<]+<\/lastmod>/.test(xml), "Sitemap lacks lastmod");
+    sitemapUrls.push(...urls);
+  }
+  assert(sitemapUrls.includes(`${SITE_URL}/`), "Sitemap lacks homepage URL");
+  assert(sitemapUrls.includes(`${SITE_URL}/use-cases`), "Sitemap lacks use-case catalog");
+  assert(new Set(sitemapUrls).size === sitemapUrls.length, "Sitemap contains duplicate URLs");
+
+  const release = JSON.parse(await readFile(resolve(OUT, "use-cases-manifest.json"), "utf8"));
+  assert(release.schema_version === 1 && Array.isArray(release.pages), "Invalid public release manifest");
+  const expectedUrls = new Set([`${SITE_URL}/`, `${SITE_URL}/use-cases`]);
+  const catalogPages = Math.max(1, Math.ceil(release.pages.length / 24));
+  for (let page = 2; page <= catalogPages; page += 1) expectedUrls.add(`${SITE_URL}/use-cases/page/${page}`);
+  for (const entry of release.pages) {
+    const url = `${SITE_URL}/use-cases/${entry.slug}`;
+    expectedUrls.add(url);
+    const html = await readFile(resolve(OUT, "use-cases", `${entry.slug}.html`), "utf8");
+    assert(linkTags(html).some((tag) => tag.rel === "canonical" && tag.href === url), `${entry.slug}: missing canonical`);
+    assert(htmlDecode(/<title>([^<]+)<\/title>/.exec(html)?.[1] ?? "") === entry.title, `${entry.slug}: title differs from manifest`);
+    assert(Boolean(findMeta(html, "name", "description")?.content), `${entry.slug}: missing description`);
+    assert(findMeta(html, "property", "og:url")?.content === url, `${entry.slug}: missing Open Graph URL`);
+    const structured = [...html.matchAll(/<script\s+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].flatMap((match) => {
+      try { const value = JSON.parse(match[1]); return value["@graph"] ?? [value]; }
+      catch { errors.push(`${entry.slug}: invalid JSON-LD`); return []; }
+    });
+    assert(structured.some((node) => node["@type"] === "TechArticle" && node.dateModified === entry.updated_at), `${entry.slug}: missing TechArticle or wrong date`);
+    assert(structured.some((node) => node["@type"] === "BreadcrumbList"), `${entry.slug}: missing breadcrumbs`);
+    const body = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "");
+    assert(body.includes("The problem") && body.includes("Previous verification response"), `${entry.slug}: article and responses must render without JavaScript`);
+    assert(body.includes('class="code-line"') && body.includes("urllib") && body.includes('id="use-case-request"'), `${entry.slug}: request and complete Python example must render without JavaScript`);
+    assert(!findMeta(html, "name", "robots")?.content?.includes("noindex"), `${entry.slug}: published page disallows indexing`);
+  }
+  assert(sitemapUrls.length === expectedUrls.size && sitemapUrls.every((url) => expectedUrls.has(url)), "Sitemap differs from published release");
+  for (const url of expectedUrls) {
+    if (url === `${SITE_URL}/`) continue;
+    const html = await readFile(resolve(OUT, `${new URL(url).pathname.slice(1)}.html`), "utf8");
+    assert(html.includes("<h1"), `${url}: missing rendered heading`);
+  }
+  const allFiles = await walkFiles(OUT);
+  assert(!allFiles.some((file) => /\/(?:novelty-index|checkpoints?|pages-\d+)\.json$/.test(file)), "Private generation data leaked into static output");
+  assert(!allFiles.some((file) => /\/use-cases\/(?:_empty|page\/0)\.(?:html|txt)$/.test(file)), "Empty export sentinels must not be public routes");
 
   const robotsTxt = await readFile(resolve(OUT, "robots.txt"), "utf8");
   assert(/User-Agent: \*/i.test(robotsTxt), "robots.txt lacks wildcard user-agent");
@@ -173,7 +219,7 @@ async function main() {
     return;
   }
 
-  console.log("SEO validation passed for homepage metadata, Google tag, JSON-LD, sitemap, robots, and OG image.");
+  console.log(`SEO validation passed: homepage, ${release.pages.length} use-case pages, release whitelist, sitemap chunks, robots, and OG image.`);
 }
 
 main().catch((error) => {

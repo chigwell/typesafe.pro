@@ -123,3 +123,56 @@ export async function adminFetch<T>(
   }
   return response.json();
 }
+
+export interface SeoPublication {
+  run_id: string;
+  source_sha: string;
+  catalog_hash: string;
+  generated_at: string;
+  published_at: string;
+  added_count: number;
+  removed_count: number;
+  total_pages: number;
+}
+export interface SeoRun {
+  run_id: string;
+  source_sha: string;
+  status: "prepared" | "skipped" | "failed" | "published";
+  generation_status: "prepared" | "skipped" | "failed";
+  reason: string | null;
+  started_at: string;
+  finished_at: string;
+  published_at: string | null;
+  duration_seconds: number;
+  seed: number | string;
+  rounds: number;
+  api_calls: number;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  generated_count: number;
+  rejected_count: number;
+  rejections: Record<string, number>;
+  catalog_hash: string;
+}
+export interface SeoSummary {
+  total_pages: number;
+  added_last_deploy: number;
+  latest_publication: SeoPublication | null;
+  latest_attempt: SeoRun | null;
+  totals: {
+    runs: number;
+    api_calls: number;
+    input_tokens: number | null;
+    output_tokens: number | null;
+  };
+}
+export interface SeoPage {
+  slug: string;
+  title: string;
+  path: string;
+  created_at: string;
+  updated_at: string;
+  published_at: string;
+  unique_visitors: number;
+  total_hits: number;
+}

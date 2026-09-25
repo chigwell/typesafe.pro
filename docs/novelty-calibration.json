@@ -1,0 +1,43 @@
+{
+  "checked_at": "2026-09-25T15:14:28.342346+00:00",
+  "api_calls": 5,
+  "sample_count": 5,
+  "results": [
+    {
+      "name": "paraphrased_same_workflow",
+      "expected_duplicate": true,
+      "duplicate_probability": 0.98,
+      "model": "jev-1.13.0",
+      "passed_initial_threshold": true
+    },
+    {
+      "name": "industry_only_substitution",
+      "expected_duplicate": true,
+      "duplicate_probability": 0.95,
+      "model": "jev-1.13.0",
+      "passed_initial_threshold": true
+    },
+    {
+      "name": "shared_domain_different_decision",
+      "expected_duplicate": false,
+      "duplicate_probability": 0.02,
+      "model": "jev-1.13.0",
+      "passed_initial_threshold": true
+    },
+    {
+      "name": "shared_input_different_judgment",
+      "expected_duplicate": false,
+      "duplicate_probability": 0.05,
+      "model": "jev-1.13.0",
+      "passed_initial_threshold": true
+    },
+    {
+      "name": "unrelated_domains_and_actions",
+      "expected_duplicate": false,
+      "duplicate_probability": 0.03,
+      "model": "jev-1.13.0",
+      "passed_initial_threshold": true
+    }
+  ],
+  "note": "Small smoke calibration, not an accuracy benchmark or guarantee."
+}

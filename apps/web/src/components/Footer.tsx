@@ -27,13 +27,14 @@ export function Footer() {
         <div className="footer-top">
           <Brand />
           <div className="footer-links">
-            <a href="#playground">Playground</a>
-            <a href="#examples">Examples</a>
+            <a href="/#playground">Playground</a>
+            <a href="/#examples">Examples</a>
+            <a href="/use-cases">Use cases</a>
             <a href="https://docs.typesafe.ai/" target="_blank" rel="noopener noreferrer">
               TypeSafe docs
             </a>
             <a href="mailto:support@typesafe.pro">support@typesafe.pro</a>
-            <a href="#faq-independent">About this gateway</a>
+            <a href="/#faq-independent">About this gateway</a>
           </div>
         </div>
         <div className="footer-bottom">

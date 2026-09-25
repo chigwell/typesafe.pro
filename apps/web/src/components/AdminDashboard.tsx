@@ -17,12 +17,16 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { adminFetch, AdminError } from "@/lib/admin";
+import GeneratedPages from "./GeneratedPages";
 import type {
   ActivityWindow,
   ErrorEvent,
   IpActivity,
   Page,
   PageViewRow,
+  SeoSummary,
+  SeoPage,
+  SeoRun,
   Sample,
   Summary,
   SystemStatus,
@@ -208,6 +212,11 @@ export default function AdminDashboard() {
   const [ips, setIps] = useState<Page<IpActivity>>();
   const [pageViews, setPageViews] = useState<Page<PageViewRow>>();
   const [errors, setErrors] = useState<Page<ErrorEvent>>();
+  const [seoSummary, setSeoSummary] = useState<SeoSummary>();
+  const [seoPages, setSeoPages] = useState<Page<SeoPage>>();
+  const [seoRuns, setSeoRuns] = useState<Page<SeoRun>>();
+  const [seoPage, setSeoPage] = useState(1);
+  const [seoRunPage, setSeoRunPage] = useState(1);
   const [failures, setFailures] = useState<string[]>([]);
 
   useEffect(() => {
@@ -256,6 +265,9 @@ export default function AdminDashboard() {
           opts,
         ),
         adminFetch<Page<ErrorEvent>>(`/errors?${query}`, opts),
+        adminFetch<SeoSummary>("/seo/summary", opts),
+        adminFetch<Page<SeoPage>>(`/seo/pages?page=${seoPage}&page_size=25`, opts),
+        adminFetch<Page<SeoRun>>(`/seo/runs?page=${seoRunPage}&page_size=25`, opts),
       ] as const);
       if (controller.signal.aborted) return;
       if (
@@ -271,6 +283,9 @@ export default function AdminDashboard() {
         setIps(undefined);
         setPageViews(undefined);
         setErrors(undefined);
+        setSeoSummary(undefined);
+        setSeoPages(undefined);
+        setSeoRuns(undefined);
         setAuthError("Session expired. Sign in again.");
         setAuth("login");
       } else {
@@ -289,12 +304,18 @@ export default function AdminDashboard() {
         setPageViews(
           results[3].status === "fulfilled" ? results[3].value : undefined,
         );
+        setSeoSummary(results[5].status === "fulfilled" ? results[5].value : undefined);
+        setSeoPages(results[6].status === "fulfilled" ? results[6].value : undefined);
+        setSeoRuns(results[7].status === "fulfilled" ? results[7].value : undefined);
         const labels = [
           "System",
           "Activity",
           "IP activity",
           "Page views",
           "Errors",
+          "Generated pages",
+          "Generated page list",
+          "Generation history",
         ];
         setFailures(
           results.flatMap((result, index) =>
@@ -322,6 +343,8 @@ export default function AdminDashboard() {
     viewsFrom,
     viewsTo,
     errorPage,
+    seoPage,
+    seoRunPage,
     status,
     errorCode,
     refresh,
@@ -361,6 +384,9 @@ export default function AdminDashboard() {
       setIps(undefined);
       setPageViews(undefined);
       setErrors(undefined);
+      setSeoSummary(undefined);
+      setSeoPages(undefined);
+      setSeoRuns(undefined);
       setAuth("login");
     } catch (error) {
       setFailures([`Sign out: ${message(error)}`]);
@@ -707,6 +733,13 @@ export default function AdminDashboard() {
               {summary?.paths.length === 0 && <p>No activity</p>}
             </details>
           </section>
+
+          <GeneratedPages
+            summary={seoSummary} pages={seoPages} runs={seoRuns}
+            page={seoPage} runPage={seoRunPage} loading={loading}
+            onPage={(page) => { setSeoPage(page); setSeoPages(undefined); }}
+            onRunPage={(page) => { setSeoRunPage(page); setSeoRuns(undefined); }}
+          />
 
           <section
             className="admin-section"

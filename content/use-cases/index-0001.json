@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "scenarios": [
+    {
+      "slug": "library-catalog-routing",
+      "industry": "Public Library Systems",
+      "audience": "Reference Librarians",
+      "task_type": "intent-routing",
+      "search_intent": "Classify incoming reference queries into appropriate administrative departments.",
+      "summary": "Automated routing of digital library reference requests to specialized archival or research teams.",
+      "problem": "Public library systems receive diverse user queries that often span multiple subjects. Manual sorting results in frequent misrouting of interdisciplinary requests and increased administrative overhead. The application must analyze the query text and provide a consistent department selection to trigger an automated ticketing system update.",
+      "input_description": "A user-submitted query text string regarding research assistance.",
+      "decision": "Choice: Map the input to a specific department (e.g., genealogy, digital-media, technical-services) or route to manual review.",
+      "action": "Downstream code updates the ticketing system status and routes the request to the chosen department queue."
+    },
+    {
+      "slug": "permission-software-license",
+      "industry": "Software Asset Management",
+      "audience": "IT Procurement",
+      "task_type": "evidence-checking",
+      "search_intent": "Check whether software license request justifications include a purpose and project reference.",
+      "summary": "Triage software license requests for missing business context before procurement review.",
+      "problem": "Software license requests often arrive with vague justifications. A procurement reviewer needs a stated purpose and project reference before checking budget, entitlement and approval rules. This example checks whether the submitted text supplies those two details so the application can request missing information first.",
+      "input_description": "The 'justification' field submitted in the procurement form.",
+      "decision": "Noul: Does the justification state a concrete work purpose and include a specific project identifier?",
+      "action": "Send sufficiently complete requests to procurement review; ask the requester for more detail when the justification is incomplete."
+    }
+  ]
+}

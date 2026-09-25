@@ -1,5 +1,12 @@
 /opengraph-image
   Content-Type: image/png
+/use-cases-manifest.json
+  Content-Type: application/json
+  Cache-Control: no-store
+/sitemap.xml
+  Content-Type: application/xml
+/sitemaps/*
+  Content-Type: application/xml
 /admin*
   X-Robots-Tag: noindex, nofollow
   Cache-Control: no-store
