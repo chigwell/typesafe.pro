@@ -48,6 +48,18 @@
       "input_description": "A JSON object containing the tenant issue description, affected room type, and reported impact on daily business.",
       "decision": "Score: Score the reported hazard severity from 0 (purely aesthetic preference) to 4 (immediate life safety hazard or uncontrolled flooding).",
       "action": "Work order software automatically triggers immediate on-call technician paging for high-severity scores or enqueues the request in the regular maintenance queue."
+    },
+    {
+      "slug": "wind-turbine-maintenance-report-completeness",
+      "industry": "Renewable Energy Utilities",
+      "audience": "Field Service Supervisors",
+      "task_type": "completeness-scoring",
+      "search_intent": "Score the descriptive thoroughness of wind turbine gearbox lubrication field service reports.",
+      "summary": "Evaluate technician maintenance log entries for comprehensive component inspection and measurement notes.",
+      "problem": "Field technicians submit a free-text maintenance work summary after completing gearbox lubrication servicing under demanding site conditions. Summaries often leave out critical quantitative readings, such as particulate counts or viscosity values, or fail to describe mechanical seal conditions. The asset management application must evaluate the descriptive completeness of these notes so incomplete logs can be flagged for technician revision before review. Because text thoroughness does not verify mechanical safety or replace physical inspections, the application uses this score solely for documentation triage.",
+      "input_description": "The maintenance_work_summary text submitted by the field technician upon service completion.",
+      "decision": "Score: Score report completeness on three levels: 0 (insufficient summary lacking specific component observations), 1 (basic summary with qualitative notes but missing physical measurements), and 2 (thorough report detailing component conditions and quantitative readings).",
+      "action": "Utility asset management software marks the technician work order as completed for score 2 or prevents work order sign-off and notifies the technician to enrich their notes for scores 0 and 1."
     }
   ]
 }

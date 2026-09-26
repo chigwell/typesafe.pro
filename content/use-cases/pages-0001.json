@@ -766,6 +766,212 @@
       },
       "created_at": "2026-09-25T15:55:29.066891Z",
       "updated_at": "2026-09-25T15:55:29.066891Z"
+    },
+    {
+      "slug": "wind-turbine-maintenance-report-completeness",
+      "industry": "Renewable Energy Utilities",
+      "audience": "Field Service Supervisors",
+      "task_type": "completeness-scoring",
+      "search_intent": "Score the descriptive thoroughness of wind turbine gearbox lubrication field service reports.",
+      "summary": "Evaluate technician maintenance log entries for comprehensive component inspection and measurement notes.",
+      "problem": "Field technicians submit a free-text maintenance work summary after completing gearbox lubrication servicing under demanding site conditions. Summaries often leave out critical quantitative readings, such as particulate counts or viscosity values, or fail to describe mechanical seal conditions. The asset management application must evaluate the descriptive completeness of these notes so incomplete logs can be flagged for technician revision before review. Because text thoroughness does not verify mechanical safety or replace physical inspections, the application uses this score solely for documentation triage.",
+      "input_description": "The maintenance_work_summary text submitted by the field technician upon service completion.",
+      "decision": "Score: Score report completeness on three levels: 0 (insufficient summary lacking specific component observations), 1 (basic summary with qualitative notes but missing physical measurements), and 2 (thorough report detailing component conditions and quantitative readings).",
+      "action": "Utility asset management software marks the technician work order as completed for score 2 or prevents work order sign-off and notifies the technician to enrich their notes for scores 0 and 1.",
+      "schema_version": 1,
+      "seo": {
+        "title": "Scoring Wind Turbine Maintenance Report Completeness",
+        "description": "Score wind turbine gearbox maintenance logs for descriptive thoroughness, checking component observations and measurements to triage reports before supervisor review."
+      },
+      "intro": "Field service supervisors frequently receive offshore wind turbine gearbox maintenance logs that omit key particulate findings, seal condition notes, or oil readings. This example evaluates the descriptive thoroughness of technician logs across three completeness levels to decide whether a work order summary is detailed enough for supervisor review or requires immediate text enrichment.",
+      "solution": "The gearbox_report_completeness question evaluates the technician's maintenance_work_summary text across three defined descriptive levels. In the observed runs, the model returned a score of 2.0 when the summary included both qualitative component checks and quantitative readings, 1.0 when it contained qualitative gear observations without measurements, and 0.21 when it offered only a brief generic confirmation. Application code can use this score to triage submissions, routing logs near 2.0 to field supervisors while prompting technicians to supply missing observations or measurements for lower scores. This workflow remains an application policy rather than an automated API execution, and completeness scoring functions purely as documentation triage without verifying mechanical safety or replacing independent physical inspections.",
+      "limitations": [
+        "The evaluation examines only the textual thoroughness of the submitted maintenance_work_summary; mentioning a turbine_id or service_type does not verify that the asset is active, authorized, or correctly serviced.",
+        "The three-level rubric scores whether qualitative observations and quantitative metrics were described, but it does not check recorded figures such as viscosity or ISO cleanliness against authoritative engineering specifications.",
+        "Scoring text completeness does not constitute work order approval, so you can implement application checks or supervisor sign-offs to validate asset condition before closing maintenance records."
+      ],
+      "examples": [
+        {
+          "name": "thorough_gearbox_log_with_measurements",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "turbine_id": "WTG-04B",
+              "service_type": "Gearbox Lubrication Inspection",
+              "maintenance_work_summary": "Completed 500-hour gearbox lubrication maintenance. Flushed inline filtration system and replaced dual filter elements. Visual inspection of planetary gear teeth revealed normal wear patterns with no micro-pitting or scoring. Main shaft mechanical seal intact with zero weepage observed. Oil reservoir refilled with 420 liters of Mobilgear SHC XMP 320; measured kinematic viscosity at 40C was 318 cSt. Inline optical particle counter registered ISO 4406 cleanliness code of 16/14/11. Sump temperature stabilized at 62C post-test run."
+            },
+            "questions": {
+              "gearbox_report_completeness": {
+                "type": "score",
+                "instructions": "Evaluate the maintenance_work_summary text for descriptive thoroughness regarding component inspection observations and quantitative measurements.",
+                "criteria": [
+                  "Insufficient summary lacking specific component observations",
+                  "Basic summary with qualitative notes but missing physical measurements",
+                  "Thorough report detailing component conditions and quantitative readings"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "gearbox_report_completeness": {
+              "type": "score",
+              "min": 1.8,
+              "max": 2.0
+            }
+          },
+          "expected_description": "The log provides qualitative observations of gear teeth wear and seal condition alongside quantitative data for lubricant volume, viscosity, ISO cleanliness code, and operating temperature.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "gearbox_report_completeness": {
+                "type": "score",
+                "score": 2.0,
+                "probabilities": {
+                  "0": 0.0,
+                  "1": 0.0,
+                  "2": 1.0
+                },
+                "confidence": 1.0,
+                "legend": {
+                  "0": "Insufficient summary lacking specific component observations",
+                  "1": "Basic summary with qualitative notes but missing physical measurements",
+                  "2": "Thorough report detailing component conditions and quantitative readings"
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 507,
+              "output_tokens": 24
+            }
+          },
+          "verified_at": "2026-09-26T19:26:22.520497Z"
+        },
+        {
+          "name": "qualitative_gearbox_log_without_measurements",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "turbine_id": "WTG-12A",
+              "service_type": "Gearbox Lubrication Inspection",
+              "maintenance_work_summary": "Serviced the main gearbox lubrication loop. Replaced oil filter cartridges and wiped down casing. Inspected the intermediate pinion teeth through inspection hatch; gears look smooth with no visible surface damage. Gearbox seals appeared dry and in acceptable condition. Topped off reservoir with fresh gear oil. System ran quietly during post-service startup."
+            },
+            "questions": {
+              "gearbox_report_completeness": {
+                "type": "score",
+                "instructions": "Evaluate the maintenance_work_summary text for descriptive thoroughness regarding component inspection observations and quantitative measurements.",
+                "criteria": [
+                  "Insufficient summary lacking specific component observations",
+                  "Basic summary with qualitative notes but missing physical measurements",
+                  "Thorough report detailing component conditions and quantitative readings"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "gearbox_report_completeness": {
+              "type": "score",
+              "min": 0.8,
+              "max": 1.2
+            }
+          },
+          "expected_description": "The log records specific qualitative component details for the pinion teeth, filter elements, and seal surfaces, but omits physical readings such as viscosity, particle counts, oil volume, and temperature.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "gearbox_report_completeness": {
+                "type": "score",
+                "score": 1.0,
+                "probabilities": {
+                  "0": 0.0,
+                  "1": 1.0,
+                  "2": 0.0
+                },
+                "confidence": 1.0,
+                "legend": {
+                  "0": "Insufficient summary lacking specific component observations",
+                  "1": "Basic summary with qualitative notes but missing physical measurements",
+                  "2": "Thorough report detailing component conditions and quantitative readings"
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 444,
+              "output_tokens": 24
+            }
+          },
+          "verified_at": "2026-09-26T19:26:22.876113Z"
+        },
+        {
+          "name": "brief_gearbox_log_missing_component_observations",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "turbine_id": "WTG-09C",
+              "service_type": "Gearbox Lubrication Inspection",
+              "maintenance_work_summary": "Routine lube service performed as scheduled. Everything checked out okay."
+            },
+            "questions": {
+              "gearbox_report_completeness": {
+                "type": "score",
+                "instructions": "Evaluate the maintenance_work_summary text for descriptive thoroughness regarding component inspection observations and quantitative measurements.",
+                "criteria": [
+                  "Insufficient summary lacking specific component observations",
+                  "Basic summary with qualitative notes but missing physical measurements",
+                  "Thorough report detailing component conditions and quantitative readings"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "gearbox_report_completeness": {
+              "type": "score",
+              "min": 0.0,
+              "max": 0.3
+            }
+          },
+          "expected_description": "The log provides only a generic confirmation of service completion with no specific observations of gear components, seals, filters, or physical measurements.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "gearbox_report_completeness": {
+                "type": "score",
+                "score": 0.21,
+                "probabilities": {
+                  "0": 0.79,
+                  "1": 0.21,
+                  "2": 0.0
+                },
+                "confidence": 0.68,
+                "legend": {
+                  "0": "Insufficient summary lacking specific component observations",
+                  "1": "Basic summary with qualitative notes but missing physical measurements",
+                  "2": "Thorough report detailing component conditions and quantitative readings"
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 386,
+              "output_tokens": 24
+            }
+          },
+          "verified_at": "2026-09-26T19:26:23.253420Z"
+        }
+      ],
+      "verification": {
+        "model": "jev-1.13.0",
+        "verified_at": "2026-09-26T19:26:35.886633Z",
+        "quality": {
+          "useful": 0.95,
+          "supported": 0.86,
+          "consistent": 0.86
+        },
+        "novelty_probability": 0.81
+      },
+      "created_at": "2026-09-26T19:26:35.886633Z",
+      "updated_at": "2026-09-26T19:26:35.886633Z"
     }
   ]
 }

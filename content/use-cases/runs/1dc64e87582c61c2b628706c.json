@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "baseline_slugs": [
+    "library-catalog-routing",
+    "permission-software-license",
+    "ingredient-allergen-screening",
+    "facility-maintenance-severity-scoring"
+  ],
+  "report": {
+    "run_id": "36265783411",
+    "source_sha": "2d381cfab4b5c5caa304001789f2c08b666b74c6",
+    "status": "prepared",
+    "reason": "verified_pages_ready",
+    "started_at": "2026-09-26T19:24:31.656691Z",
+    "finished_at": "2026-09-26T19:27:27.256864Z",
+    "duration_seconds": 175.6,
+    "seed": 2713162185,
+    "rounds": 5,
+    "api_calls": 65,
+    "input_tokens": 152990,
+    "output_tokens": 43740,
+    "generated_count": 1,
+    "rejected_count": 49,
+    "rejections": {
+      "uncertain_novelty": 42,
+      "semantic_duplicate": 7
+    },
+    "catalog_hash": "bbc5c8f6eecfbeae859053ae93562148febdb14bf12f0fb8dbf40bd64ad5c916"
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "36265783411",
+    "source_sha": "2d381cfab4b5c5caa304001789f2c08b666b74c6",
+    "catalog_hash": "bbc5c8f6eecfbeae859053ae93562148febdb14bf12f0fb8dbf40bd64ad5c916",
+    "generated_at": "2026-09-26T19:27:27.255906Z",
+    "pages": [
+      {
+        "slug": "library-catalog-routing",
+        "title": "Automating Library Reference Query Routing with Intent Classification",
+        "created_at": "2026-09-25T15:31:20.467624Z",
+        "updated_at": "2026-09-25T15:35:00.990043Z"
+      },
+      {
+        "slug": "permission-software-license",
+        "title": "Check Software License Justifications Before Procurement Review",
+        "created_at": "2026-09-25T15:33:55.274202Z",
+        "updated_at": "2026-09-25T15:36:02.408494Z"
+      },
+      {
+        "slug": "ingredient-allergen-screening",
+        "title": "Screen Ingredient Spec Sheets for Allergen Disclosures",
+        "created_at": "2026-09-25T15:53:34.323318Z",
+        "updated_at": "2026-09-25T15:53:34.323318Z"
+      },
+      {
+        "slug": "facility-maintenance-severity-scoring",
+        "title": "Scoring Maintenance Request Severity for Facility Dispatch",
+        "created_at": "2026-09-25T15:55:29.066891Z",
+        "updated_at": "2026-09-25T15:55:29.066891Z"
+      },
+      {
+        "slug": "wind-turbine-maintenance-report-completeness",
+        "title": "Scoring Wind Turbine Maintenance Report Completeness",
+        "created_at": "2026-09-26T19:26:35.886633Z",
+        "updated_at": "2026-09-26T19:26:35.886633Z"
+      }
+    ]
+  }
+}

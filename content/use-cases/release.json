@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "run_id": "36156289513",
-  "source_sha": "edc2993a8af60afa82c9776d07ffbd55bbe0cd0f",
-  "catalog_hash": "b453c75c2e380b60eb258acda4226117924b005b622e00e45e41002044a4f381",
-  "generated_at": "2026-09-25T15:56:26.912563Z",
+  "run_id": "36265783411",
+  "source_sha": "2d381cfab4b5c5caa304001789f2c08b666b74c6",
+  "catalog_hash": "bbc5c8f6eecfbeae859053ae93562148febdb14bf12f0fb8dbf40bd64ad5c916",
+  "generated_at": "2026-09-26T19:27:27.255906Z",
   "pages": [
     {
       "slug": "library-catalog-routing",
@@ -28,6 +28,12 @@
       "title": "Scoring Maintenance Request Severity for Facility Dispatch",
       "created_at": "2026-09-25T15:55:29.066891Z",
       "updated_at": "2026-09-25T15:55:29.066891Z"
+    },
+    {
+      "slug": "wind-turbine-maintenance-report-completeness",
+      "title": "Scoring Wind Turbine Maintenance Report Completeness",
+      "created_at": "2026-09-26T19:26:35.886633Z",
+      "updated_at": "2026-09-26T19:26:35.886633Z"
     }
   ]
 }
