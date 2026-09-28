@@ -972,6 +972,495 @@
       },
       "created_at": "2026-09-26T19:26:35.886633Z",
       "updated_at": "2026-09-26T19:26:35.886633Z"
+    },
+    {
+      "slug": "playlist-mood-palette",
+      "industry": "Music streaming",
+      "audience": "Music app developers",
+      "task_type": "color-association",
+      "search_intent": "Map playlist mood descriptions to colour palettes",
+      "summary": "Map an emotive playlist description to the colour palette archetype it evokes.",
+      "problem": "The application receives a short free-text atmosphere description written by a user or playlist curator. Traditional metadata like genre, tempo, or release year does not reveal whether a playlist feels like a neon synthwave night or a golden sunset afternoon. The application must evaluate the ambient description against candidate palette definitions and choose the matching archetype or select a neutral default theme. Downstream code then uses this evaluation to update player UI styling dynamically.",
+      "input_description": "A short free-text playlist atmosphere description.",
+      "decision": "Choose the colour palette archetype (neon synthwave, earthy acoustic, pastel lofi, golden sunset) the description evokes.",
+      "action": "Apply the matching colour theme to the player interface.",
+      "schema_version": 1,
+      "seo": {
+        "title": "Map Playlist Mood Descriptions to UI Color Palettes",
+        "description": "Evaluate emotive playlist atmosphere descriptions and map them to visual color palette archetypes for dynamic music player UI styling."
+      },
+      "intro": "Static genre tags fail to capture evocative user playlist descriptions like 'midnight drive through rainy neon streets'. This example evaluates free-text atmospheric descriptions against defined visual themes to select an appropriate color palette archetype for UI rendering.",
+      "solution": "In these observed examples, the application submits the atmosphere_description text field under the palette_archetype choice question. For inputs describing rainy synth streets or warm coastal sunsets, the returned evaluations selected the neon_synthwave and golden_sunset archetypes, whereas generic focus text yielded unclassified_neutral. Downstream application code can read the returned choice to update player interface themes or load matching CSS palette variables. While the API provides the visual classification judgment based on criteria, application code executes the actual theme routing and determines local UI fallback policies.",
+      "limitations": [
+        "This single Choice question returns one primary option per request, though applications can use independent Noul questions if a workflow requires multi-label attribute scoring for complex playlist descriptions.",
+        "The unclassified_neutral label provides an explicit no-match option in criteria, but you can implement application-side confidence thresholds or fallback default themes before applying visual updates.",
+        "Categorizing user text into visual archetype options provides a semantic mood triage rather than authoritative music metadata verification or guaranteed visual suitability."
+      ],
+      "examples": [
+        {
+          "name": "Midnight drive through rainy neon streets state",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "atmosphere_description": "Midnight drive through rainy neon streets with synth retro rhythms."
+            },
+            "questions": {
+              "palette_archetype": {
+                "type": "choice",
+                "instructions": "Evaluate the playlist atmosphere description in state and select the single visual color palette archetype it best matches, or unclassified_neutral if none match.",
+                "criteria": {
+                  "neon_synthwave": "Nighttime, rainy streets, glowing neon lights, futuristic or retro electronic mood.",
+                  "pastel_lofi": "Cozy room, chill beats, soft warm pastel colors, rainy afternoon or coffee aesthetic.",
+                  "golden_sunset": "Warm acoustic sunbeams, summer afternoon, golden hour glow, open road outdoor vibes.",
+                  "unclassified_neutral": "The description is generic, missing atmospheric visual detail, or does not clearly evoke any defined palette archetype."
+                }
+              }
+            }
+          },
+          "expected": {
+            "palette_archetype": {
+              "type": "choice",
+              "choice": "neon_synthwave"
+            }
+          },
+          "expected_description": "Atmosphere description describes a rainy nighttime synth setting, matching neon_synthwave.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "palette_archetype": {
+                "type": "choice",
+                "choice": "neon_synthwave",
+                "probabilities": {
+                  "neon_synthwave": 1.0,
+                  "unclassified_neutral": 0.0,
+                  "golden_sunset": 0.0,
+                  "pastel_lofi": 0.0
+                },
+                "confidence": 1.0
+              }
+            },
+            "usage": {
+              "input_tokens": 461,
+              "output_tokens": 67
+            }
+          },
+          "verified_at": "2026-09-27T19:59:08.200857Z"
+        },
+        {
+          "name": "Warm acoustic golden hour sunset state",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "atmosphere_description": "Warm acoustic guitars playing during a summer golden hour sunset on the coast."
+            },
+            "questions": {
+              "palette_archetype": {
+                "type": "choice",
+                "instructions": "Evaluate the playlist atmosphere description in state and select the single visual color palette archetype it best matches, or unclassified_neutral if none match.",
+                "criteria": {
+                  "neon_synthwave": "Nighttime, rainy streets, glowing neon lights, futuristic or retro electronic mood.",
+                  "pastel_lofi": "Cozy room, chill beats, soft warm pastel colors, rainy afternoon or coffee aesthetic.",
+                  "golden_sunset": "Warm acoustic sunbeams, summer afternoon, golden hour glow, open road outdoor vibes.",
+                  "unclassified_neutral": "The description is generic, missing atmospheric visual detail, or does not clearly evoke any defined palette archetype."
+                }
+              }
+            }
+          },
+          "expected": {
+            "palette_archetype": {
+              "type": "choice",
+              "choice": "golden_sunset"
+            }
+          },
+          "expected_description": "Atmosphere description describes a warm summer golden hour setting, matching golden_sunset.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "palette_archetype": {
+                "type": "choice",
+                "choice": "golden_sunset",
+                "probabilities": {
+                  "golden_sunset": 1.0,
+                  "unclassified_neutral": 0.0,
+                  "neon_synthwave": 0.0,
+                  "pastel_lofi": 0.0
+                },
+                "confidence": 1.0
+              }
+            },
+            "usage": {
+              "input_tokens": 462,
+              "output_tokens": 67
+            }
+          },
+          "verified_at": "2026-09-27T19:59:08.464231Z"
+        },
+        {
+          "name": "Generic algebra homework atmosphere state",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "atmosphere_description": "Tracks for focusing on algebra homework."
+            },
+            "questions": {
+              "palette_archetype": {
+                "type": "choice",
+                "instructions": "Evaluate the playlist atmosphere description in state and select the single visual color palette archetype it best matches, or unclassified_neutral if none match.",
+                "criteria": {
+                  "neon_synthwave": "Nighttime, rainy streets, glowing neon lights, futuristic or retro electronic mood.",
+                  "pastel_lofi": "Cozy room, chill beats, soft warm pastel colors, rainy afternoon or coffee aesthetic.",
+                  "golden_sunset": "Warm acoustic sunbeams, summer afternoon, golden hour glow, open road outdoor vibes.",
+                  "unclassified_neutral": "The description is generic, missing atmospheric visual detail, or does not clearly evoke any defined palette archetype."
+                }
+              }
+            }
+          },
+          "expected": {
+            "palette_archetype": {
+              "type": "choice",
+              "choice": "unclassified_neutral"
+            }
+          },
+          "expected_description": "Atmosphere description lacks visual or atmospheric imagery, falling back to unclassified_neutral.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "palette_archetype": {
+                "type": "choice",
+                "choice": "unclassified_neutral",
+                "probabilities": {
+                  "pastel_lofi": 0.02,
+                  "golden_sunset": 0.0,
+                  "neon_synthwave": 0.0,
+                  "unclassified_neutral": 0.98
+                },
+                "confidence": 0.97
+              }
+            },
+            "usage": {
+              "input_tokens": 455,
+              "output_tokens": 67
+            }
+          },
+          "verified_at": "2026-09-27T19:59:08.772718Z"
+        }
+      ],
+      "demo": {
+        "title": "Floating Atmosphere Particle Cluster",
+        "concept": "Playlist atmosphere descriptions trigger glowing colored particles that float into liquid containers proportional to matching palette probabilities.",
+        "interaction": "The visitor inputs text such as 'rain splashing on city neon at 2 AM' and presses analyze.",
+        "visual": "Particles glow and bubble into container vats representing each palette, filling them according to returned probabilities while a background moon or sun illuminates based on the nighttime judgment.",
+        "questions": {
+          "palette_category": {
+            "type": "choice",
+            "instructions": "Determine which color palette archetype best fits the playlist_description field in state.",
+            "criteria": {
+              "neon_synthwave": "Midnight dark backgrounds with neon violet, electric blue, and magenta highlights.",
+              "earthy_acoustic": "Natural organic browns, moss greens, and muted terracotta tones.",
+              "pastel_lofi": "Soft vintage pastels, faded pinks, cream, and sky blue hues.",
+              "golden_sunset": "Warm sun-drenched golden hours, amber, and deep orange tones.",
+              "unclear_atmosphere": "The text is ambiguous, non-descriptive, or lacks identifiable aesthetic themes."
+            }
+          },
+          "is_nighttime": {
+            "type": "noul",
+            "instructions": "Does the playlist_description field in state depict a nighttime or dark atmospheric setting?",
+            "criteria": {
+              "true": "Mentions night, late hours, dark roads, midnight, shadows, or neon darkness.",
+              "false": "Mentions daylight, morning, sun, bright skies, afternoon, or midday activities."
+            }
+          }
+        },
+        "html": "<div class=\"palette-demo\">\n  <div class=\"demo-header\">\n    <div class=\"demo-title-wrap\">\n      <span class=\"demo-badge\">Color Association</span>\n      <h2 class=\"demo-title\">Atmosphere Particle Cluster</h2>\n    </div>\n    <p class=\"demo-subtitle\">Map emotive playlist mood descriptions to dynamic interface color palette archetypes and lighting environments.</p>\n  </div>\n\n  <div class=\"samples-bar\">\n    <span class=\"samples-label\">Preset atmospheres:</span>\n    <div id=\"samples-list\" class=\"samples-list\"></div>\n  </div>\n\n  <div class=\"input-card\">\n    <label for=\"atmos-input\" class=\"input-label\">Playlist Mood Description</label>\n    <div class=\"input-row\">\n      <textarea id=\"atmos-input\" class=\"atmos-textarea\" rows=\"2\" placeholder=\"e.g. rain splashing on city neon at 2 AM under glowing synth lights...\"></textarea>\n      <button id=\"analyze-btn\" class=\"analyze-button\">\n        <span class=\"btn-icon\">✨</span>\n        <span class=\"btn-text\">Analyze Mood</span>\n      </button>\n    </div>\n  </div>\n\n  <div id=\"status-el\" class=\"status-box\" aria-live=\"polite\">Ready for atmosphere input</div>\n\n  <div class=\"visual-stage\" id=\"visual-stage\">\n    <div class=\"celestial-sky\" id=\"celestial-sky\">\n      <div class=\"celestial-orb-container\">\n        <div class=\"celestial-orb\" id=\"celestial-orb\">\n          <div class=\"orb-icon sun-icon\" title=\"Daylight\">☀️</div>\n          <div class=\"orb-icon moon-icon\" title=\"Nighttime\">🌙</div>\n        </div>\n      </div>\n      <div class=\"sky-info\">\n        <div class=\"sky-header\">\n          <span class=\"sky-title\" id=\"sky-title\">Environment Lighting</span>\n          <span class=\"sky-val\" id=\"sky-val\">--</span>\n        </div>\n        <div class=\"sky-meter\">\n          <div class=\"sky-bar-fill\" id=\"sky-bar-fill\"></div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"particles-canvas-wrap\" id=\"particles-canvas-wrap\">\n      <div class=\"vats-grid\" id=\"vats-grid\">\n        <div class=\"vat-card\" data-category=\"neon_synthwave\">\n          <div class=\"vat-header\">\n            <span class=\"vat-dot neon-dot\"></span>\n            <span class=\"vat-name\">Neon Synthwave</span>\n          </div>\n          <div class=\"vat-container\">\n            <div class=\"vat-liquid neon-liquid\" id=\"liquid-neon_synthwave\"></div>\n            <div class=\"vat-bubbles\" id=\"bubbles-neon_synthwave\"></div>\n            <span class=\"vat-pct\" id=\"pct-neon_synthwave\">0%</span>\n          </div>\n        </div>\n\n        <div class=\"vat-card\" data-category=\"earthy_acoustic\">\n          <div class=\"vat-header\">\n            <span class=\"vat-dot earthy-dot\"></span>\n            <span class=\"vat-name\">Earthy Acoustic</span>\n          </div>\n          <div class=\"vat-container\">\n            <div class=\"vat-liquid earthy-liquid\" id=\"liquid-earthy_acoustic\"></div>\n            <div class=\"vat-bubbles\" id=\"bubbles-earthy_acoustic\"></div>\n            <span class=\"vat-pct\" id=\"pct-earthy_acoustic\">0%</span>\n          </div>\n        </div>\n\n        <div class=\"vat-card\" data-category=\"pastel_lofi\">\n          <div class=\"vat-header\">\n            <span class=\"vat-dot pastel-dot\"></span>\n            <span class=\"vat-name\">Pastel Lofi</span>\n          </div>\n          <div class=\"vat-container\">\n            <div class=\"vat-liquid pastel-liquid\" id=\"liquid-pastel_lofi\"></div>\n            <div class=\"vat-bubbles\" id=\"bubbles-pastel_lofi\"></div>\n            <span class=\"vat-pct\" id=\"pct-pastel_lofi\">0%</span>\n          </div>\n        </div>\n\n        <div class=\"vat-card\" data-category=\"golden_sunset\">\n          <div class=\"vat-header\">\n            <span class=\"vat-dot sunset-dot\"></span>\n            <span class=\"vat-name\">Golden Sunset</span>\n          </div>\n          <div class=\"vat-container\">\n            <div class=\"vat-liquid sunset-liquid\" id=\"liquid-golden_sunset\"></div>\n            <div class=\"vat-bubbles\" id=\"bubbles-golden_sunset\"></div>\n            <span class=\"vat-pct\" id=\"pct-golden_sunset\">0%</span>\n          </div>\n        </div>\n      </div>\n    </div>\n  </div>\n</div>",
+        "css": "#demo {\n  background: var(--demo-bg);\n  color: var(--demo-fg);\n  font-family: var(--demo-font, system-ui, -apple-system, sans-serif);\n  padding: 16px;\n  box-sizing: border-box;\n}\n\n#demo * {\n  box-sizing: border-box;\n  margin: 0;\n  padding: 0;\n}\n\n.palette-demo {\n  display: flex;\n  flex-direction: column;\n  gap: 16px;\n  max-width: 800px;\n  margin: 0 auto;\n}\n\n.demo-header {\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n\n.demo-badge {\n  display: inline-block;\n  align-self: flex-start;\n  padding: 2px 8px;\n  font-size: 11px;\n  font-weight: 600;\n  text-transform: uppercase;\n  letter-spacing: 0.5px;\n  border-radius: 4px;\n  background: var(--demo-accent);\n  color: #fff;\n}\n\n.demo-title {\n  font-size: 20px;\n  font-weight: 700;\n  color: var(--demo-fg);\n}\n\n.demo-subtitle {\n  font-size: 13px;\n  color: var(--demo-muted);\n}\n\n.samples-bar {\n  display: flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 8px;\n}\n\n.samples-label {\n  font-size: 12px;\n  font-weight: 600;\n  color: var(--demo-muted);\n}\n\n.samples-list {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 6px;\n}\n\n.sample-chip {\n  background: var(--demo-surface);\n  border: 1px solid var(--demo-border);\n  color: var(--demo-fg);\n  font-size: 11px;\n  padding: 4px 10px;\n  border-radius: 12px;\n  cursor: pointer;\n  transition: all 0.2s ease;\n}\n\n.sample-chip:hover {\n  border-color: var(--demo-accent);\n  color: var(--demo-accent);\n}\n\n.input-card {\n  background: var(--demo-surface);\n  border: 1px solid var(--demo-border);\n  border-radius: 8px;\n  padding: 12px;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n}\n\n.input-label {\n  font-size: 12px;\n  font-weight: 600;\n  color: var(--demo-fg);\n}\n\n.input-row {\n  display: flex;\n  gap: 8px;\n  flex-wrap: wrap;\n}\n\n.atmos-textarea {\n  flex: 1 1 220px;\n  background: var(--demo-bg);\n  color: var(--demo-fg);\n  border: 1px solid var(--demo-border);\n  border-radius: 6px;\n  padding: 8px 10px;\n  font-size: 13px;\n  font-family: inherit;\n  resize: vertical;\n  outline: none;\n  transition: border-color 0.2s ease;\n}\n\n.atmos-textarea:focus {\n  border-color: var(--demo-accent);\n}\n\n.analyze-button {\n  background: var(--demo-accent);\n  color: #fff;\n  border: none;\n  border-radius: 6px;\n  padding: 8px 16px;\n  font-size: 13px;\n  font-weight: 600;\n  cursor: pointer;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  transition: opacity 0.2s ease, transform 0.1s ease;\n  align-self: flex-start;\n}\n\n.analyze-button:hover:not(:disabled) {\n  opacity: 0.9;\n  transform: translateY(-1px);\n}\n\n.analyze-button:disabled {\n  opacity: 0.5;\n  cursor: not-allowed;\n}\n\n.status-box {\n  font-size: 12px;\n  padding: 8px 12px;\n  border-radius: 6px;\n  background: var(--demo-surface);\n  border: 1px solid var(--demo-border);\n  color: var(--demo-muted);\n  transition: all 0.2s ease;\n}\n\n.status-box.error {\n  border-color: #e53e3e;\n  color: #e53e3e;\n  background: rgba(229, 62, 62, 0.08);\n}\n\n.status-box.loading {\n  border-color: var(--demo-accent);\n  color: var(--demo-accent);\n}\n\n.visual-stage {\n  background: var(--demo-surface);\n  border: 1px solid var(--demo-border);\n  border-radius: 10px;\n  padding: 16px;\n  display: flex;\n  flex-direction: column;\n  gap: 16px;\n  position: relative;\n  overflow: hidden;\n}\n\n.celestial-sky {\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  padding: 10px 14px;\n  background: var(--demo-bg);\n  border: 1px solid var(--demo-border);\n  border-radius: 8px;\n  transition: background 0.5s ease;\n}\n\n.celestial-orb-container {\n  width: 36px;\n  height: 36px;\n  position: relative;\n  overflow: hidden;\n  border-radius: 50%;\n  background: var(--demo-surface);\n  display: flex;\n  align-items: center;\n  justify-content: center;\n  border: 1px solid var(--demo-border);\n}\n\n.celestial-orb {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  position: absolute;\n  top: 6px;\n  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);\n  gap: 14px;\n}\n\n.orb-icon {\n  font-size: 18px;\n  line-height: 1;\n}\n\n.sky-info {\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n}\n\n.sky-header {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n}\n\n.sky-title {\n  font-size: 12px;\n  font-weight: 600;\n  color: var(--demo-fg);\n}\n\n.sky-val {\n  font-size: 11px;\n  font-weight: 600;\n  color: var(--demo-muted);\n}\n\n.sky-meter {\n  height: 6px;\n  background: var(--demo-surface);\n  border-radius: 3px;\n  overflow: hidden;\n  position: relative;\n  border: 1px solid var(--demo-border);\n}\n\n.sky-bar-fill {\n  height: 100%;\n  width: 0%;\n  background: linear-gradient(90deg, #f6d365 0%, #fda085 50%, #4a00e0 100%);\n  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);\n}\n\n.vats-grid {\n  display: grid;\n  grid-template-columns: repeat(4, 1fr);\n  gap: 12px;\n}\n\n@media (max-width: 580px) {\n  .vats-grid {\n    grid-template-columns: repeat(2, 1fr);\n  }\n}\n\n@media (max-width: 360px) {\n  .vats-grid {\n    grid-template-columns: 1fr;\n  }\n}\n\n.vat-card {\n  background: var(--demo-bg);\n  border: 1px solid var(--demo-border);\n  border-radius: 8px;\n  padding: 10px;\n  display: flex;\n  flex-direction: column;\n  gap: 8px;\n  transition: transform 0.2s ease, border-color 0.2s ease;\n}\n\n.vat-card.active-archetype {\n  border-color: var(--demo-accent);\n  box-shadow: 0 0 10px rgba(0,0,0,0.15);\n}\n\n.vat-header {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n}\n\n.vat-dot {\n  width: 8px;\n  height: 8px;\n  border-radius: 50%;\n  display: inline-block;\n  flex-shrink: 0;\n}\n\n.neon-dot { background: #00f2fe; box-shadow: 0 0 6px #00f2fe; }\n.earthy-dot { background: #6b8e23; box-shadow: 0 0 6px #6b8e23; }\n.pastel-dot { background: #ffb6c1; box-shadow: 0 0 6px #ffb6c1; }\n.sunset-dot { background: #ff7e5f; box-shadow: 0 0 6px #ff7e5f; }\n\n.vat-name {\n  font-size: 11px;\n  font-weight: 600;\n  color: var(--demo-fg);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n\n.vat-container {\n  height: 120px;\n  background: var(--demo-surface);\n  border: 1px solid var(--demo-border);\n  border-radius: 6px;\n  position: relative;\n  overflow: hidden;\n  display: flex;\n  align-items: flex-end;\n  justify-content: center;\n}\n\n.vat-liquid {\n  width: 100%;\n  height: 0%;\n  transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);\n  position: absolute;\n  bottom: 0;\n  left: 0;\n  opacity: 0.85;\n}\n\n.neon-liquid {\n  background: linear-gradient(180deg, #4facfe 0%, #00f2fe 50%, #6b11ff 100%);\n}\n.earthy-liquid {\n  background: linear-gradient(180deg, #a8e063 0%, #56ab2f 50%, #4b3621 100%);\n}\n.pastel-liquid {\n  background: linear-gradient(180deg, #fad0c4 0%, #ffd1ff 50%, #a1c4fd 100%);\n}\n.sunset-liquid {\n  background: linear-gradient(180deg, #feb47b 0%, #ff7e5f 50%, #7b1fa2 100%);\n}\n\n.vat-pct {\n  position: relative;\n  z-index: 2;\n  font-size: 13px;\n  font-weight: 700;\n  color: var(--demo-fg);\n  padding-bottom: 8px;\n  text-shadow: 0 1px 3px rgba(0,0,0,0.5);\n}\n\n.vat-bubbles {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  pointer-events: none;\n  z-index: 1;\n}\n\n.particle {\n  position: absolute;\n  width: 6px;\n  height: 6px;\n  border-radius: 50%;\n  opacity: 0;\n  animation: floatUp 1.4s ease-in-out infinite;\n}\n\n@keyframes floatUp {\n  0% {\n    transform: translateY(100px) scale(0.5);\n    opacity: 0;\n  }\n  50% {\n    opacity: 0.9;\n  }\n  100% {\n    transform: translateY(0px) scale(1.2);\n    opacity: 0;\n  }\n}",
+        "js": "document.addEventListener('DOMContentLoaded', () => {\n  const samplesList = document.getElementById('samples-list');\n  const atmosInput = document.getElementById('atmos-input');\n  const analyzeBtn = document.getElementById('analyze-btn');\n  const statusEl = document.getElementById('status-el');\n  const celestialOrb = document.getElementById('celestial-orb');\n  const skyBarFill = document.getElementById('sky-bar-fill');\n  const skyVal = document.getElementById('sky-val');\n\n  const categories = ['neon_synthwave', 'earthy_acoustic', 'pastel_lofi', 'golden_sunset'];\n\n  // Render Sample Chips\n  if (window.TypeSafeDemo && Array.isArray(window.TypeSafeDemo.samples)) {\n    window.TypeSafeDemo.samples.forEach((sample, idx) => {\n      const chip = document.createElement('button');\n      chip.className = 'sample-chip';\n      chip.textContent = sample.description || `Sample ${idx + 1}`;\n      chip.addEventListener('click', () => {\n        const text = typeof sample.state === 'string' \n          ? sample.state \n          : (sample.state && sample.state.playlist_description) || '';\n        atmosInput.value = text;\n        triggerEvaluation();\n      });\n      samplesList.appendChild(chip);\n    });\n  }\n\n  // Theme Handler\n  if (window.TypeSafeDemo && typeof window.TypeSafeDemo.onTheme === 'function') {\n    window.TypeSafeDemo.onTheme((theme) => {\n      const demoEl = document.getElementById('demo');\n      if (demoEl) demoEl.setAttribute('data-theme', theme);\n    });\n  }\n\n  atmosInput.addEventListener('keydown', (e) => {\n    if (e.key === 'Enter' && !e.shiftKey) {\n      e.preventDefault();\n      triggerEvaluation();\n    }\n  });\n\n  analyzeBtn.addEventListener('click', () => {\n    triggerEvaluation();\n  });\n\n  function triggerEvaluation() {\n    const text = atmosInput.value.trim();\n    if (!text) {\n      statusEl.textContent = 'Please enter a playlist atmosphere description.';\n      statusEl.className = 'status-box error';\n      return;\n    }\n\n    analyzeBtn.disabled = true;\n    statusEl.textContent = 'Analyzing atmosphere and calculating color archetype vectors...';\n    statusEl.className = 'status-box loading';\n\n    const state = { playlist_description: text };\n\n    window.TypeSafeDemo.evaluate(state)\n      .then((answers) => {\n        analyzeBtn.disabled = false;\n        statusEl.className = 'status-box';\n        statusEl.textContent = 'Atmosphere mapped successfully.';\n        updateVisuals(answers);\n      })\n      .catch((err) => {\n        analyzeBtn.disabled = false;\n        statusEl.className = 'status-box error';\n        const msg = window.TypeSafeDemo && window.TypeSafeDemo.describeError\n          ? window.TypeSafeDemo.describeError(err)\n          : 'Failed to analyze text.';\n        statusEl.textContent = msg;\n      });\n  }\n\n  function updateVisuals(answers) {\n    // 1. Handle Nighttime (Noul)\n    const nightAnswer = answers.is_nighttime;\n    let noulVal = 0;\n    if (nightAnswer && typeof nightAnswer.noul === 'number') {\n      noulVal = nightAnswer.noul;\n    }\n    const nightPct = Math.round(noulVal * 100);\n    skyBarFill.style.width = `${nightPct}%`;\n    skyVal.textContent = noulVal >= 0.5 ? `Nighttime (${nightPct}%)` : `Daylight (${100 - nightPct}%)`;\n    \n    // Celestial orb shift: Sun at top (0px), Moon at bottom (-32px)\n    if (noulVal >= 0.5) {\n      celestialOrb.style.transform = 'translateY(-32px)';\n    } else {\n      celestialOrb.style.transform = 'translateY(0px)';\n    }\n\n    // 2. Handle Palette Category (Choice & Probabilities)\n    const catAnswer = answers.palette_category;\n    const probs = (catAnswer && catAnswer.probabilities) || {};\n    const topChoice = catAnswer ? catAnswer.choice : null;\n\n    categories.forEach((cat) => {\n      const p = typeof probs[cat] === 'number' ? probs[cat] : (topChoice === cat ? 1 : 0);\n      const pct = Math.round(p * 100);\n      \n      const liquid = document.getElementById(`liquid-${cat}`);\n      const pctLabel = document.getElementById(`pct-${cat}`);\n      const card = document.querySelector(`.vat-card[data-category=\"${cat}\"]`);\n      const bubbleContainer = document.getElementById(`bubbles-${cat}`);\n\n      if (liquid) liquid.style.height = `${pct}%`;\n      if (pctLabel) pctLabel.textContent = `${pct}%`;\n      \n      if (card) {\n        if (topChoice === cat) {\n          card.classList.add('active-archetype');\n        } else {\n          card.classList.remove('active-archetype');\n        }\n      }\n\n      // Trigger particles for matching liquid containers\n      if (bubbleContainer) {\n        bubbleContainer.innerHTML = '';\n        if (pct > 15) {\n          const particleCount = Math.min(8, Math.floor(pct / 12));\n          for (let i = 0; i < particleCount; i++) {\n            const particle = document.createElement('div');\n            particle.className = 'particle';\n            particle.style.left = `${10 + Math.random() * 80}%`;\n            particle.style.animationDelay = `${Math.random() * 1.2}s`;\n            particle.style.background = getParticleColor(cat);\n            bubbleContainer.appendChild(particle);\n          }\n        }\n      }\n    });\n  }\n\n  function getParticleColor(category) {\n    switch (category) {\n      case 'neon_synthwave': return '#00f2fe';\n      case 'earthy_acoustic': return '#a8e063';\n      case 'pastel_lofi': return '#ffb6c1';\n      case 'golden_sunset': return '#ff7e5f';\n      default: return '#ffffff';\n    }\n  }\n});",
+        "samples": [
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "playlist_description": "rain splashing on city neon at 2 AM with glowing midnight violet light and chrome synth pads"
+              },
+              "questions": {
+                "palette_category": {
+                  "type": "choice",
+                  "instructions": "Determine which color palette archetype best fits the playlist_description field in state.",
+                  "criteria": {
+                    "neon_synthwave": "Midnight dark backgrounds with neon violet, electric blue, and magenta highlights.",
+                    "earthy_acoustic": "Natural organic browns, moss greens, and muted terracotta tones.",
+                    "pastel_lofi": "Soft vintage pastels, faded pinks, cream, and sky blue hues.",
+                    "golden_sunset": "Warm sun-drenched golden hours, amber, and deep orange tones.",
+                    "unclear_atmosphere": "The text is ambiguous, non-descriptive, or lacks identifiable aesthetic themes."
+                  }
+                },
+                "is_nighttime": {
+                  "type": "noul",
+                  "instructions": "Does the playlist_description field in state depict a nighttime or dark atmospheric setting?",
+                  "criteria": {
+                    "true": "Mentions night, late hours, dark roads, midnight, shadows, or neon darkness.",
+                    "false": "Mentions daylight, morning, sun, bright skies, afternoon, or midday activities."
+                  }
+                }
+              }
+            },
+            "description": "Midnight urban rain setting with strong neon synthwave vibe",
+            "expected": {
+              "palette_category": {
+                "type": "choice",
+                "choice": "neon_synthwave"
+              },
+              "is_nighttime": {
+                "type": "noul",
+                "min": 0.8,
+                "max": 1.0
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "palette_category": {
+                  "type": "choice",
+                  "choice": "neon_synthwave",
+                  "probabilities": {
+                    "pastel_lofi": 0.0,
+                    "golden_sunset": 0.0,
+                    "earthy_acoustic": 0.0,
+                    "unclear_atmosphere": 0.0,
+                    "neon_synthwave": 1.0
+                  },
+                  "confidence": 1.0
+                },
+                "is_nighttime": {
+                  "type": "noul",
+                  "noul": 0.99
+                }
+              },
+              "usage": {
+                "input_tokens": 548,
+                "output_tokens": 96
+              }
+            },
+            "verified_at": "2026-09-27T20:00:00.426380Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "playlist_description": "sunlight streaming through forest canopy in morning, warm acoustic guitar, mossy logs and hot tea"
+              },
+              "questions": {
+                "palette_category": {
+                  "type": "choice",
+                  "instructions": "Determine which color palette archetype best fits the playlist_description field in state.",
+                  "criteria": {
+                    "neon_synthwave": "Midnight dark backgrounds with neon violet, electric blue, and magenta highlights.",
+                    "earthy_acoustic": "Natural organic browns, moss greens, and muted terracotta tones.",
+                    "pastel_lofi": "Soft vintage pastels, faded pinks, cream, and sky blue hues.",
+                    "golden_sunset": "Warm sun-drenched golden hours, amber, and deep orange tones.",
+                    "unclear_atmosphere": "The text is ambiguous, non-descriptive, or lacks identifiable aesthetic themes."
+                  }
+                },
+                "is_nighttime": {
+                  "type": "noul",
+                  "instructions": "Does the playlist_description field in state depict a nighttime or dark atmospheric setting?",
+                  "criteria": {
+                    "true": "Mentions night, late hours, dark roads, midnight, shadows, or neon darkness.",
+                    "false": "Mentions daylight, morning, sun, bright skies, afternoon, or midday activities."
+                  }
+                }
+              }
+            },
+            "description": "Natural sunlit organic acoustic setting",
+            "expected": {
+              "palette_category": {
+                "type": "choice",
+                "choice": "earthy_acoustic"
+              },
+              "is_nighttime": {
+                "type": "noul",
+                "min": 0.0,
+                "max": 0.25
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "palette_category": {
+                  "type": "choice",
+                  "choice": "earthy_acoustic",
+                  "probabilities": {
+                    "neon_synthwave": 0.0,
+                    "golden_sunset": 0.02,
+                    "unclear_atmosphere": 0.0,
+                    "earthy_acoustic": 0.98,
+                    "pastel_lofi": 0.0
+                  },
+                  "confidence": 0.98
+                },
+                "is_nighttime": {
+                  "type": "noul",
+                  "noul": 0.01
+                }
+              },
+              "usage": {
+                "input_tokens": 547,
+                "output_tokens": 96
+              }
+            },
+            "verified_at": "2026-09-27T20:00:00.811739Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "playlist_description": "warm golden hour afternoon sun, amber rays over summer beach, sun-drenched chill music"
+              },
+              "questions": {
+                "palette_category": {
+                  "type": "choice",
+                  "instructions": "Determine which color palette archetype best fits the playlist_description field in state.",
+                  "criteria": {
+                    "neon_synthwave": "Midnight dark backgrounds with neon violet, electric blue, and magenta highlights.",
+                    "earthy_acoustic": "Natural organic browns, moss greens, and muted terracotta tones.",
+                    "pastel_lofi": "Soft vintage pastels, faded pinks, cream, and sky blue hues.",
+                    "golden_sunset": "Warm sun-drenched golden hours, amber, and deep orange tones.",
+                    "unclear_atmosphere": "The text is ambiguous, non-descriptive, or lacks identifiable aesthetic themes."
+                  }
+                },
+                "is_nighttime": {
+                  "type": "noul",
+                  "instructions": "Does the playlist_description field in state depict a nighttime or dark atmospheric setting?",
+                  "criteria": {
+                    "true": "Mentions night, late hours, dark roads, midnight, shadows, or neon darkness.",
+                    "false": "Mentions daylight, morning, sun, bright skies, afternoon, or midday activities."
+                  }
+                }
+              }
+            },
+            "description": "Sun-drenched golden hour sunset atmosphere",
+            "expected": {
+              "palette_category": {
+                "type": "choice",
+                "choice": "golden_sunset"
+              },
+              "is_nighttime": {
+                "type": "noul",
+                "min": 0.0,
+                "max": 0.3
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "palette_category": {
+                  "type": "choice",
+                  "choice": "golden_sunset",
+                  "probabilities": {
+                    "pastel_lofi": 0.0,
+                    "golden_sunset": 1.0,
+                    "neon_synthwave": 0.0,
+                    "unclear_atmosphere": 0.0,
+                    "earthy_acoustic": 0.0
+                  },
+                  "confidence": 1.0
+                },
+                "is_nighttime": {
+                  "type": "noul",
+                  "noul": 0.01
+                }
+              },
+              "usage": {
+                "input_tokens": 546,
+                "output_tokens": 96
+              }
+            },
+            "verified_at": "2026-09-27T20:00:01.075037Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "playlist_description": "soft cassette tape hiss, faded pink sky, cozy bedroom afternoon study beats and pastel lofi aesthetic"
+              },
+              "questions": {
+                "palette_category": {
+                  "type": "choice",
+                  "instructions": "Determine which color palette archetype best fits the playlist_description field in state.",
+                  "criteria": {
+                    "neon_synthwave": "Midnight dark backgrounds with neon violet, electric blue, and magenta highlights.",
+                    "earthy_acoustic": "Natural organic browns, moss greens, and muted terracotta tones.",
+                    "pastel_lofi": "Soft vintage pastels, faded pinks, cream, and sky blue hues.",
+                    "golden_sunset": "Warm sun-drenched golden hours, amber, and deep orange tones.",
+                    "unclear_atmosphere": "The text is ambiguous, non-descriptive, or lacks identifiable aesthetic themes."
+                  }
+                },
+                "is_nighttime": {
+                  "type": "noul",
+                  "instructions": "Does the playlist_description field in state depict a nighttime or dark atmospheric setting?",
+                  "criteria": {
+                    "true": "Mentions night, late hours, dark roads, midnight, shadows, or neon darkness.",
+                    "false": "Mentions daylight, morning, sun, bright skies, afternoon, or midday activities."
+                  }
+                }
+              }
+            },
+            "description": "Soft vintage pastel lofi aesthetic",
+            "expected": {
+              "palette_category": {
+                "type": "choice",
+                "choice": "pastel_lofi"
+              },
+              "is_nighttime": {
+                "type": "noul",
+                "min": 0.0,
+                "max": 0.35
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "palette_category": {
+                  "type": "choice",
+                  "choice": "pastel_lofi",
+                  "probabilities": {
+                    "unclear_atmosphere": 0.0,
+                    "pastel_lofi": 1.0,
+                    "neon_synthwave": 0.0,
+                    "earthy_acoustic": 0.0,
+                    "golden_sunset": 0.0
+                  },
+                  "confidence": 1.0
+                },
+                "is_nighttime": {
+                  "type": "noul",
+                  "noul": 0.03
+                }
+              },
+              "usage": {
+                "input_tokens": 547,
+                "output_tokens": 95
+              }
+            },
+            "verified_at": "2026-09-27T20:00:01.338841Z"
+          }
+        ],
+        "verified_at": "2026-09-27T20:00:01.339006Z"
+      },
+      "verification": {
+        "model": "jev-1.13.0",
+        "verified_at": "2026-09-27T20:00:01.341476Z",
+        "quality": {
+          "useful": 0.96,
+          "supported": 0.91,
+          "consistent": 0.89
+        },
+        "novelty_probability": 0.95
+      },
+      "created_at": "2026-09-27T20:00:01.341476Z",
+      "updated_at": "2026-09-27T20:00:01.341476Z"
     }
   ]
 }

@@ -60,6 +60,18 @@
       "input_description": "The maintenance_work_summary text submitted by the field technician upon service completion.",
       "decision": "Score: Score report completeness on three levels: 0 (insufficient summary lacking specific component observations), 1 (basic summary with qualitative notes but missing physical measurements), and 2 (thorough report detailing component conditions and quantitative readings).",
       "action": "Utility asset management software marks the technician work order as completed for score 2 or prevents work order sign-off and notifies the technician to enrich their notes for scores 0 and 1."
+    },
+    {
+      "slug": "playlist-mood-palette",
+      "industry": "Music streaming",
+      "audience": "Music app developers",
+      "task_type": "color-association",
+      "search_intent": "Map playlist mood descriptions to colour palettes",
+      "summary": "Map an emotive playlist description to the colour palette archetype it evokes.",
+      "problem": "The application receives a short free-text atmosphere description written by a user or playlist curator. Traditional metadata like genre, tempo, or release year does not reveal whether a playlist feels like a neon synthwave night or a golden sunset afternoon. The application must evaluate the ambient description against candidate palette definitions and choose the matching archetype or select a neutral default theme. Downstream code then uses this evaluation to update player UI styling dynamically.",
+      "input_description": "A short free-text playlist atmosphere description.",
+      "decision": "Choose the colour palette archetype (neon synthwave, earthy acoustic, pastel lofi, golden sunset) the description evokes.",
+      "action": "Apply the matching colour theme to the player interface."
     }
   ]
 }
