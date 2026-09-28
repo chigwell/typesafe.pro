@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "report": {
+    "run_id": "local-20260928T094543Z-1",
+    "source_sha": "5b9ed92c3e3325d4198aba59b739a4847ae27e5a",
+    "status": "prepared",
+    "reason": "approved_by_reviewer",
+    "started_at": "2026-09-28T09:45:43.093641Z",
+    "finished_at": "2026-09-28T09:45:57.595309Z",
+    "duration_seconds": 0.301,
+    "seed": 3901022487,
+    "rounds": 0,
+    "api_calls": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "generated_count": 0,
+    "rejected_count": 0,
+    "rejections": {},
+    "catalog_hash": "e2751f10a0c42fcb334375bee53cf8854b1e6227587d8c7cdc4e3a8b642c6b4b",
+    "mode": "review",
+    "approved_count": 1,
+    "skipped_count": 0
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "local-20260928T094543Z-1",
+    "source_sha": "5b9ed92c3e3325d4198aba59b739a4847ae27e5a",
+    "catalog_hash": "e2751f10a0c42fcb334375bee53cf8854b1e6227587d8c7cdc4e3a8b642c6b4b",
+    "generated_at": "2026-09-28T09:50:11.029286Z",
+    "pages": [
+      {
+        "slug": "library-catalog-routing",
+        "title": "Automating Library Reference Query Routing with Intent Classification",
+        "created_at": "2026-09-25T15:31:20.467624Z",
+        "updated_at": "2026-09-25T15:35:00.990043Z"
+      },
+      {
+        "slug": "permission-software-license",
+        "title": "Check Software License Justifications Before Procurement Review",
+        "created_at": "2026-09-25T15:33:55.274202Z",
+        "updated_at": "2026-09-25T15:36:02.408494Z"
+      },
+      {
+        "slug": "ingredient-allergen-screening",
+        "title": "Screen Ingredient Spec Sheets for Allergen Disclosures",
+        "created_at": "2026-09-25T15:53:34.323318Z",
+        "updated_at": "2026-09-25T15:53:34.323318Z"
+      },
+      {
+        "slug": "facility-maintenance-severity-scoring",
+        "title": "Scoring Maintenance Request Severity for Facility Dispatch",
+        "created_at": "2026-09-25T15:55:29.066891Z",
+        "updated_at": "2026-09-25T15:55:29.066891Z"
+      },
+      {
+        "slug": "wind-turbine-maintenance-report-completeness",
+        "title": "Scoring Wind Turbine Maintenance Report Completeness",
+        "created_at": "2026-09-26T19:26:35.886633Z",
+        "updated_at": "2026-09-26T19:26:35.886633Z"
+      },
+      {
+        "slug": "playlist-mood-palette",
+        "title": "Map Playlist Mood Descriptions to UI Color Palettes",
+        "created_at": "2026-09-27T20:00:01.341476Z",
+        "updated_at": "2026-09-27T20:00:01.341476Z"
+      },
+      {
+        "slug": "recipe-spice-level-scoring",
+        "title": "Score Recipe Heat Levels from Dish Descriptions for UI Gauges",
+        "created_at": "2026-09-28T09:42:44.812424Z",
+        "updated_at": "2026-09-28T09:42:44.812424Z"
+      }
+    ]
+  }
+}

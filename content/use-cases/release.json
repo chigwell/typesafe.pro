@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "run_id": "local-20260927T202025Z-1",
-  "source_sha": "2d381cfab4b5c5caa304001789f2c08b666b74c6",
-  "catalog_hash": "f1ff92fc733534ed2cf9e80d4b50206ad803e6b61451249835d5724d44855f6e",
-  "generated_at": "2026-09-28T09:50:10.701515Z",
+  "run_id": "local-20260928T094543Z-1",
+  "source_sha": "5b9ed92c3e3325d4198aba59b739a4847ae27e5a",
+  "catalog_hash": "e2751f10a0c42fcb334375bee53cf8854b1e6227587d8c7cdc4e3a8b642c6b4b",
+  "generated_at": "2026-09-28T09:50:11.029286Z",
   "pages": [
     {
       "slug": "library-catalog-routing",
@@ -40,6 +40,12 @@
       "title": "Map Playlist Mood Descriptions to UI Color Palettes",
       "created_at": "2026-09-27T20:00:01.341476Z",
       "updated_at": "2026-09-27T20:00:01.341476Z"
+    },
+    {
+      "slug": "recipe-spice-level-scoring",
+      "title": "Score Recipe Heat Levels from Dish Descriptions for UI Gauges",
+      "created_at": "2026-09-28T09:42:44.812424Z",
+      "updated_at": "2026-09-28T09:42:44.812424Z"
     }
   ]
 }

@@ -1461,6 +1461,395 @@
       },
       "created_at": "2026-09-27T20:00:01.341476Z",
       "updated_at": "2026-09-27T20:00:01.341476Z"
+    },
+    {
+      "slug": "recipe-spice-level-scoring",
+      "industry": "Culinary Arts & Cooking Apps",
+      "audience": "Mobile Recipe App Developers",
+      "task_type": "spice-scoring",
+      "search_intent": "Score culinary recipe spice and heat level from short dish descriptions.",
+      "summary": "Score the heat level of home cooking descriptions to drive interactive flame gauge animations.",
+      "problem": "The input context contains custom ingredient lists or short preparation notes submitted by users. Simple keyword matching fails to accurately reflect net spice levels when recipes combine multiple hot peppers or add neutralizing elements like sour cream. The application must analyze the overall written profile to estimate relative heat intensity without relying on rigid keyword lists.",
+      "input_description": "A short free-text dish description or ingredient combination written by a home cook.",
+      "decision": "Score: Rate reported heat intensity across 5 levels from 0 (mild / zero spice) to 4 (extreme fire / pepperhead).",
+      "action": "Downstream code animates a heat gauge UI component and displays appropriate spice indicator icons.",
+      "schema_version": 1,
+      "seo": {
+        "title": "Score Recipe Heat Levels from Dish Descriptions for UI Gauges",
+        "description": "Learn how to evaluate recipe text to score heat intensity on a 5-level scale, allowing mobile cooking apps to animate interactive heat gauge UI components."
+      },
+      "intro": "Static heat tags fail when home cooks customize recipes with extra chilies, hot sauces, or cooling dairy ingredients. This example shows how to evaluate free-text dish descriptions to assign a spice score along an ordered five-point heat scale. Downstream application code uses the returned score to update interactive flame gauge animations and select heat indicator icons.",
+      "solution": "In these observed examples, the request supplies a user-written recipe_description input and asks the spice_level question. The model evaluates the description against five criteria levels, returning a numeric score from 0.0 for mild dishes up to 4.0 for extreme heat. In the recorded responses, vanilla custard received a 0.0 score, serrano tacos evaluated at 2.0, and ghost pepper wings returned 4.0. Downstream application code can use this returned score value to animate an interactive heat gauge UI component and select matching spice icon graphics. The API returns structured semantic evaluations, while your application code remains responsible for UI state updates and any rendering policies.",
+      "limitations": [
+        "This example evaluates heat intensity using a single Score question along one index continuum, though this specific layout does not restrict applications from using separate independent questions for multi-label tagging.",
+        "Assessing dish text estimates heat based on reported ingredient descriptions, but it does not measure chemical Scoville heat units or confirm factual preparation details.",
+        "For ambiguous or missing ingredient text, you can implement optional fallback logic in your application to display a neutral gauge setting or request clarification from the user."
+      ],
+      "examples": [
+        {
+          "name": "Primary evaluation - Medium heat serrano tacos",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "recipe_description": "Diced chicken seasoned with cumin and topped with chopped fresh serrano peppers, onion, and cilantro."
+            },
+            "questions": {
+              "spice_level": {
+                "type": "score",
+                "instructions": "Evaluate the net spice and heat level of the recipe description on a 5-level index from 0 to 4.",
+                "criteria": [
+                  "Level 0: Mild or zero spice, sweet or dairy-neutralized dishes",
+                  "Level 1: Low heat, mild peppers like paprika or mild jalapeño",
+                  "Level 2: Medium heat, noticeable kick from serrano peppers or chili flakes",
+                  "Level 3: High heat, spicy habanero or extra hot chili sauces",
+                  "Level 4: Extreme heat, ghost pepper, reaper, or concentrated extracts"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "spice_level": {
+              "type": "score",
+              "min": 1.7,
+              "max": 2.3
+            }
+          },
+          "expected_description": "The chicken taco recipe features fresh serrano peppers, yielding a medium spice score around index 2.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "spice_level": {
+                "type": "score",
+                "score": 2.0,
+                "probabilities": {
+                  "0": 0.0,
+                  "1": 0.0,
+                  "2": 1.0,
+                  "3": 0.0,
+                  "4": 0.0
+                },
+                "confidence": 1.0,
+                "legend": {
+                  "0": "Level 0: Mild or zero spice, sweet or dairy-neutralized dishes",
+                  "1": "Level 1: Low heat, mild peppers like paprika or mild jalapeño",
+                  "2": "Level 2: Medium heat, noticeable kick from serrano peppers or chili flakes",
+                  "3": "Level 3: High heat, spicy habanero or extra hot chili sauces",
+                  "4": "Level 4: Extreme heat, ghost pepper, reaper, or concentrated extracts"
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 432,
+              "output_tokens": 19
+            }
+          },
+          "verified_at": "2026-09-28T09:40:16.739258Z"
+        },
+        {
+          "name": "Alternative evaluation - Extreme ghost pepper wings",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "recipe_description": "Crispy chicken wings tossed in raw ghost pepper sauce and super-hot Carolina Reaper extract."
+            },
+            "questions": {
+              "spice_level": {
+                "type": "score",
+                "instructions": "Evaluate the net spice and heat level of the recipe description on a 5-level index from 0 to 4.",
+                "criteria": [
+                  "Level 0: Mild or zero spice, sweet or dairy-neutralized dishes",
+                  "Level 1: Low heat, mild peppers like paprika or mild jalapeño",
+                  "Level 2: Medium heat, noticeable kick from serrano peppers or chili flakes",
+                  "Level 3: High heat, spicy habanero or extra hot chili sauces",
+                  "Level 4: Extreme heat, ghost pepper, reaper, or concentrated extracts"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "spice_level": {
+              "type": "score",
+              "min": 3.7,
+              "max": 4.0
+            }
+          },
+          "expected_description": "The ghost pepper and reaper extract recipe produces extreme heat, evaluating near index 4.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "spice_level": {
+                "type": "score",
+                "score": 4.0,
+                "probabilities": {
+                  "0": 0.0,
+                  "1": 0.0,
+                  "2": 0.0,
+                  "3": 0.0,
+                  "4": 1.0
+                },
+                "confidence": 1.0,
+                "legend": {
+                  "0": "Level 0: Mild or zero spice, sweet or dairy-neutralized dishes",
+                  "1": "Level 1: Low heat, mild peppers like paprika or mild jalapeño",
+                  "2": "Level 2: Medium heat, noticeable kick from serrano peppers or chili flakes",
+                  "3": "Level 3: High heat, spicy habanero or extra hot chili sauces",
+                  "4": "Level 4: Extreme heat, ghost pepper, reaper, or concentrated extracts"
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 428,
+              "output_tokens": 19
+            }
+          },
+          "verified_at": "2026-09-28T09:40:17.098324Z"
+        },
+        {
+          "name": "Edge evaluation - Mild sweet dessert with zero pepper heat",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "recipe_description": "Vanilla bean custard topped with fresh whipped cream and sliced strawberries."
+            },
+            "questions": {
+              "spice_level": {
+                "type": "score",
+                "instructions": "Evaluate the net spice and heat level of the recipe description on a 5-level index from 0 to 4.",
+                "criteria": [
+                  "Level 0: Mild or zero spice, sweet or dairy-neutralized dishes",
+                  "Level 1: Low heat, mild peppers like paprika or mild jalapeño",
+                  "Level 2: Medium heat, noticeable kick from serrano peppers or chili flakes",
+                  "Level 3: High heat, spicy habanero or extra hot chili sauces",
+                  "Level 4: Extreme heat, ghost pepper, reaper, or concentrated extracts"
+                ]
+              }
+            }
+          },
+          "expected": {
+            "spice_level": {
+              "type": "score",
+              "min": 0.0,
+              "max": 0.3
+            }
+          },
+          "expected_description": "The sweet vanilla custard contains no spicy ingredients, scoring near index 0.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "spice_level": {
+                "type": "score",
+                "score": 0.0,
+                "probabilities": {
+                  "0": 1.0,
+                  "1": 0.0,
+                  "2": 0.0,
+                  "3": 0.0,
+                  "4": 0.0
+                },
+                "confidence": 1.0,
+                "legend": {
+                  "0": "Level 0: Mild or zero spice, sweet or dairy-neutralized dishes",
+                  "1": "Level 1: Low heat, mild peppers like paprika or mild jalapeño",
+                  "2": "Level 2: Medium heat, noticeable kick from serrano peppers or chili flakes",
+                  "3": "Level 3: High heat, spicy habanero or extra hot chili sauces",
+                  "4": "Level 4: Extreme heat, ghost pepper, reaper, or concentrated extracts"
+                }
+              }
+            },
+            "usage": {
+              "input_tokens": 423,
+              "output_tokens": 19
+            }
+          },
+          "verified_at": "2026-09-28T09:40:17.442066Z"
+        }
+      ],
+      "demo": {
+        "title": "Dynamic Flame Gauge & Cooling Splash",
+        "concept": "A curved arc heat gauge and floating cooling droplets react in real time to recipe adjustments. Visitors see how spicy additions or dairy offsets adjust heat levels.",
+        "interaction": "Visitors type a dish summary or toggle ingredient twists like extra habaneros or cooling Greek yogurt into a recipe box.",
+        "visual": "The needle on a color-gradient arc gauge sweeps smoothly from green (mild) to flaming purple-red (extreme) based on the Score answer, while floating ice droplet icons float upward if cooling offsets are detected.",
+        "questions": {
+          "heat_score": {
+            "type": "score",
+            "instructions": "Based on the dish summary in recipe_description, rate the perceived heat intensity.",
+            "criteria": [
+              "Level 0: Mild / Zero spice",
+              "Level 1: Subtle warmth",
+              "Level 2: Moderate kick",
+              "Level 3: Fiery spice",
+              "Level 4: Extreme heat / Pepperhead"
+            ]
+          },
+          "has_cooling_offset": {
+            "type": "noul",
+            "instructions": "Does the text in recipe_description mention cooling ingredients such as yogurt, sour cream, coconut milk, or cucumber that dampen heat?"
+          }
+        },
+        "html": "<div class=\"ts-stack\">\n  <div class=\"ts-card\">\n    <label class=\"ts-label\" for=\"recipe-input\">\n      Dish Description or Ingredients\n      <textarea id=\"recipe-input\" class=\"ts-textarea\" rows=\"3\" placeholder=\"Enter recipe ingredients or dish details (e.g., ghost pepper curry with Greek yogurt raita)...\"></textarea>\n    </label>\n    \n    <div class=\"ts-row\" style=\"margin-top: 12px;\">\n      <div id=\"sample-chips\" class=\"ts-row\" style=\"flex: 1;\"></div>\n      <button id=\"analyze-btn\" type=\"button\" class=\"ts-btn\">Analyze Heat</button>\n    </div>\n  </div>\n\n  <div id=\"demo-status\" class=\"ts-status\" aria-live=\"polite\">Ready to evaluate recipe spice level.</div>\n\n  <div class=\"ts-panel\">\n    <div class=\"ts-eyebrow\">Heat Intensity & Offset Visualizer</div>\n    \n    <div class=\"gauge-card\">\n      <div class=\"gauge-container\">\n        <svg class=\"gauge-svg\" viewBox=\"0 0 200 120\" width=\"100%\" height=\"140\">\n          <defs>\n            <linearGradient id=\"gaugeGrad\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"0%\">\n              <stop offset=\"0%\" stop-color=\"var(--ts-c1)\" />\n              <stop offset=\"25%\" stop-color=\"var(--ts-c2)\" />\n              <stop offset=\"50%\" stop-color=\"var(--ts-c3)\" />\n              <stop offset=\"75%\" stop-color=\"var(--ts-c4)\" />\n              <stop offset=\"100%\" stop-color=\"var(--ts-c5)\" />\n            </linearGradient>\n          </defs>\n          <path d=\"M 20,100 A 80,80 0 0,1 180,100\" fill=\"none\" stroke=\"var(--ts-line)\" stroke-width=\"14\" stroke-linecap=\"round\" />\n          <path d=\"M 20,100 A 80,80 0 0,1 180,100\" fill=\"none\" stroke=\"url(#gaugeGrad)\" stroke-width=\"14\" stroke-linecap=\"round\" />\n          <circle cx=\"100\" cy=\"100\" r=\"6\" fill=\"var(--ts-ink)\" />\n          <g id=\"gauge-needle-group\" style=\"transform-origin: 100px 100px; transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); transform: rotate(-80deg);\">\n            <line x1=\"100\" y1=\"100\" x2=\"100\" y2=\"32\" stroke=\"var(--ts-ink)\" stroke-width=\"4\" stroke-linecap=\"round\" />\n            <polygon points=\"96,40 104,40 100,22\" fill=\"var(--ts-ink)\" />\n          </g>\n        </svg>\n        <div id=\"cooling-overlay\" class=\"cooling-overlay\"></div>\n      </div>\n\n      <div style=\"text-align: center; margin-top: 6px;\">\n        <div id=\"heat-value\" class=\"ts-value\">Mild (Level 0)</div>\n        <div id=\"heat-desc\" class=\"ts-text\" style=\"margin-top: 2px;\">Zero spice detected</div>\n      </div>\n    </div>\n\n    <div class=\"ts-grid\" style=\"margin-top: 16px;\">\n      <div class=\"ts-card\" style=\"padding: 12px;\">\n        <div class=\"ts-eyebrow\">Heat Meter</div>\n        <div style=\"margin-top: 8px;\">\n          <div class=\"ts-meter\">\n            <div id=\"score-meter-fill\" class=\"ts-meter-fill\" style=\"width: 0%; background: var(--ts-c1);\"></div>\n          </div>\n          <div class=\"ts-legend\" style=\"margin-top: 8px; justify-content: space-between;\">\n            <span class=\"ts-help\">0 (Mild)</span>\n            <span class=\"ts-help\">2 (Mod)</span>\n            <span class=\"ts-help\">4 (Extreme)</span>\n          </div>\n        </div>\n      </div>\n\n      <div class=\"ts-card\" style=\"padding: 12px;\">\n        <div class=\"ts-eyebrow\">Cooling Dampener</div>\n        <div style=\"margin-top: 8px; display: flex; align-items: center; gap: 8px;\">\n          <span id=\"cooling-badge\" class=\"ts-badge\" style=\"background: var(--ts-soft); color: var(--ts-muted);\">None</span>\n          <span id=\"cooling-prob\" class=\"ts-text\" style=\"font-size: 13px;\">0% confidence</span>\n        </div>\n        <div id=\"cooling-note\" class=\"ts-help\" style=\"margin-top: 6px;\">No cooling offsets detected.</div>\n      </div>\n    </div>\n  </div>\n</div>",
+        "css": "#demo .gauge-card {\n  position: relative;\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  padding: 16px;\n  background: var(--ts-surface);\n  border-radius: 12px;\n  border: 1px solid var(--ts-line);\n}\n\n#demo .gauge-container {\n  position: relative;\n  width: 100%;\n  max-width: 240px;\n  margin: 0 auto;\n}\n\n#demo .cooling-overlay {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  bottom: 0;\n  pointer-events: none;\n  overflow: hidden;\n}\n\n#demo .cooling-droplet {\n  position: absolute;\n  bottom: 12px;\n  font-size: 16px;\n  opacity: 0;\n  animation: floatUp 2.2s infinite ease-out;\n}\n\n@keyframes floatUp {\n  0% {\n    transform: translateY(0) scale(0.7);\n    opacity: 0;\n  }\n  30% {\n    opacity: 0.9;\n  }\n  75% {\n    opacity: 0.6;\n  }\n  100% {\n    transform: translateY(-65px) scale(1.1);\n    opacity: 0;\n  }\n}",
+        "js": "document.addEventListener('DOMContentLoaded', () => {\n  const input = document.getElementById('recipe-input');\n  const btn = document.getElementById('analyze-btn');\n  const status = document.getElementById('demo-status');\n  const chipsContainer = document.getElementById('sample-chips');\n\n  const samples = window.TypeSafeDemo.samples || [];\n\n  function renderChips() {\n    chipsContainer.innerHTML = '';\n    samples.forEach((sample, idx) => {\n      const chip = document.createElement('button');\n      chip.type = 'button';\n      chip.className = `ts-chip ${idx === 0 ? 'is-active' : ''}`;\n      chip.textContent = sample.description;\n      chip.addEventListener('click', () => {\n        document.querySelectorAll('.ts-chip').forEach(c => c.classList.remove('is-active'));\n        chip.classList.add('is-active');\n        input.value = sample.state.recipe_description || '';\n        runEvaluation();\n      });\n      chipsContainer.appendChild(chip);\n    });\n  }\n\n  async function runEvaluation() {\n    const text = input.value.trim();\n    if (!text) return;\n\n    btn.disabled = true;\n    status.className = 'ts-status is-loading';\n    status.textContent = 'Scoring heat intensity and cooling offsets...';\n\n    try {\n      const answers = await window.TypeSafeDemo.evaluate({ recipe_description: text });\n      status.className = 'ts-status';\n      status.textContent = 'Analysis complete.';\n      updateVisuals(answers);\n    } catch (err) {\n      status.className = 'ts-status is-error';\n      status.textContent = window.TypeSafeDemo.describeError(err);\n    } finally {\n      btn.disabled = false;\n    }\n  }\n\n  function updateVisuals(answers) {\n    const scoreAns = answers.heat_score;\n    const noulAns = answers.has_cooling_offset;\n\n    const scoreLevel = (scoreAns && typeof scoreAns.score === 'number') ? scoreAns.score : 0;\n    const coolingProb = (noulAns && typeof noulAns.noul === 'number') ? noulAns.noul : 0;\n\n    const angle = -80 + Math.min(Math.max(scoreLevel, 0), 4) * 40;\n    const needleGroup = document.getElementById('gauge-needle-group');\n    if (needleGroup) {\n      needleGroup.style.transform = `rotate(${angle}deg)`;\n    }\n\n    const levelLabels = [\n      'Mild (Level 0)',\n      'Subtle Warmth (Level 1)',\n      'Moderate Kick (Level 2)',\n      'Fiery Spice (Level 3)',\n      'Extreme Fire (Level 4)'\n    ];\n    const levelDescs = [\n      'Zero or negligible spice intensity.',\n      'Gentle warming spice offset by base aromatics.',\n      'Noticeable chili kick; balanced table spice.',\n      'Intense heat from fresh hot peppers or curry paste.',\n      'Extreme fire! Pepperhead territory.'\n    ];\n    const levelColors = [\n      'var(--ts-c1)',\n      'var(--ts-c2)',\n      'var(--ts-c3)',\n      'var(--ts-c4)',\n      'var(--ts-c5)'\n    ];\n\n    const heatVal = document.getElementById('heat-value');\n    const heatDesc = document.getElementById('heat-desc');\n    const scoreFill = document.getElementById('score-meter-fill');\n\n    if (heatVal) heatVal.textContent = levelLabels[scoreLevel] || `Level ${scoreLevel}`;\n    if (heatDesc) heatDesc.textContent = levelDescs[scoreLevel] || '';\n    if (scoreFill) {\n      scoreFill.style.width = `${(scoreLevel / 4) * 100}%`;\n      scoreFill.style.background = levelColors[scoreLevel] || 'var(--ts-c1)';\n    }\n\n    const coolingBadge = document.getElementById('cooling-badge');\n    const coolingProbText = document.getElementById('cooling-prob');\n    const coolingNote = document.getElementById('cooling-note');\n    const coolingOverlay = document.getElementById('cooling-overlay');\n\n    const percent = Math.round(coolingProb * 100);\n    if (coolingProbText) coolingProbText.textContent = `${percent}% probability`;\n\n    if (coolingProb >= 0.5) {\n      if (coolingBadge) {\n        coolingBadge.textContent = 'Active Cooling';\n        coolingBadge.style.background = 'var(--ts-success-soft)';\n        coolingBadge.style.color = 'var(--ts-success)';\n      }\n      if (coolingNote) {\n        coolingNote.textContent = 'Cooling ingredient detected (yogurt, cream, or cucumber) dampening perceived burn.';\n      }\n      if (coolingOverlay) {\n        coolingOverlay.innerHTML = '';\n        const dropletCount = 5;\n        for (let i = 0; i < dropletCount; i++) {\n          const drop = document.createElement('div');\n          drop.className = 'cooling-droplet';\n          drop.textContent = '💧';\n          drop.style.left = `${12 + i * 18}%`;\n          drop.style.animationDelay = `${i * 0.4}s`;\n          drop.style.animationDuration = `${2 + (i % 3) * 0.3}s`;\n          coolingOverlay.appendChild(drop);\n        }\n      }\n    } else {\n      if (coolingBadge) {\n        coolingBadge.textContent = 'None';\n        coolingBadge.style.background = 'var(--ts-soft)';\n        coolingBadge.style.color = 'var(--ts-muted)';\n      }\n      if (coolingNote) {\n        coolingNote.textContent = 'No cooling offset detected in recipe description.';\n      }\n      if (coolingOverlay) {\n        coolingOverlay.innerHTML = '';\n      }\n    }\n  }\n\n  btn.addEventListener('click', runEvaluation);\n  input.addEventListener('keydown', (e) => {\n    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {\n      e.preventDefault();\n      runEvaluation();\n    }\n  });\n\n  renderChips();\n  if (samples.length > 0 && samples[0].state.recipe_description) {\n    input.value = samples[0].state.recipe_description;\n    runEvaluation();\n  }\n});",
+        "samples": [
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "recipe_description": "Fiery Indian chicken vindaloo with spicy ghost pepper curry, served with a cooling side of mint cucumber raita made with Greek yogurt."
+              },
+              "questions": {
+                "heat_score": {
+                  "type": "score",
+                  "instructions": "Based on the dish summary in recipe_description, rate the perceived heat intensity.",
+                  "criteria": [
+                    "Level 0: Mild / Zero spice",
+                    "Level 1: Subtle warmth",
+                    "Level 2: Moderate kick",
+                    "Level 3: Fiery spice",
+                    "Level 4: Extreme heat / Pepperhead"
+                  ]
+                },
+                "has_cooling_offset": {
+                  "type": "noul",
+                  "instructions": "Does the text in recipe_description mention cooling ingredients such as yogurt, sour cream, coconut milk, or cucumber that dampen heat?"
+                }
+              }
+            },
+            "description": "Vindaloo + Cooling Raita",
+            "expected": {
+              "heat_score": {
+                "type": "score",
+                "min": 3.0,
+                "max": 4.0
+              },
+              "has_cooling_offset": {
+                "type": "noul",
+                "min": 0.8,
+                "max": 1.0
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "heat_score": {
+                  "type": "score",
+                  "score": 3.85,
+                  "probabilities": {
+                    "0": 0.0,
+                    "1": 0.0,
+                    "2": 0.0,
+                    "3": 0.15,
+                    "4": 0.85
+                  },
+                  "confidence": 0.88,
+                  "legend": {
+                    "0": "Level 0: Mild / Zero spice",
+                    "1": "Level 1: Subtle warmth",
+                    "2": "Level 2: Moderate kick",
+                    "3": "Level 3: Fiery spice",
+                    "4": "Level 4: Extreme heat / Pepperhead"
+                  }
+                },
+                "has_cooling_offset": {
+                  "type": "noul",
+                  "noul": 0.99
+                }
+              },
+              "usage": {
+                "input_tokens": 418,
+                "output_tokens": 38
+              }
+            },
+            "verified_at": "2026-09-28T09:42:44.064006Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "recipe_description": "Extreme spicy wings coated in habanero chili oil, crushed Carolina Reaper flakes, and hot red cayenne powder."
+              },
+              "questions": {
+                "heat_score": {
+                  "type": "score",
+                  "instructions": "Based on the dish summary in recipe_description, rate the perceived heat intensity.",
+                  "criteria": [
+                    "Level 0: Mild / Zero spice",
+                    "Level 1: Subtle warmth",
+                    "Level 2: Moderate kick",
+                    "Level 3: Fiery spice",
+                    "Level 4: Extreme heat / Pepperhead"
+                  ]
+                },
+                "has_cooling_offset": {
+                  "type": "noul",
+                  "instructions": "Does the text in recipe_description mention cooling ingredients such as yogurt, sour cream, coconut milk, or cucumber that dampen heat?"
+                }
+              }
+            },
+            "description": "Reaper & Habanero Wings",
+            "expected": {
+              "heat_score": {
+                "type": "score",
+                "min": 4.0,
+                "max": 4.0
+              },
+              "has_cooling_offset": {
+                "type": "noul",
+                "min": 0.0,
+                "max": 0.2
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "heat_score": {
+                  "type": "score",
+                  "score": 4.0,
+                  "probabilities": {
+                    "0": 0.0,
+                    "1": 0.0,
+                    "2": 0.0,
+                    "3": 0.0,
+                    "4": 1.0
+                  },
+                  "confidence": 1.0,
+                  "legend": {
+                    "0": "Level 0: Mild / Zero spice",
+                    "1": "Level 1: Subtle warmth",
+                    "2": "Level 2: Moderate kick",
+                    "3": "Level 3: Fiery spice",
+                    "4": "Level 4: Extreme heat / Pepperhead"
+                  }
+                },
+                "has_cooling_offset": {
+                  "type": "noul",
+                  "noul": 0.01
+                }
+              },
+              "usage": {
+                "input_tokens": 414,
+                "output_tokens": 38
+              }
+            },
+            "verified_at": "2026-09-28T09:42:44.304539Z"
+          }
+        ],
+        "verified_at": "2026-09-28T09:42:44.809279Z"
+      },
+      "verification": {
+        "model": "jev-1.13.0",
+        "verified_at": "2026-09-28T09:42:44.812424Z",
+        "quality": {
+          "useful": 0.96,
+          "supported": 0.89,
+          "consistent": 0.9
+        },
+        "novelty_probability": 0.5800000000000001
+      },
+      "created_at": "2026-09-28T09:42:44.812424Z",
+      "updated_at": "2026-09-28T09:42:44.812424Z"
     }
   ]
 }

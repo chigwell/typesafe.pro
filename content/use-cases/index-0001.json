@@ -72,6 +72,18 @@
       "input_description": "A short free-text playlist atmosphere description.",
       "decision": "Choose the colour palette archetype (neon synthwave, earthy acoustic, pastel lofi, golden sunset) the description evokes.",
       "action": "Apply the matching colour theme to the player interface."
+    },
+    {
+      "slug": "recipe-spice-level-scoring",
+      "industry": "Culinary Arts & Cooking Apps",
+      "audience": "Mobile Recipe App Developers",
+      "task_type": "spice-scoring",
+      "search_intent": "Score culinary recipe spice and heat level from short dish descriptions.",
+      "summary": "Score the heat level of home cooking descriptions to drive interactive flame gauge animations.",
+      "problem": "The input context contains custom ingredient lists or short preparation notes submitted by users. Simple keyword matching fails to accurately reflect net spice levels when recipes combine multiple hot peppers or add neutralizing elements like sour cream. The application must analyze the overall written profile to estimate relative heat intensity without relying on rigid keyword lists.",
+      "input_description": "A short free-text dish description or ingredient combination written by a home cook.",
+      "decision": "Score: Rate reported heat intensity across 5 levels from 0 (mild / zero spice) to 4 (extreme fire / pepperhead).",
+      "action": "Downstream code animates a heat gauge UI component and displays appropriate spice indicator icons."
     }
   ]
 }
