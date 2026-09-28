@@ -96,6 +96,18 @@
       "input_description": "A single practice sentence written by a language learner.",
       "decision": "Noul: Does the submitted sentence contain a subject-verb agreement error?",
       "action": "Learning UI highlights the verb phrase and displays a focused grammar tip."
+    },
+    {
+      "slug": "family-activity-setting-classification",
+      "industry": "Parenting & Family Leisure",
+      "audience": "Family Activity App Developers",
+      "task_type": "activity-setting-categorization",
+      "search_intent": "Classify community activity suggestions by indoor vs outdoor setting.",
+      "summary": "Categorize user-submitted weekend family activity suggestions into indoor, outdoor, or hybrid environments.",
+      "problem": "The input consists of a community-submitted activity title and narrative description. User submissions range from explicit venue descriptions to ambiguous phrases that make automated setting classification difficult without semantic interpretation. The application needs to categorize each activity into indoor, outdoor, or hybrid settings so downstream code can apply rain-safe display filters or request missing location context.",
+      "input_description": "A short description of a family activity submitted by a community member.",
+      "decision": "Choice: Classify the activity setting into outdoor-weather-dependent, indoor-sheltered, or hybrid-indoor-outdoor.",
+      "action": "Family app applies weather alerts and filters the activity under rainy-day or sunny-day recommendations."
     }
   ]
 }

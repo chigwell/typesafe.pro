@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "run_id": "local-20260928T103123Z-1",
-  "source_sha": "5be237593d671dd690fec3fb32c1b4b5d6da0c3a",
-  "catalog_hash": "63749b9d0f281faae9bdf6ae8dcf03871cdb54986b5f069e7b3c55c983f8dc2d",
-  "generated_at": "2026-09-28T10:39:29.230029Z",
+  "run_id": "local-20260928T110720Z-1",
+  "source_sha": "456ef385d76edc821d2a66f035411be4475a1db2",
+  "catalog_hash": "1ebc483b1083eb261e976c425f1de563c4f5fe5a021b5e79688e2d683a7017b0",
+  "generated_at": "2026-09-28T11:14:44.384474Z",
   "pages": [
     {
       "slug": "library-catalog-routing",
@@ -52,6 +52,12 @@
       "title": "Detect Subject-Verb Agreement Errors in Learner Text",
       "created_at": "2026-09-28T10:39:00.535045Z",
       "updated_at": "2026-09-28T10:39:00.535045Z"
+    },
+    {
+      "slug": "family-activity-setting-classification",
+      "title": "Classifying Family Activity Settings: TypeSafe Choice Tutorial",
+      "created_at": "2026-09-28T11:14:04.834698Z",
+      "updated_at": "2026-09-28T11:14:04.834698Z"
     }
   ]
 }

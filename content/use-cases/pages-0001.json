@@ -2321,6 +2321,424 @@
       },
       "created_at": "2026-09-28T10:39:00.535045Z",
       "updated_at": "2026-09-28T10:39:00.535045Z"
+    },
+    {
+      "slug": "family-activity-setting-classification",
+      "industry": "Parenting & Family Leisure",
+      "audience": "Family Activity App Developers",
+      "task_type": "activity-setting-categorization",
+      "search_intent": "Classify community activity suggestions by indoor vs outdoor setting.",
+      "summary": "Categorize user-submitted weekend family activity suggestions into indoor, outdoor, or hybrid environments.",
+      "problem": "The input consists of a community-submitted activity title and narrative description. User submissions range from explicit venue descriptions to ambiguous phrases that make automated setting classification difficult without semantic interpretation. The application needs to categorize each activity into indoor, outdoor, or hybrid settings so downstream code can apply rain-safe display filters or request missing location context.",
+      "input_description": "A short description of a family activity submitted by a community member.",
+      "decision": "Choice: Classify the activity setting into outdoor-weather-dependent, indoor-sheltered, or hybrid-indoor-outdoor.",
+      "action": "Family app applies weather alerts and filters the activity under rainy-day or sunny-day recommendations.",
+      "schema_version": 1,
+      "seo": {
+        "title": "Classifying Family Activity Settings: TypeSafe Choice Tutorial",
+        "description": "Learn how to categorize community family activity submissions into indoor, outdoor, or hybrid settings using a structured Choice question for weather filtering."
+      },
+      "intro": "Community members submit unstructured weekend activity ideas that vary widely in setting detail and venue phrasing. This example shows how to evaluate submission text using a Choice question to distinguish indoor, outdoor, and hybrid environments. Application code then uses the setting judgment to route activities into weather-dependent discovery lists or flag ambiguous posts for clarification.",
+      "solution": "In this setup, application code submits a family activity title and description to the setting_classification Choice question to evaluate the event environment. In the observed examples, explicit indoor library text returned indoor_sheltered, an open park splash pad description returned outdoor_weather_dependent, and text missing venue details returned needs_location_context. Downstream application code can read this judgment to tag posts with rainy-day filters, display weather alerts for outdoor events, or flag ambiguous submissions for user clarification. The API provides the setting classification, while your application executes the actual discovery filtering, alert rules, and follow-up prompts.",
+      "limitations": [
+        "A single Choice question selects only one environment option per evaluation, though you can use separate questions if your application requires multi-label setting tags.",
+        "Categorizing a venue based on submission text checks setting context but does not verify whether the named location is active, open to the public, or authorized for events.",
+        "The needs_location_context fallback option is an application design choice rather than an API requirement, so you can adjust criteria definitions or review boundaries for your workflow."
+      ],
+      "examples": [
+        {
+          "name": "Indoor public library storytime submission",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "title": "Rainy Day Storytime and Craft Hour",
+              "description": "Join us inside the downtown public library children's room for read-alongs and paper crafts."
+            },
+            "questions": {
+              "setting_classification": {
+                "type": "choice",
+                "instructions": "Determine the physical setting type for the submitted family activity based on the title and description provided in state.",
+                "criteria": {
+                  "indoor_sheltered": "The activity takes place primarily indoors or inside a fully sheltered venue.",
+                  "outdoor_weather_dependent": "The activity takes place outdoors and is affected by weather conditions.",
+                  "hybrid_indoor_outdoor": "The activity spans both indoor and outdoor areas or facilities during the event.",
+                  "needs_location_context": "The setting cannot be determined because venue details or activity descriptions are missing or ambiguous."
+                }
+              }
+            }
+          },
+          "expected": {
+            "setting_classification": {
+              "type": "choice",
+              "choice": "indoor_sheltered"
+            }
+          },
+          "expected_description": "The title and description explicitly state the event is inside a public library children's room, so indoor_sheltered is selected.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "setting_classification": {
+                "type": "choice",
+                "choice": "indoor_sheltered",
+                "probabilities": {
+                  "indoor_sheltered": 1.0,
+                  "outdoor_weather_dependent": 0.0,
+                  "needs_location_context": 0.0,
+                  "hybrid_indoor_outdoor": 0.0
+                },
+                "confidence": 1.0
+              }
+            },
+            "usage": {
+              "input_tokens": 459,
+              "output_tokens": 73
+            }
+          },
+          "verified_at": "2026-09-28T11:11:42.382240Z"
+        },
+        {
+          "name": "Outdoor splash park and picnic submission",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "title": "Splash Park & Picnic Lunch",
+              "description": "Meet at Riverside Park near the outdoor splash pad and lawn for water play and picnic benches."
+            },
+            "questions": {
+              "setting_classification": {
+                "type": "choice",
+                "instructions": "Determine the physical setting type for the submitted family activity based on the title and description provided in state.",
+                "criteria": {
+                  "indoor_sheltered": "The activity takes place primarily indoors or inside a fully sheltered venue.",
+                  "outdoor_weather_dependent": "The activity takes place outdoors and is affected by weather conditions.",
+                  "hybrid_indoor_outdoor": "The activity spans both indoor and outdoor areas or facilities during the event.",
+                  "needs_location_context": "The setting cannot be determined because venue details or activity descriptions are missing or ambiguous."
+                }
+              }
+            }
+          },
+          "expected": {
+            "setting_classification": {
+              "type": "choice",
+              "choice": "outdoor_weather_dependent"
+            }
+          },
+          "expected_description": "The text describes an open park splash pad and lawn picnic, so outdoor_weather_dependent is selected.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "setting_classification": {
+                "type": "choice",
+                "choice": "outdoor_weather_dependent",
+                "probabilities": {
+                  "needs_location_context": 0.0,
+                  "outdoor_weather_dependent": 1.0,
+                  "hybrid_indoor_outdoor": 0.0,
+                  "indoor_sheltered": 0.0
+                },
+                "confidence": 1.0
+              }
+            },
+            "usage": {
+              "input_tokens": 455,
+              "output_tokens": 75
+            }
+          },
+          "verified_at": "2026-09-28T11:11:42.650428Z"
+        },
+        {
+          "name": "Ambiguous meetup title without venue details",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "title": "Weekend Fun & Games",
+              "description": "Fun weekend meetup for kids and parents to hang out and play games."
+            },
+            "questions": {
+              "setting_classification": {
+                "type": "choice",
+                "instructions": "Determine the physical setting type for the submitted family activity based on the title and description provided in state.",
+                "criteria": {
+                  "indoor_sheltered": "The activity takes place primarily indoors or inside a fully sheltered venue.",
+                  "outdoor_weather_dependent": "The activity takes place outdoors and is affected by weather conditions.",
+                  "hybrid_indoor_outdoor": "The activity spans both indoor and outdoor areas or facilities during the event.",
+                  "needs_location_context": "The setting cannot be determined because venue details or activity descriptions are missing or ambiguous."
+                }
+              }
+            }
+          },
+          "expected": {
+            "setting_classification": {
+              "type": "choice",
+              "choice": "needs_location_context"
+            }
+          },
+          "expected_description": "The submission lacks any venue name or environment details, requiring the fallback option needs_location_context.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "setting_classification": {
+                "type": "choice",
+                "choice": "needs_location_context",
+                "probabilities": {
+                  "needs_location_context": 0.99,
+                  "hybrid_indoor_outdoor": 0.0,
+                  "outdoor_weather_dependent": 0.0,
+                  "indoor_sheltered": 0.01
+                },
+                "confidence": 0.98
+              }
+            },
+            "usage": {
+              "input_tokens": 451,
+              "output_tokens": 71
+            }
+          },
+          "verified_at": "2026-09-28T11:11:42.933356Z"
+        }
+      ],
+      "demo": {
+        "title": "Sun and Rain Weather Splitter",
+        "concept": "A split canvas features a sunny park canopy on one side and a rain-sheltered reading nook on the other. Community activity submissions move dynamically toward the environment matching their weather exposure.",
+        "interaction": "The visitor selects or types a local activity title and description.",
+        "visual": "The activity card floats toward the sun, rain canopy, or central hybrid bridge in proportion to setting probabilities, while rain droplets or sunbeams light up based on rain disruption likelihood.",
+        "questions": {
+          "setting_type": {
+            "type": "choice",
+            "instructions": "Classify the setting of the family activity described in state.description into one of the available setting environments.",
+            "criteria": {
+              "outdoor_dependent": "Takes place outdoors where rain or bad weather prevents the activity.",
+              "indoor_sheltered": "Takes place inside a fully enclosed building safe from rain.",
+              "hybrid_facility": "Combines indoor and outdoor options, allowing rain protection if needed.",
+              "insufficient_info": "The description does not provide enough location detail."
+            }
+          },
+          "rain_disruption": {
+            "type": "noul",
+            "instructions": "Would bad weather or rain disrupt the activity described in state.description?",
+            "criteria": {
+              "true": "Rain or severe weather would disrupt the activity.",
+              "false": "The activity is sheltered or weather-independent."
+            }
+          }
+        },
+        "html": "<div class=\"ts-stack\">\n  <div class=\"ts-row\" id=\"sample-chips\" aria-label=\"Sample Activities\"></div>\n  <div>\n    <label class=\"ts-label\" for=\"activity-desc\">\n      Family Activity Description\n      <textarea id=\"activity-desc\" class=\"ts-textarea\" rows=\"3\" placeholder=\"e.g. Story hour and craft workshop at the downtown library...\"></textarea>\n    </label>\n  </div>\n  <div class=\"ts-row\">\n    <button type=\"button\" id=\"eval-btn\" class=\"ts-btn\">Classify Activity Setting</button>\n  </div>\n  <div id=\"status-msg\" class=\"ts-status\" aria-live=\"polite\"></div>\n  <div id=\"results-panel\" class=\"ts-panel weather-panel\" style=\"display: none;\">\n    <div class=\"splitter-header\">\n      <div>\n        <span class=\"ts-eyebrow\">Classification Visualizer</span>\n        <div id=\"result-title\" class=\"ts-title\">Environment Match</div>\n      </div>\n      <div id=\"setting-badge\" class=\"ts-badge\"></div>\n    </div>\n    <div class=\"splitter-stage\">\n      <div class=\"stage-zone zone-outdoor\">\n        <div class=\"zone-icon\">☀️</div>\n        <div class=\"zone-label\">Outdoor Sun</div>\n        <div class=\"sun-beams\" id=\"sun-beams\"></div>\n      </div>\n      <div class=\"stage-zone zone-hybrid\">\n        <div class=\"zone-icon\">⛅</div>\n        <div class=\"zone-label\">Hybrid Bridge</div>\n      </div>\n      <div class=\"stage-zone zone-indoor\">\n        <div class=\"zone-icon\">🌧️</div>\n        <div class=\"zone-label\">Indoor Sheltered</div>\n        <div class=\"rain-drops\" id=\"rain-drops\"></div>\n      </div>\n      <div class=\"activity-pawn\" id=\"pawn\" style=\"left: 50%;\">\n        <div class=\"pawn-dot\">📍</div>\n        <div class=\"pawn-label\" id=\"pawn-label\">Activity</div>\n      </div>\n    </div>\n    <div class=\"ts-grid metrics-grid\">\n      <div class=\"ts-card metric-card\">\n        <div class=\"ts-eyebrow\">Rain Disruption Risk</div>\n        <div id=\"disruption-value\" class=\"ts-value\">0%</div>\n        <div class=\"ts-meter\">\n          <div id=\"disruption-meter\" class=\"ts-meter-fill\" style=\"width: 0%;\"></div>\n        </div>\n        <div id=\"disruption-text\" class=\"ts-help\" style=\"margin-top: 6px;\">Evaluated probability of rain impact</div>\n      </div>\n      <div class=\"ts-card metric-card\">\n        <div class=\"ts-eyebrow\">Setting Probabilities</div>\n        <div id=\"prob-bars\" class=\"prob-list\"></div>\n      </div>\n    </div>\n  </div>\n</div>",
+        "css": "#demo .weather-panel { display: flex; flex-direction: column; gap: 16px; position: relative; overflow: hidden; } #demo .splitter-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; } #demo .splitter-stage { position: relative; display: grid; grid-template-columns: 1fr 1fr 1fr; background: var(--ts-surface); border: 1px solid var(--ts-line); border-radius: 12px; padding: 24px 12px; min-height: 140px; align-items: center; overflow: hidden; } #demo .stage-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; z-index: 1; padding: 8px 4px; border-radius: 8px; transition: opacity 0.3s ease; } #demo .zone-icon { font-size: 32px; line-height: 1; } #demo .zone-label { font-size: 11px; font-weight: 600; color: var(--ts-muted); text-transform: uppercase; letter-spacing: 0.5px; } #demo .sun-beams, #demo .rain-drops { position: absolute; top: 0; bottom: 0; pointer-events: none; opacity: 0; transition: opacity 0.5s ease; } #demo .sun-beams { left: 0; width: 40%; background: radial-gradient(circle at 20% 30%, var(--ts-c1) 0%, transparent 70%); } #demo .rain-drops { right: 0; width: 40%; background: repeating-linear-gradient(135deg, transparent, transparent 8px, var(--ts-c3) 8px, var(--ts-c3) 10px); animation: rainFall 1.5s linear infinite; } @keyframes rainFall { 0% { background-position: 0 0; } 100% { background-position: 20px 40px; } } #demo .sun-beams.active { opacity: 0.35; } #demo .rain-drops.active { opacity: 0.25; } #demo .activity-pawn { position: absolute; top: 50%; transform: translate(-50%, -50%); z-index: 5; display: flex; flex-direction: column; align-items: center; transition: left 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; } #demo .pawn-dot { font-size: 26px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); animation: floatBounce 2s ease-in-out infinite; } @keyframes floatBounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } } #demo .pawn-label { font-size: 11px; font-weight: 600; background: var(--ts-raised); color: var(--ts-ink); padding: 2px 8px; border-radius: 10px; border: 1px solid var(--ts-line); white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.08); } #demo .metrics-grid { margin-top: 4px; } #demo .metric-card { padding: 14px; display: flex; flex-direction: column; gap: 8px; } #demo .prob-list { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; } #demo .prob-item { display: flex; flex-direction: column; gap: 3px; } #demo .prob-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--ts-body); } #demo .prob-meta-label { font-weight: 500; } #demo .prob-meta-val { font-weight: 600; color: var(--ts-ink); }",
+        "js": "(function () {\n  const descInput = document.getElementById('activity-desc');\n  const evalBtn = document.getElementById('eval-btn');\n  const statusEl = document.getElementById('status-msg');\n  const chipsContainer = document.getElementById('sample-chips');\n  const resultsPanel = document.getElementById('results-panel');\n  const settingBadge = document.getElementById('setting-badge');\n  const resultTitle = document.getElementById('result-title');\n  const pawn = document.getElementById('pawn');\n  const pawnLabel = document.getElementById('pawn-label');\n  const disruptionVal = document.getElementById('disruption-value');\n  const disruptionMeter = document.getElementById('disruption-meter');\n  const disruptionText = document.getElementById('disruption-text');\n  const probBars = document.getElementById('prob-bars');\n  const sunBeams = document.getElementById('sun-beams');\n  const rainDrops = document.getElementById('rain-drops');\n\n  const LABELS = {\n    outdoor_dependent: 'Outdoor Weather-Dependent',\n    indoor_sheltered: 'Indoor Sheltered',\n    hybrid_facility: 'Hybrid Facility',\n    insufficient_info: 'Insufficient Details'\n  };\n\n  const COLORS = {\n    outdoor_dependent: 'var(--ts-c1)',\n    indoor_sheltered: 'var(--ts-c3)',\n    hybrid_facility: 'var(--ts-c2)',\n    insufficient_info: 'var(--ts-muted)'\n  };\n\n  const samples = window.TypeSafeDemo.samples || [];\n  samples.forEach(function (sample, idx) {\n    const chip = document.createElement('button');\n    chip.type = 'button';\n    chip.className = 'ts-chip' + (idx === 0 ? ' is-active' : '');\n    chip.textContent = sample.description || ('Sample ' + (idx + 1));\n    chip.addEventListener('click', function () {\n      descInput.value = sample.state.description || '';\n      Array.from(chipsContainer.children).forEach(function (c) { c.classList.remove('is-active'); });\n      chip.classList.add('is-active');\n      runEvaluation();\n    });\n    chipsContainer.appendChild(chip);\n  });\n\n  if (samples.length > 0 && samples[0].state && samples[0].state.description) {\n    descInput.value = samples[0].state.description;\n  }\n\n  descInput.addEventListener('keydown', function (e) {\n    if (e.key === 'Enter' && !e.shiftKey) {\n      e.preventDefault();\n      runEvaluation();\n    }\n  });\n\n  evalBtn.addEventListener('click', function () {\n    runEvaluation();\n  });\n\n  function runEvaluation() {\n    const text = descInput.value.trim();\n    if (!text) {\n      statusEl.className = 'ts-status is-error';\n      statusEl.textContent = 'Please enter an activity description to classify.';\n      return;\n    }\n\n    const state = { description: text };\n    statusEl.className = 'ts-status is-loading';\n    statusEl.textContent = 'Analyzing activity setting & weather vulnerability...';\n    evalBtn.disabled = true;\n\n    window.TypeSafeDemo.evaluate(state)\n      .then(function (answers) {\n        statusEl.className = 'ts-status';\n        statusEl.textContent = '';\n        evalBtn.disabled = false;\n        renderResults(answers);\n      })\n      .catch(function (err) {\n        statusEl.className = 'ts-status is-error';\n        statusEl.textContent = window.TypeSafeDemo.describeError(err);\n        evalBtn.disabled = false;\n      });\n  }\n\n  function renderResults(answers) {\n    resultsPanel.style.display = 'flex';\n\n    const settingAns = answers.setting_type || {};\n    const rainAns = answers.rain_disruption || {};\n\n    const chosenChoice = settingAns.choice || 'insufficient_info';\n    const choiceLabel = LABELS[chosenChoice] || chosenChoice;\n\n    settingBadge.textContent = choiceLabel;\n    resultTitle.textContent = choiceLabel;\n\n    const probs = settingAns.probabilities || {};\n    const pOutdoor = probs.outdoor_dependent !== undefined ? probs.outdoor_dependent : (chosenChoice === 'outdoor_dependent' ? 0.9 : 0.05);\n    const pHybrid = probs.hybrid_facility !== undefined ? probs.hybrid_facility : (chosenChoice === 'hybrid_facility' ? 0.9 : 0.05);\n    const pIndoor = probs.indoor_sheltered !== undefined ? probs.indoor_sheltered : (chosenChoice === 'indoor_sheltered' ? 0.9 : 0.05);\n    const pUnk = probs.insufficient_info !== undefined ? probs.insufficient_info : (chosenChoice === 'insufficient_info' ? 0.9 : 0.05);\n\n    const totalProb = pOutdoor + pHybrid + pIndoor + pUnk;\n    let posX = 50;\n    if (totalProb > 0) {\n      posX = ((pOutdoor * 16) + (pHybrid * 50) + (pIndoor * 84) + (pUnk * 50)) / totalProb;\n    }\n    pawn.style.left = Math.min(88, Math.max(12, posX)) + '%';\n    pawnLabel.textContent = choiceLabel;\n\n    sunBeams.classList.toggle('active', pOutdoor > 0.4);\n    rainDrops.classList.toggle('active', pIndoor > 0.4 || (rainAns.noul || 0) > 0.5);\n\n    const rainScore = typeof rainAns.noul === 'number' ? rainAns.noul : 0;\n    const rainPct = Math.round(rainScore * 100);\n    disruptionVal.textContent = rainPct + '%';\n    disruptionMeter.style.width = rainPct + '%';\n\n    if (rainPct > 65) {\n      disruptionMeter.style.background = 'var(--ts-danger)';\n      disruptionText.textContent = 'High rain vulnerability. Sheltered indoor alternatives strongly advised.';\n    } else if (rainPct > 35) {\n      disruptionMeter.style.background = 'var(--ts-accent)';\n      disruptionText.textContent = 'Moderate rain sensitivity. Covered spaces available if bad weather hits.';\n    } else {\n      disruptionMeter.style.background = 'var(--ts-success)';\n      disruptionText.textContent = 'Fully sheltered from weather. Rain will not disrupt this activity.';\n    }\n\n    probBars.innerHTML = '';\n    const keys = ['outdoor_dependent', 'hybrid_facility', 'indoor_sheltered', 'insufficient_info'];\n    keys.forEach(function (key) {\n      const val = probs[key] !== undefined ? probs[key] : (key === chosenChoice ? 1 : 0);\n      const valPct = Math.round(val * 100);\n\n      const item = document.createElement('div');\n      item.className = 'prob-item';\n      item.innerHTML = '<div class=\"prob-meta\"><span class=\"prob-meta-label\">' + LABELS[key] + '</span><span class=\"prob-meta-val\">' + valPct + '%</span></div><div class=\"ts-meter\"><div class=\"ts-meter-fill\" style=\"width: ' + valPct + '%; background: ' + COLORS[key] + ';\"></div></div>';\n      probBars.appendChild(item);\n    });\n  }\n\n  if (descInput.value.trim()) {\n    runEvaluation();\n  }\n})();",
+        "samples": [
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "description": "Sunny splash park picnic with open-air water play and grass lawn games at Riverside Park."
+              },
+              "questions": {
+                "setting_type": {
+                  "type": "choice",
+                  "instructions": "Classify the setting of the family activity described in state.description into one of the available setting environments.",
+                  "criteria": {
+                    "outdoor_dependent": "Takes place outdoors where rain or bad weather prevents the activity.",
+                    "indoor_sheltered": "Takes place inside a fully enclosed building safe from rain.",
+                    "hybrid_facility": "Combines indoor and outdoor options, allowing rain protection if needed.",
+                    "insufficient_info": "The description does not provide enough location detail."
+                  }
+                },
+                "rain_disruption": {
+                  "type": "noul",
+                  "instructions": "Would bad weather or rain disrupt the activity described in state.description?",
+                  "criteria": {
+                    "true": "Rain or severe weather would disrupt the activity.",
+                    "false": "The activity is sheltered or weather-independent."
+                  }
+                }
+              }
+            },
+            "description": "Outdoor splash park & lawn picnic",
+            "expected": {
+              "setting_type": {
+                "type": "choice",
+                "choice": "outdoor_dependent"
+              },
+              "rain_disruption": {
+                "type": "noul",
+                "min": 0.8,
+                "max": 1.0
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "setting_type": {
+                  "type": "choice",
+                  "choice": "outdoor_dependent",
+                  "probabilities": {
+                    "outdoor_dependent": 1.0,
+                    "indoor_sheltered": 0.0,
+                    "hybrid_facility": 0.0,
+                    "insufficient_info": 0.0
+                  },
+                  "confidence": 1.0
+                },
+                "rain_disruption": {
+                  "type": "noul",
+                  "noul": 0.95
+                }
+              },
+              "usage": {
+                "input_tokens": 483,
+                "output_tokens": 88
+              }
+            },
+            "verified_at": "2026-09-28T11:14:03.929253Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "description": "Children's story hour and clay crafting workshop inside the downtown public library main hall."
+              },
+              "questions": {
+                "setting_type": {
+                  "type": "choice",
+                  "instructions": "Classify the setting of the family activity described in state.description into one of the available setting environments.",
+                  "criteria": {
+                    "outdoor_dependent": "Takes place outdoors where rain or bad weather prevents the activity.",
+                    "indoor_sheltered": "Takes place inside a fully enclosed building safe from rain.",
+                    "hybrid_facility": "Combines indoor and outdoor options, allowing rain protection if needed.",
+                    "insufficient_info": "The description does not provide enough location detail."
+                  }
+                },
+                "rain_disruption": {
+                  "type": "noul",
+                  "instructions": "Would bad weather or rain disrupt the activity described in state.description?",
+                  "criteria": {
+                    "true": "Rain or severe weather would disrupt the activity.",
+                    "false": "The activity is sheltered or weather-independent."
+                  }
+                }
+              }
+            },
+            "description": "Indoor library story hour",
+            "expected": {
+              "setting_type": {
+                "type": "choice",
+                "choice": "indoor_sheltered"
+              },
+              "rain_disruption": {
+                "type": "noul",
+                "min": 0.0,
+                "max": 0.2
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "setting_type": {
+                  "type": "choice",
+                  "choice": "indoor_sheltered",
+                  "probabilities": {
+                    "hybrid_facility": 0.0,
+                    "insufficient_info": 0.0,
+                    "indoor_sheltered": 1.0,
+                    "outdoor_dependent": 0.0
+                  },
+                  "confidence": 1.0
+                },
+                "rain_disruption": {
+                  "type": "noul",
+                  "noul": 0.1
+                }
+              },
+              "usage": {
+                "input_tokens": 481,
+                "output_tokens": 87
+              }
+            },
+            "verified_at": "2026-09-28T11:14:04.212523Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "description": "Weekend family hangout idea."
+              },
+              "questions": {
+                "setting_type": {
+                  "type": "choice",
+                  "instructions": "Classify the setting of the family activity described in state.description into one of the available setting environments.",
+                  "criteria": {
+                    "outdoor_dependent": "Takes place outdoors where rain or bad weather prevents the activity.",
+                    "indoor_sheltered": "Takes place inside a fully enclosed building safe from rain.",
+                    "hybrid_facility": "Combines indoor and outdoor options, allowing rain protection if needed.",
+                    "insufficient_info": "The description does not provide enough location detail."
+                  }
+                },
+                "rain_disruption": {
+                  "type": "noul",
+                  "instructions": "Would bad weather or rain disrupt the activity described in state.description?",
+                  "criteria": {
+                    "true": "Rain or severe weather would disrupt the activity.",
+                    "false": "The activity is sheltered or weather-independent."
+                  }
+                }
+              }
+            },
+            "description": "Vague activity suggestion without location",
+            "expected": {
+              "setting_type": {
+                "type": "choice",
+                "choice": "insufficient_info"
+              },
+              "rain_disruption": {
+                "type": "noul",
+                "min": 0.3,
+                "max": 0.7
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "setting_type": {
+                  "type": "choice",
+                  "choice": "insufficient_info",
+                  "probabilities": {
+                    "outdoor_dependent": 0.0,
+                    "indoor_sheltered": 0.0,
+                    "insufficient_info": 1.0,
+                    "hybrid_facility": 0.0
+                  },
+                  "confidence": 1.0
+                },
+                "rain_disruption": {
+                  "type": "noul",
+                  "noul": 0.56
+                }
+              },
+              "usage": {
+                "input_tokens": 473,
+                "output_tokens": 87
+              }
+            },
+            "verified_at": "2026-09-28T11:14:04.831727Z"
+          }
+        ],
+        "verified_at": "2026-09-28T11:14:04.831827Z"
+      },
+      "verification": {
+        "model": "jev-1.13.0",
+        "verified_at": "2026-09-28T11:14:04.834698Z",
+        "quality": {
+          "useful": 0.96,
+          "supported": 0.9,
+          "consistent": 0.83
+        },
+        "novelty_probability": 0.79
+      },
+      "created_at": "2026-09-28T11:14:04.834698Z",
+      "updated_at": "2026-09-28T11:14:04.834698Z"
     }
   ]
 }

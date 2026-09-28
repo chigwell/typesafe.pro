@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "total": 8,
+  "total": 9,
   "shards": [
     {
       "file": "pages-0001.json",
-      "count": 8,
-      "sha256": "11e47a273cfce03ddf6fa56792649b7f5513e2c7cceae665f398f58dd1c0012e"
+      "count": 9,
+      "sha256": "6dabcfd56803b71804805f3099e708129a7075c4702615435a7d3a3e2e0f983c"
     }
   ],
-  "catalog_hash": "63749b9d0f281faae9bdf6ae8dcf03871cdb54986b5f069e7b3c55c983f8dc2d"
+  "catalog_hash": "1ebc483b1083eb261e976c425f1de563c4f5fe5a021b5e79688e2d683a7017b0"
 }
