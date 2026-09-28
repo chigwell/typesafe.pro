@@ -39,6 +39,9 @@ describe("demo brand kit", () => {
     expect(kit).toBeLessThan(document.indexOf("#demo-visual{"));
     expect(DEMO_BRAND_CSS).toContain("--demo-accent:var(--ts-accent)");
     expect(DEMO_BRAND_CSS).toContain("height:auto!important");
+    // Demos made before the kit style their own buttons by class and rely on this base look.
+    expect(DEMO_BRAND_CSS).toMatch(/(^|\n)#demo button\{[^}]*background:var\(--ts-button\)/);
+    expect(DEMO_BRAND_CSS).not.toContain("button:not([class])");
   });
   it("rejects demos sized with viewport units", () => {
     const demo = useCaseDemoFixture();

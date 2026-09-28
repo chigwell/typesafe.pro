@@ -19,8 +19,8 @@ html,body{margin:0;padding:0;height:auto!important;min-height:0!important;overfl
 #demo :focus-visible{outline:3px solid var(--ts-accent);outline-offset:2px}
 #demo h1,#demo h2,#demo h3,#demo p{margin:0}
 #demo input,#demo textarea,#demo select{font:inherit;color:var(--ts-ink);background:var(--ts-raised);border:1px solid var(--ts-line);border-radius:var(--ts-radius);padding:11px 13px;max-width:100%}
-#demo button{font:inherit;cursor:pointer}
-#demo button:not([class]){display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 20px;border:0;border-radius:999px;background:var(--ts-button);color:var(--ts-button-ink);font-size:14px;font-weight:650}
+/* Every button gets the brand look (demos made before the kit rely on it); ts-* classes and demo CSS override it. */
+#demo button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:9px 18px;border:1px solid transparent;border-radius:999px;background:var(--ts-button);color:var(--ts-button-ink);font:inherit;font-size:14px;font-weight:650;line-height:1.3;cursor:pointer;transition:transform .25s var(--ts-ease),background .2s,color .2s}
 #demo button:disabled{opacity:.55;cursor:progress}
 #demo .ts-stack{display:flex;flex-direction:column;gap:16px}
 #demo .ts-row{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
