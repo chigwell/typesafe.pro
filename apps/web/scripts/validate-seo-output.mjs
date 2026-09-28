@@ -196,7 +196,8 @@ async function main() {
     assert(!html.includes("use-case-draft-banner"), `${entry.slug}: a draft preview leaked into the published output`);
     if (html.includes('id="use-case-demo"')) {
       const frame = /<iframe\s+([^>]*)>/.exec(html);
-      const attrs = frame ? parseAttrs(frame[1]) : {};
+      // HTML attribute names are case-insensitive; React serializes srcDoc in camelCase.
+      const attrs = Object.fromEntries(Object.entries(frame ? parseAttrs(frame[1]) : {}).map(([key, value]) => [key.toLowerCase(), value]));
       assert(attrs.sandbox === "allow-scripts", `${entry.slug}: demo iframe must be sandboxed with exactly allow-scripts`);
       const srcdoc = htmlDecode(attrs.srcdoc ?? "");
       assert(srcdoc.includes('http-equiv="Content-Security-Policy"') && srcdoc.includes("default-src 'none'"), `${entry.slug}: demo document lacks its Content-Security-Policy`);
