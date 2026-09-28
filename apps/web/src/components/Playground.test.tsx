@@ -53,8 +53,23 @@ describe("Playground", () => {
     expect(screen.getByText(/Live response received/i)).toBeInTheDocument();
   });
 
-  it("keeps custom edits honest in sample mode", async () => {
+  it("switches to Live API on the first edit when no mode was chosen, without calling the API", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
     renderPlayground();
+    const input = screen.getByLabelText(/your text/i);
+    await userEvent.type(input, " more");
+
+    expect(screen.getByRole("button", { name: /live api/i })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(/Switched to Live API because you changed the example/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /run for free/i })).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps custom edits honest when the visitor chose sample mode", async () => {
+    renderPlayground();
+    await userEvent.click(screen.getByRole("button", { name: /^sample$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /live api/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^sample$/i }));
     const input = screen.getByLabelText(/your text/i);
     await userEvent.clear(input);
     await userEvent.type(input, "A completely new input.");

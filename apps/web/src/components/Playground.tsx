@@ -58,6 +58,9 @@ export function Playground({
   const [variantIndex, setVariantIndex] = useState(0);
   const [request, setRequest] = useState(() => requestFor(initialPreset, 0));
   const [mode, setMode] = useState<Mode>("sample");
+  // Until the visitor picks a mode, editing the example means they want a real answer.
+  const modeChosen = useRef(false);
+  const autoSwitched = useRef(false);
   const [advanced, setAdvanced] = useState(false);
   const [jsonText, setJsonText] = useState(() => JSON.stringify(requestFor(initialPreset, 0), null, 2));
   const [jsonError, setJsonError] = useState("");
@@ -174,6 +177,24 @@ export function Playground({
     }
   }
 
+  /** Called on every edit: leave Sample for Live API unless the visitor chose Sample. */
+  function editedMessage(liveMessage: string) {
+    const switched = "Switched to Live API because you changed the example. Run it for a real answer.";
+    if (mode === "sample" && !modeChosen.current) {
+      setMode("live");
+      autoSwitched.current = true;
+      return switched;
+    }
+    if (mode === "live" && autoSwitched.current) return switched;
+    return mode === "sample" ? "Changed the example? Choose Live API for a real answer." : liveMessage;
+  }
+
+  function chooseMode(value: Mode) {
+    modeChosen.current = true;
+    autoSwitched.current = false;
+    updateMode(value);
+  }
+
   function updateMode(value: Mode) {
     if (value === mode) return;
     setMode(value);
@@ -195,14 +216,14 @@ export function Playground({
     const next = clone(request);
     next.state = value;
     setVariantIndex(-1);
-    applyRequest(next, { invalidate: mode === "sample" ? "Changed the example? Choose Live API for a real answer." : "Input updated. Run again to get a new answer." });
+    applyRequest(next, { invalidate: editedMessage("Input updated. Run again to get a new answer.") });
   }
 
   function updateSimpleInstructions(value: string) {
     const next = clone(request);
     const first = Object.keys(next.questions)[0];
     next.questions[first].instructions = value;
-    applyRequest(next, { invalidate: mode === "sample" ? "Changed the example? Choose Live API for a real answer." : "Input updated. Run again to get a new answer." });
+    applyRequest(next, { invalidate: editedMessage("Input updated. Run again to get a new answer.") });
   }
 
   function parseJson(value = jsonText): EvaluationRequest | null {
@@ -222,7 +243,7 @@ export function Playground({
     if (parsed) {
       setRequest(parsed);
     }
-    markInvalidated("Request changed. Only valid JSON can be sent.");
+    markInvalidated(editedMessage("Request changed. Only valid JSON can be sent."));
   }
 
   function addQuestion(type: Question["type"]) {
@@ -252,7 +273,7 @@ export function Playground({
     let number = Object.keys(parsed.questions).length + 1;
     while (Object.hasOwn(parsed.questions, `question_${number}`)) number += 1;
     parsed.questions[`question_${number}`] = templates[type];
-    applyRequest(parsed, { invalidate: "Question added. All questions are evaluated against the same state." });
+    applyRequest(parsed, { invalidate: editedMessage("Question added. All questions are evaluated against the same state.") });
   }
 
   function addStructuredRules() {
@@ -272,11 +293,12 @@ export function Playground({
         first.criteria[key] = { description: first.criteria[key] };
       });
     }
-    applyRequest(parsed, { invalidate: "Structured instructions added. Edit the named fields to define your rules." });
+    applyRequest(parsed, { invalidate: editedMessage("Structured instructions added. Edit the named fields to define your rules.") });
   }
 
   async function run() {
     if (running) return;
+    autoSwitched.current = false;
     const sentRequest = advanced ? parseJson() : request;
     if (!sentRequest) {
       setStatus("Fix the JSON before running this request.");
@@ -418,10 +440,10 @@ export function Playground({
             </a>
           </div>
           <div className="mode-switch" role="group" aria-label="Playground mode">
-            <button type="button" aria-pressed={mode === "sample"} onClick={() => updateMode("sample")}>
+            <button type="button" aria-pressed={mode === "sample"} onClick={() => chooseMode("sample")}>
               Sample
             </button>
-            <button type="button" aria-pressed={mode === "live"} onClick={() => updateMode("live")}>
+            <button type="button" aria-pressed={mode === "live"} onClick={() => chooseMode("live")}>
               Live API
             </button>
           </div>
