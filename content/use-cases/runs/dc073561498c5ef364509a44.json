@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "report": {
+    "run_id": "local-20260928T110720Z-2",
+    "source_sha": "456ef385d76edc821d2a66f035411be4475a1db2",
+    "status": "prepared",
+    "reason": "approved_by_reviewer",
+    "started_at": "2026-09-28T11:07:20.122849Z",
+    "finished_at": "2026-09-28T11:19:39.912120Z",
+    "duration_seconds": 505.943,
+    "seed": 69816684,
+    "rounds": 2,
+    "api_calls": 53,
+    "input_tokens": 166285,
+    "output_tokens": 79029,
+    "generated_count": 2,
+    "rejected_count": 1,
+    "rejections": {
+      "unfocused": 1
+    },
+    "catalog_hash": "44a27a19fc95cc4fe5ab95f8909982b29a8c583816044e67e566969b23a8584e",
+    "mode": "review",
+    "approved_count": 2,
+    "skipped_count": 0,
+    "inspiration_source": "hn"
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "local-20260928T110720Z-2",
+    "source_sha": "456ef385d76edc821d2a66f035411be4475a1db2",
+    "catalog_hash": "44a27a19fc95cc4fe5ab95f8909982b29a8c583816044e67e566969b23a8584e",
+    "generated_at": "2026-09-28T11:19:39.904569Z",
+    "pages": [
+      {
+        "slug": "library-catalog-routing",
+        "title": "Automating Library Reference Query Routing with Intent Classification",
+        "created_at": "2026-09-25T15:31:20.467624Z",
+        "updated_at": "2026-09-25T15:35:00.990043Z"
+      },
+      {
+        "slug": "permission-software-license",
+        "title": "Check Software License Justifications Before Procurement Review",
+        "created_at": "2026-09-25T15:33:55.274202Z",
+        "updated_at": "2026-09-25T15:36:02.408494Z"
+      },
+      {
+        "slug": "ingredient-allergen-screening",
+        "title": "Screen Ingredient Spec Sheets for Allergen Disclosures",
+        "created_at": "2026-09-25T15:53:34.323318Z",
+        "updated_at": "2026-09-25T15:53:34.323318Z"
+      },
+      {
+        "slug": "facility-maintenance-severity-scoring",
+        "title": "Scoring Maintenance Request Severity for Facility Dispatch",
+        "created_at": "2026-09-25T15:55:29.066891Z",
+        "updated_at": "2026-09-25T15:55:29.066891Z"
+      },
+      {
+        "slug": "wind-turbine-maintenance-report-completeness",
+        "title": "Scoring Wind Turbine Maintenance Report Completeness",
+        "created_at": "2026-09-26T19:26:35.886633Z",
+        "updated_at": "2026-09-26T19:26:35.886633Z"
+      },
+      {
+        "slug": "playlist-mood-palette",
+        "title": "Map Playlist Mood Descriptions to UI Color Palettes",
+        "created_at": "2026-09-27T20:00:01.341476Z",
+        "updated_at": "2026-09-27T20:00:01.341476Z"
+      },
+      {
+        "slug": "recipe-spice-level-scoring",
+        "title": "Score Recipe Heat Levels from Dish Descriptions for UI Gauges",
+        "created_at": "2026-09-28T09:42:44.812424Z",
+        "updated_at": "2026-09-28T09:42:44.812424Z"
+      },
+      {
+        "slug": "language-learner-grammar-error",
+        "title": "Detect Subject-Verb Agreement Errors in Learner Text",
+        "created_at": "2026-09-28T10:39:00.535045Z",
+        "updated_at": "2026-09-28T10:39:00.535045Z"
+      },
+      {
+        "slug": "family-activity-setting-classification",
+        "title": "Classifying Family Activity Settings: TypeSafe Choice Tutorial",
+        "created_at": "2026-09-28T11:14:04.834698Z",
+        "updated_at": "2026-09-28T11:14:04.834698Z"
+      },
+      {
+        "slug": "photo-vault-hint-privacy-check",
+        "title": "Detect Explicit Passcode Disclosures in Photo Vault Hints",
+        "created_at": "2026-09-28T11:19:01.166536Z",
+        "updated_at": "2026-09-28T11:19:01.166536Z"
+      }
+    ]
+  }
+}

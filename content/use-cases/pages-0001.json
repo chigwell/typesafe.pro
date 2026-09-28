@@ -2739,6 +2739,342 @@
       },
       "created_at": "2026-09-28T11:14:04.834698Z",
       "updated_at": "2026-09-28T11:14:04.834698Z"
+    },
+    {
+      "slug": "photo-vault-hint-privacy-check",
+      "industry": "Personal Cloud & Photo Storage",
+      "audience": "Mobile App Developers",
+      "task_type": "password-hint-screening",
+      "search_intent": "Check if a user password hint explicitly reveals secret answers in text.",
+      "summary": "Detect whether a user-written password recovery hint explicitly contains the actual secret answer.",
+      "problem": "The input consists of a user-written text string for an album recovery hint, along with the stored secret password. Users often inadvertently paste or type the plain secret directly into the hint, exposing it on the device unlock screen. The application must analyze the hint text to detect explicit disclosures before saving it. Application code uses this triage judgment to show a security warning or allow the hint to be saved.",
+      "input_description": "A short text string entered by the user in the album password hint input field.",
+      "decision": "Noul: Does the password hint text explicitly reveal the plain password or secret answer itself?",
+      "action": "Vault app displays a security warning asking the user to rephrase the hint before saving.",
+      "schema_version": 1,
+      "seo": {
+        "title": "Detect Explicit Passcode Disclosures in Photo Vault Hints",
+        "description": "Learn how to screen user-written password recovery hints to check if they explicitly reveal secret passcodes before saving them in encrypted photo vault apps."
+      },
+      "intro": "Users setting up encrypted photo vault albums frequently type their actual secret passcode directly into the password hint field. This example helps developers evaluate whether a submitted password hint explicitly reveals the plain password or secret answer itself. Application code can then block risky hints and prompt the user to write a safer prompt.",
+      "solution": "In these observed examples, the input state supplies a secret_passcode and hint_text evaluated by the explicit_passcode_disclosure Noul question. The API returns a Noul probability reflecting whether the passcode is explicitly stated in the hint, yielding observed scores of 0.99 when the passcode is typed directly ('My passcode is 8492'), 0.06 for a conceptual hint ('Year my grandmother was born'), and 0.03 for an empty hint string. Application code can consume this probability score to trigger a security warning prompting the user to rephrase their hint before saving. While the API evaluates text semantics to generate the score, application code independently decides threshold policies and manages the unlock hint update workflow.",
+      "limitations": [
+        "This request tests a single Noul question focused on explicit passcode disclosure, but this does not prevent you from using separate questions to check indirect security risks or enforce broader content rules in multi-label workflows.",
+        "The returned numerical values of 0.99, 0.06, and 0.03 are observed sample outputs from specific evaluation runs rather than guaranteed future responses for similar text.",
+        "Evaluating semantic disclosure provides an initial triage score; you can combine this judgment with secondary application checks, such as exact substring matching, if your security policy requires rigid pattern validation."
+      ],
+      "examples": [
+        {
+          "name": "Hint explicitly stating the passcode",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "secret_passcode": "8492",
+              "hint_text": "My passcode is 8492"
+            },
+            "questions": {
+              "explicit_passcode_disclosure": {
+                "type": "noul",
+                "instructions": "Does the password hint text explicitly reveal the plain passcode or secret answer?",
+                "criteria": {
+                  "true": "The hint explicitly contains or states the plain passcode or secret answer.",
+                  "false": "The hint provides a prompt or context without explicitly stating the plain secret."
+                }
+              }
+            }
+          },
+          "expected": {
+            "explicit_passcode_disclosure": {
+              "type": "noul",
+              "min": 0.85,
+              "max": 1.0
+            }
+          },
+          "expected_description": "The hint text explicitly contains the secret passcode '8492', producing a high probability for explicit disclosure.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "explicit_passcode_disclosure": {
+                "type": "noul",
+                "noul": 0.99
+              }
+            },
+            "usage": {
+              "input_tokens": 354,
+              "output_tokens": 25
+            }
+          },
+          "verified_at": "2026-09-28T11:17:08.279504Z"
+        },
+        {
+          "name": "Safe conceptual hint without disclosing passcode",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "secret_passcode": "8492",
+              "hint_text": "Year my grandmother was born"
+            },
+            "questions": {
+              "explicit_passcode_disclosure": {
+                "type": "noul",
+                "instructions": "Does the password hint text explicitly reveal the plain passcode or secret answer?",
+                "criteria": {
+                  "true": "The hint explicitly contains or states the plain passcode or secret answer.",
+                  "false": "The hint provides a prompt or context without explicitly stating the plain secret."
+                }
+              }
+            }
+          },
+          "expected": {
+            "explicit_passcode_disclosure": {
+              "type": "noul",
+              "min": 0.0,
+              "max": 0.15
+            }
+          },
+          "expected_description": "The hint text gives a conceptual memory prompt without disclosing the passcode '8492', resulting in a low probability of explicit disclosure.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "explicit_passcode_disclosure": {
+                "type": "noul",
+                "noul": 0.06
+              }
+            },
+            "usage": {
+              "input_tokens": 350,
+              "output_tokens": 25
+            }
+          },
+          "verified_at": "2026-09-28T11:17:08.564212Z"
+        },
+        {
+          "name": "Empty hint text string",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "secret_passcode": "8492",
+              "hint_text": ""
+            },
+            "questions": {
+              "explicit_passcode_disclosure": {
+                "type": "noul",
+                "instructions": "Does the password hint text explicitly reveal the plain passcode or secret answer?",
+                "criteria": {
+                  "true": "The hint explicitly contains or states the plain passcode or secret answer.",
+                  "false": "The hint provides a prompt or context without explicitly stating the plain secret."
+                }
+              }
+            }
+          },
+          "expected": {
+            "explicit_passcode_disclosure": {
+              "type": "noul",
+              "min": 0.0,
+              "max": 0.15
+            }
+          },
+          "expected_description": "The hint text is empty and does not contain or state the passcode '8492', resulting in a low probability of explicit disclosure.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "explicit_passcode_disclosure": {
+                "type": "noul",
+                "noul": 0.03
+              }
+            },
+            "usage": {
+              "input_tokens": 345,
+              "output_tokens": 25
+            }
+          },
+          "verified_at": "2026-09-28T11:17:08.997378Z"
+        }
+      ],
+      "demo": {
+        "title": "Vault Security Lock & Risk Gauge",
+        "concept": "A virtual vault door tests album recovery hints in real time. Hints disclosing raw passcodes trigger a glowing red lock icon and sweep a security risk gauge into the danger zone.",
+        "interaction": "The visitor types or chooses a password hint string in a simulated album creation form.",
+        "visual": "A semi-circular gauge sweeps from green (safe) to red (high risk) based on the score, while a central vault padlock icon changes color and radiates pulsing warning ripples when an explicit leak is detected.",
+        "questions": {
+          "is_explicit_leak": {
+            "type": "noul",
+            "instructions": "Does the text in state.hint_text explicitly reveal a passcode, pin, or direct password answer?",
+            "criteria": {
+              "true": "The hint explicitly contains the plain password, numeric pin, or exact secret answer.",
+              "false": "The hint is a memory aid, question, or abstract clue that does not state the password itself."
+            }
+          },
+          "risk_score": {
+            "type": "score",
+            "instructions": "Evaluate the risk level of the album password hint provided in state.hint_text.",
+            "criteria": [
+              "Safe abstract memory prompt or clue",
+              "Suggestive phrase that narrows down possibilities",
+              "Explicit disclosure of the exact password or pin"
+            ]
+          }
+        },
+        "html": "<div class=\"ts-stack\">\n  <div class=\"ts-card\">\n    <div class=\"ts-stack\">\n      <label class=\"ts-label\" for=\"hint-input\">\n        <span style=\"font-weight: 600;\">Album Recovery Hint</span>\n        <input type=\"text\" id=\"hint-input\" class=\"ts-input\" placeholder=\"e.g. My childhood street name or PIN is 4892\" value=\"The passcode is 4892\" />\n      </label>\n      <div class=\"ts-row\" id=\"chips-container\">\n        <button type=\"button\" class=\"ts-chip is-active\" data-hint=\"The passcode is 4892\">Explicit PIN</button>\n        <button type=\"button\" class=\"ts-chip\" data-hint=\"My childhood dog's name\">Safe Clue</button>\n        <button type=\"button\" class=\"ts-chip\" data-hint=\"Password is secret123\">Plaintext Pass</button>\n        <button type=\"button\" class=\"ts-chip\" data-hint=\"Favorite color plus high school graduation year\">Suggestive Prompt</button>\n      </div>\n      <div class=\"ts-row\">\n        <button type=\"button\" id=\"evaluate-btn\" class=\"ts-btn\">Screen Password Hint</button>\n      </div>\n    </div>\n  </div>\n\n  <div class=\"ts-status\" id=\"ts-status\" aria-live=\"polite\"></div>\n\n  <div class=\"ts-panel\" id=\"vault-panel\">\n    <div class=\"vault-container\">\n      <div class=\"vault-lock-wrapper\">\n        <div class=\"lock-pulse\" id=\"lock-pulse\"></div>\n        <div class=\"lock-icon-box lock-safe\" id=\"lock-icon-box\">\n          <svg class=\"vault-svg\" viewBox=\"0 0 64 64\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n            <path id=\"lock-shackle\" d=\"M20 28V18C20 11.3726 25.3726 6 32 6C38.6274 6 44 11.3726 44 18V28\" stroke=\"currentColor\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n            <rect x=\"14\" y=\"26\" width=\"36\" height=\"32\" rx=\"6\" fill=\"currentColor\"/>\n            <circle cx=\"32\" cy=\"40\" r=\"4\" fill=\"var(--ts-surface)\"/>\n            <path d=\"M32 44V50\" stroke=\"var(--ts-surface)\" stroke-width=\"3\" stroke-linecap=\"round\"/>\n          </svg>\n        </div>\n      </div>\n\n      <div class=\"gauge-section\">\n        <div class=\"gauge-box\">\n          <svg class=\"gauge-svg\" viewBox=\"0 0 200 110\">\n            <path d=\"M 20 100 A 80 80 0 0 1 180 100\" fill=\"none\" stroke=\"var(--ts-soft)\" stroke-width=\"14\" stroke-linecap=\"round\"/>\n            <path id=\"gauge-arc\" d=\"M 20 100 A 80 80 0 0 1 180 100\" fill=\"none\" stroke=\"var(--ts-c1)\" stroke-width=\"14\" stroke-linecap=\"round\" stroke-dasharray=\"251.32\" stroke-dashoffset=\"251.32\"/>\n            <line id=\"gauge-needle\" x1=\"100\" y1=\"100\" x2=\"35\" y2=\"100\" stroke=\"var(--ts-ink)\" stroke-width=\"4\" stroke-linecap=\"round\" />\n            <circle cx=\"100\" cy=\"100\" r=\"7\" fill=\"var(--ts-ink)\"/>\n          </svg>\n        </div>\n\n        <div class=\"vault-metrics\">\n          <div class=\"ts-badge\" id=\"risk-badge\">Screening...</div>\n          <div class=\"ts-value\" id=\"risk-value\">--</div>\n          <div class=\"ts-text\" id=\"risk-description\">Evaluating hint confidentiality...</div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"ts-grid\" style=\"margin-top: 16px;\">\n      <div class=\"ts-card\" style=\"padding: 12px;\">\n        <div class=\"ts-eyebrow\">Explicit Leak Status</div>\n        <div id=\"leak-status\" style=\"font-weight: 600; font-size: 15px; margin-top: 4px;\">--</div>\n        <div class=\"ts-meter\" style=\"margin-top: 8px;\"><div class=\"ts-meter-fill\" id=\"leak-meter\" style=\"width: 0%;\"></div></div>\n        <div class=\"ts-help\" id=\"leak-prob\" style=\"margin-top: 4px;\">Detection Probability: --</div>\n      </div>\n      <div class=\"ts-card\" style=\"padding: 12px;\">\n        <div class=\"ts-eyebrow\">Vault Action</div>\n        <div id=\"action-recommendation\" style=\"font-weight: 600; font-size: 15px; margin-top: 4px;\">--</div>\n        <div class=\"ts-help\" id=\"action-detail\" style=\"margin-top: 4px;\">Awaiting analysis results</div>\n      </div>\n    </div>\n  </div>\n</div>",
+        "css": "#demo .vault-container { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 12px 0; } @media (min-width: 480px) { #demo .vault-container { flex-direction: row; justify-content: space-around; } } #demo .vault-lock-wrapper { position: relative; width: 96px; height: 96px; display: flex; align-items: center; justify-content: center; } #demo .lock-icon-box { width: 72px; height: 72px; border-radius: 50%; background: var(--ts-surface); border: 2px solid var(--ts-line); display: flex; align-items: center; justify-content: center; transition: all 0.4s ease; z-index: 2; color: var(--ts-muted); } #demo .vault-svg { width: 36px; height: 36px; transition: transform 0.3s ease; } #demo .lock-pulse { position: absolute; top: 4px; left: 4px; width: 88px; height: 88px; border-radius: 50%; border: 2px solid var(--ts-danger); opacity: 0; pointer-events: none; z-index: 1; transition: opacity 0.3s ease; } #demo .lock-pulse.is-active { animation: vault-pulse-ring 1.4s infinite ease-out; opacity: 1; } @keyframes vault-pulse-ring { 0% { transform: scale(0.82); opacity: 0.9; } 100% { transform: scale(1.35); opacity: 0; } } #demo .gauge-section { display: flex; flex-direction: column; align-items: center; text-align: center; } #demo .gauge-box { width: 190px; height: 100px; position: relative; } #demo .gauge-svg { width: 100%; height: 100%; overflow: visible; } #demo #gauge-arc { transition: stroke-dashoffset 0.6s ease, stroke 0.4s ease; } #demo #gauge-needle { transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: 100px 100px; } #demo .vault-metrics { margin-top: 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; } #demo .lock-safe { border-color: var(--ts-success); color: var(--ts-success); background: var(--ts-success-soft); } #demo .lock-warning { border-color: var(--ts-c2); color: var(--ts-c2); background: var(--ts-soft); } #demo .lock-danger { border-color: var(--ts-danger); color: var(--ts-danger); background: var(--ts-accent-soft); }",
+        "js": "(function() { const hintInput = document.getElementById('hint-input'); const evalBtn = document.getElementById('evaluate-btn'); const statusEl = document.getElementById('ts-status'); const chipsContainer = document.getElementById('chips-container'); const lockIconBox = document.getElementById('lock-icon-box'); const lockPulse = document.getElementById('lock-pulse'); const shacklePath = document.getElementById('lock-shackle'); const gaugeArc = document.getElementById('gauge-arc'); const gaugeNeedle = document.getElementById('gauge-needle'); const riskBadge = document.getElementById('risk-badge'); const riskValue = document.getElementById('risk-value'); const riskDesc = document.getElementById('risk-description'); const leakStatus = document.getElementById('leak-status'); const leakMeter = document.getElementById('leak-meter'); const leakProb = document.getElementById('leak-prob'); const actionRec = document.getElementById('action-recommendation'); const actionDetail = document.getElementById('action-detail'); function setStatus(msg, type) { statusEl.textContent = msg || ''; statusEl.className = 'ts-status' + (type ? ' is-' + type : ''); } function runEvaluation() { const hintText = hintInput.value.trim(); if (!hintText) { setStatus('Please enter a password hint to evaluate.', 'error'); return; } evalBtn.disabled = true; setStatus('Evaluating password hint privacy...', 'loading'); const state = { hint_text: hintText }; window.TypeSafeDemo.evaluate(state).then(answers => { setStatus('', ''); renderResults(answers); }).catch(err => { const msg = window.TypeSafeDemo.describeError ? window.TypeSafeDemo.describeError(err) : (err.message || 'Evaluation failed'); setStatus(msg, 'error'); }).finally(() => { evalBtn.disabled = false; }); } function renderResults(answers) { const leakAnswer = answers.is_explicit_leak || {}; const riskAnswer = answers.risk_score || {}; const leakProbVal = typeof leakAnswer.noul === 'number' ? leakAnswer.noul : 0; const scoreIdx = typeof riskAnswer.score === 'number' ? riskAnswer.score : 0; const riskRatio = Math.max(scoreIdx / 2, leakProbVal); const angle = Math.min(Math.max(riskRatio * 180, 0), 180); gaugeNeedle.style.transform = 'rotate(' + angle + 'deg)'; const totalArc = 251.32; const dashOffset = totalArc * (1 - riskRatio); gaugeArc.style.strokeDashoffset = dashOffset; lockIconBox.classList.remove('lock-safe', 'lock-warning', 'lock-danger'); lockPulse.classList.remove('is-active'); let strokeColor = 'var(--ts-success)'; if (riskRatio > 0.6) { strokeColor = 'var(--ts-danger)'; lockIconBox.classList.add('lock-danger'); lockPulse.classList.add('is-active'); riskBadge.textContent = 'HIGH RISK'; riskBadge.style.background = 'var(--ts-accent-soft)'; riskBadge.style.color = 'var(--ts-danger)'; riskValue.textContent = 'Explicit Leak'; actionRec.textContent = 'REJECT HINT'; actionRec.style.color = 'var(--ts-danger)'; actionDetail.textContent = 'Hint explicitly contains the secret passcode. Prompt user to rephrase.'; shacklePath.setAttribute('d', 'M20 22V14C20 7.37258 25.3726 2 32 2C38.6274 2 44 7.37258 44 14V20'); } else if (riskRatio > 0.25) { strokeColor = 'var(--ts-c2)'; lockIconBox.classList.add('lock-warning'); riskBadge.textContent = 'MODERATE'; riskBadge.style.background = 'var(--ts-soft)'; riskBadge.style.color = 'var(--ts-c2)'; riskValue.textContent = 'Suggestive Clue'; actionRec.textContent = 'WARN USER'; actionRec.style.color = 'var(--ts-c2)'; actionDetail.textContent = 'Hint narrows down options closely. Suggest a more abstract prompt.'; shacklePath.setAttribute('d', 'M20 28V18C20 11.3726 25.3726 6 32 6C38.6274 6 44 11.3726 44 18V28'); } else { strokeColor = 'var(--ts-success)'; lockIconBox.classList.add('lock-safe'); riskBadge.textContent = 'SAFE'; riskBadge.style.background = 'var(--ts-success-soft)'; riskBadge.style.color = 'var(--ts-success)'; riskValue.textContent = 'Secure Prompt'; actionRec.textContent = 'ALLOW HINT'; actionRec.style.color = 'var(--ts-success)'; actionDetail.textContent = 'Hint acts as a safe memory aid without disclosing raw passwords.'; shacklePath.setAttribute('d', 'M20 28V18C20 11.3726 25.3726 6 32 6C38.6274 6 44 11.3726 44 18V28'); } gaugeArc.style.stroke = strokeColor; riskDesc.textContent = 'Disclosure risk level: ' + Math.round(riskRatio * 100) + '%'; const pct = Math.round(leakProbVal * 100); leakMeter.style.width = pct + '%'; leakMeter.style.background = strokeColor; leakStatus.textContent = leakProbVal > 0.5 ? 'Explicit Disclosure' : 'No Direct Leak'; leakProb.textContent = 'Detection Probability: ' + pct + '%'; } evalBtn.addEventListener('click', runEvaluation); hintInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); runEvaluation(); } }); if (chipsContainer) { chipsContainer.addEventListener('click', function(e) { const chip = e.target.closest('.ts-chip'); if (!chip) return; const hint = chip.getAttribute('data-hint'); if (hint) { hintInput.value = hint; const allChips = chipsContainer.querySelectorAll('.ts-chip'); allChips.forEach(c => c.classList.remove('is-active')); chip.classList.add('is-active'); runEvaluation(); } }); } if (window.TypeSafeDemo && window.TypeSafeDemo.samples && window.TypeSafeDemo.samples.length > 0) { const firstSample = window.TypeSafeDemo.samples[0]; if (firstSample.state && firstSample.state.hint_text) { hintInput.value = firstSample.state.hint_text; } if (firstSample.answers) { renderResults(firstSample.answers); } else { runEvaluation(); } } else { runEvaluation(); } })();",
+        "samples": [
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "hint_text": "The passcode is 4892"
+              },
+              "questions": {
+                "is_explicit_leak": {
+                  "type": "noul",
+                  "instructions": "Does the text in state.hint_text explicitly reveal a passcode, pin, or direct password answer?",
+                  "criteria": {
+                    "true": "The hint explicitly contains the plain password, numeric pin, or exact secret answer.",
+                    "false": "The hint is a memory aid, question, or abstract clue that does not state the password itself."
+                  }
+                },
+                "risk_score": {
+                  "type": "score",
+                  "instructions": "Evaluate the risk level of the album password hint provided in state.hint_text.",
+                  "criteria": [
+                    "Safe abstract memory prompt or clue",
+                    "Suggestive phrase that narrows down possibilities",
+                    "Explicit disclosure of the exact password or pin"
+                  ]
+                }
+              }
+            },
+            "description": "Hint explicitly discloses a numeric 4-digit PIN code in text.",
+            "expected": {
+              "is_explicit_leak": {
+                "type": "noul",
+                "min": 0.85,
+                "max": 1.0
+              },
+              "risk_score": {
+                "type": "score",
+                "min": 2.0,
+                "max": 2.0
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "is_explicit_leak": {
+                  "type": "noul",
+                  "noul": 0.99
+                },
+                "risk_score": {
+                  "type": "score",
+                  "score": 2.0,
+                  "probabilities": {
+                    "0": 0.0,
+                    "1": 0.0,
+                    "2": 1.0
+                  },
+                  "confidence": 1.0,
+                  "legend": {
+                    "0": "Safe abstract memory prompt or clue",
+                    "1": "Suggestive phrase that narrows down possibilities",
+                    "2": "Explicit disclosure of the exact password or pin"
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 422,
+                "output_tokens": 38
+              }
+            },
+            "verified_at": "2026-09-28T11:19:00.237305Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "hint_text": "Password is secret123"
+              },
+              "questions": {
+                "is_explicit_leak": {
+                  "type": "noul",
+                  "instructions": "Does the text in state.hint_text explicitly reveal a passcode, pin, or direct password answer?",
+                  "criteria": {
+                    "true": "The hint explicitly contains the plain password, numeric pin, or exact secret answer.",
+                    "false": "The hint is a memory aid, question, or abstract clue that does not state the password itself."
+                  }
+                },
+                "risk_score": {
+                  "type": "score",
+                  "instructions": "Evaluate the risk level of the album password hint provided in state.hint_text.",
+                  "criteria": [
+                    "Safe abstract memory prompt or clue",
+                    "Suggestive phrase that narrows down possibilities",
+                    "Explicit disclosure of the exact password or pin"
+                  ]
+                }
+              }
+            },
+            "description": "Direct disclosure of an alphanumeric album passcode.",
+            "expected": {
+              "is_explicit_leak": {
+                "type": "noul",
+                "min": 0.85,
+                "max": 1.0
+              },
+              "risk_score": {
+                "type": "score",
+                "min": 2.0,
+                "max": 2.0
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "is_explicit_leak": {
+                  "type": "noul",
+                  "noul": 0.99
+                },
+                "risk_score": {
+                  "type": "score",
+                  "score": 2.0,
+                  "probabilities": {
+                    "0": 0.0,
+                    "1": 0.0,
+                    "2": 1.0
+                  },
+                  "confidence": 1.0,
+                  "legend": {
+                    "0": "Safe abstract memory prompt or clue",
+                    "1": "Suggestive phrase that narrows down possibilities",
+                    "2": "Explicit disclosure of the exact password or pin"
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 419,
+                "output_tokens": 38
+              }
+            },
+            "verified_at": "2026-09-28T11:19:00.782630Z"
+          }
+        ],
+        "verified_at": "2026-09-28T11:19:01.160513Z"
+      },
+      "verification": {
+        "model": "jev-1.13.0",
+        "verified_at": "2026-09-28T11:19:01.166536Z",
+        "quality": {
+          "useful": 0.96,
+          "supported": 0.89,
+          "consistent": 0.92
+        },
+        "novelty_probability": 0.77
+      },
+      "created_at": "2026-09-28T11:19:01.166536Z",
+      "updated_at": "2026-09-28T11:19:01.166536Z"
     }
   ]
 }

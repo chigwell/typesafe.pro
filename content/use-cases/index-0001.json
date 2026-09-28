@@ -108,6 +108,18 @@
       "input_description": "A short description of a family activity submitted by a community member.",
       "decision": "Choice: Classify the activity setting into outdoor-weather-dependent, indoor-sheltered, or hybrid-indoor-outdoor.",
       "action": "Family app applies weather alerts and filters the activity under rainy-day or sunny-day recommendations."
+    },
+    {
+      "slug": "photo-vault-hint-privacy-check",
+      "industry": "Personal Cloud & Photo Storage",
+      "audience": "Mobile App Developers",
+      "task_type": "password-hint-screening",
+      "search_intent": "Check if a user password hint explicitly reveals secret answers in text.",
+      "summary": "Detect whether a user-written password recovery hint explicitly contains the actual secret answer.",
+      "problem": "The input consists of a user-written text string for an album recovery hint, along with the stored secret password. Users often inadvertently paste or type the plain secret directly into the hint, exposing it on the device unlock screen. The application must analyze the hint text to detect explicit disclosures before saving it. Application code uses this triage judgment to show a security warning or allow the hint to be saved.",
+      "input_description": "A short text string entered by the user in the album password hint input field.",
+      "decision": "Noul: Does the password hint text explicitly reveal the plain password or secret answer itself?",
+      "action": "Vault app displays a security warning asking the user to rephrase the hint before saving."
     }
   ]
 }

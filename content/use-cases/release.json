@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "run_id": "local-20260928T110720Z-1",
+  "run_id": "local-20260928T110720Z-2",
   "source_sha": "456ef385d76edc821d2a66f035411be4475a1db2",
-  "catalog_hash": "1ebc483b1083eb261e976c425f1de563c4f5fe5a021b5e79688e2d683a7017b0",
-  "generated_at": "2026-09-28T11:14:44.384474Z",
+  "catalog_hash": "44a27a19fc95cc4fe5ab95f8909982b29a8c583816044e67e566969b23a8584e",
+  "generated_at": "2026-09-28T11:19:39.904569Z",
   "pages": [
     {
       "slug": "library-catalog-routing",
@@ -58,6 +58,12 @@
       "title": "Classifying Family Activity Settings: TypeSafe Choice Tutorial",
       "created_at": "2026-09-28T11:14:04.834698Z",
       "updated_at": "2026-09-28T11:14:04.834698Z"
+    },
+    {
+      "slug": "photo-vault-hint-privacy-check",
+      "title": "Detect Explicit Passcode Disclosures in Photo Vault Hints",
+      "created_at": "2026-09-28T11:19:01.166536Z",
+      "updated_at": "2026-09-28T11:19:01.166536Z"
     }
   ]
 }
