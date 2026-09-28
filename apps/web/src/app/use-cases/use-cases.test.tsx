@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { useCaseFixture } from "@/test/use-case-fixture";
+import { useCaseDemoFixture, useCaseFixture } from "@/test/use-case-fixture";
 import type { UseCasePage } from "@/lib/use-case-types";
 
 const catalog = vi.hoisted(() => ({ pages: [] as UseCasePage[] }));
@@ -32,5 +32,25 @@ describe("static use-case routes", () => {
     await expect(DetailPage({ params: Promise.resolve({ slug: "missing" }) })).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(CatalogPage({ params: Promise.resolve({ page: "2" }) })).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(CatalogPage({ params: Promise.resolve({ page: "1" }) })).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+  it("renders the sandboxed demo iframe, its static sample results and no draft banner", async () => {
+    const page = { ...useCaseFixture(), demo: useCaseDemoFixture() };
+    catalog.pages = [page];
+    const markup = renderToStaticMarkup(await DetailPage({ params: Promise.resolve({ slug: page.slug }) }));
+    const frame = /<iframe\s+([^>]*)>/.exec(markup)?.[1] ?? "";
+    expect(frame).toContain('sandbox="allow-scripts"');
+    expect(frame).not.toContain("allow-same-origin");
+    expect(frame).toContain("Content-Security-Policy");
+    expect(frame).toContain("window.TypeSafeDemo");
+    expect(markup).toContain("Verified sample results");
+    expect(markup).toContain("Mood bar");
+    expect(markup).not.toContain("use-case-draft-banner");
+    expect(markup.indexOf('id="use-case-demo"')).toBeLessThan(markup.indexOf("The problem"));
+  });
+  it("marks drafts visibly and does not track their views", async () => {
+    const page = { ...useCaseFixture("draft-case"), demo: useCaseDemoFixture(), draft: true };
+    catalog.pages = [page];
+    const markup = renderToStaticMarkup(await DetailPage({ params: Promise.resolve({ slug: page.slug }) }));
+    expect(markup).toContain("Draft preview");
   });
 });

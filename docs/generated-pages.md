@@ -2,8 +2,9 @@
 
 The public site renders `/use-cases` and `/use-cases/<slug>` from a single template
 and versioned JSON in `content/use-cases`. Page content is generated only by the
-production workflow or an explicit local generator command. Normal Next.js builds,
-PR checks, and tests never call an LLM.
+local interactive review command (`npm run content:review`), where a human approves
+every page before it is committed. CI, normal Next.js builds, PR checks, and tests
+never call an LLM.
 
 ## Data and quality
 
@@ -37,14 +38,46 @@ All three examples (primary, alternative, edge) must pass a real request to
 `https://api.typesafe.pro/v1/systemone`. Choice labels and probability/score ranges
 are checked rather than exact floating-point answers. Stored answers identify the
 model and verification time. Jev's independent usefulness, supported-claims, and
-consistency checks must each reach 0.8. Generated provider text is data and is
-never executed as source code or rendered as raw HTML.
+consistency checks must each reach 0.8. Generated prose is data and is never
+rendered as raw HTML.
 
-Defaults: five newly published pages per deployment, ten ideas per round, five
-rounds, three total attempts per stage, 200 external calls including retries, and
-15 minutes of generation. Fully verified partial results survive budget or
-provider failures. Corrupt catalog data fails the build; provider unavailability
-does not prevent a release with the prior catalog.
+Every new page also carries an interactive visual demo: LLM7 proposes three demo
+concepts (the visitor enters a small input, presses a button, one to three fixed
+TypeSafe questions are sent, and the answers drive an animation such as floating
+emoji or colour areas proportional to probabilities); the reviewer picks one, and
+LLM7 writes plain HTML, CSS and vanilla JavaScript against a small host runtime.
+The code is screened statically (no scripts, styles, links, frames, forms, `src`,
+`fetch`, `eval`, `import`, storage, `location`, `postMessage` and similar), syntax
+checked with `node --check`, and its two to four sample inputs are executed against
+the real API with predicted expectations before the reviewer ever sees it. On the
+site the demo runs in an `<iframe sandbox="allow-scripts">` with an opaque origin
+and a `Content-Security-Policy` of `default-src 'none'` plus `connect-src` for the
+API only; the host runtime `window.TypeSafeDemo` is the only way to call the API,
+and the demo supplies just the `state` for the page's fixed questions. Verified
+sample results are rendered statically for crawlers and readers without JavaScript.
+
+Demos are styled by a compact brand kit, `apps/web/src/lib/demo-brand.json` (the
+single source): site colour tokens for light and dark themes, a categorical palette
+`--ts-c1…6`, and `ts-*` classes for inputs, buttons, chips, cards, panels, status,
+meters and legends. The site injects the kit's CSS (`demo-brand.ts`) into every demo
+document before the demo's own CSS, so previews and production look identical; the
+generator sends the model only the class list, token names and guidelines, and the
+model writes custom CSS just for the scenario's visual. A test keeps the tokens equal
+to `globals.css`.
+
+The frame height follows the content: the runtime measures the body (which is
+`height:auto`), reports changes from resize, DOM mutations, transitions, animations
+and font loading, and the host re-requests a measurement after hydration. Heights are
+clamped to 120–4000 px (beyond that the frame scrolls). Viewport units are rejected,
+and the runtime stops reporting if the height keeps changing, so content sized from
+the frame cannot grow it forever.
+
+Defaults: ten ideas per round, three attempts per model stage, 240 s per LLM7 call,
+two automatic repairs of examples and of the demo using the live API answers, one
+automatic page retry with the failure as feedback, transient provider errors
+(timeouts, 429, 5xx, Cloudflare 52x) retried after 10 s and 30 s before asking, 400 external calls and 60 minutes per review
+session (time spent waiting for the reviewer is excluded). Corrupt catalog data
+fails the build; provider unavailability ends the session with pending drafts kept.
 
 ## Setup
 
@@ -53,35 +86,58 @@ Keep these values in the ignored root `.env`: `LLM7_BASE_URL`, `LLM7_TOKEN`,
 the local TypeSafe.pro gateway; upstream master credentials are not used by the
 generator and none of these credentials belong in `NEXT_PUBLIC_*` variables.
 
-Validate configuration, then copy only those named values to repository secrets:
+Validate the local configuration (values are never printed or uploaded):
 
 ```sh
-python3 scripts/configure-content-secrets.py --check
 python3 scripts/configure-content-secrets.py
 ```
 
-The uploader sends values to `gh secret set` on stdin and never prints them.
-GitHub Actions needs `contents: write` on the production job and permission for its
-bot to push generated content to `main`. Repository protection must permit this
-workflow; the implementation never force-pushes or bypasses repository rules.
+CI needs none of these credentials: generation happens only on the reviewer's
+machine and the production job has read-only repository permissions.
+
+## Local review session
+
+```sh
+npm run dev:web          # optional; the session starts it when missing
+npm run content:review   # add: -- --max-pages 1 --no-browser --resume --auto-select
+```
+
+The session refuses to start while `content/use-cases` has uncommitted changes or a
+merge is in progress. It proposes ten ideas and checks each against the catalog
+before showing them: clear duplicates (probability ≥ 0.8) are hidden and a new round
+is requested automatically when none remain; partly similar ideas (0.2–0.8) are shown
+with the most similar page so you can decide. Unused ideas stay available after you
+pick one. It then offers three demo concepts, generates and verifies the page and demo,
+writes a draft to `content/use-cases/drafts/<slug>.json` (ignored by Git) and
+opens `http://localhost:3000/use-cases/<slug>` in the dev server, which renders
+pending drafts with a visible banner. Drafts never reach the catalog listing,
+sitemap, manifest or production builds.
+
+For each draft: `a` approves, `f` regenerates the text, the demo, the demo concept
+or both with your written feedback (all feedback accumulates and is passed to the
+model), `s` skips the idea, `o` reopens the preview and `q` ends the session.
+Approval appends the page to the catalog, rewrites `release.json` to the complete
+catalog, stores the run report under `runs/`, and commits only `content/use-cases`
+as `chore(content): add use case <slug>` with your Git identity. Skipped ideas are
+recorded in `review-skips.json`, excluded from later proposals and committed at
+the end of the session. Pending drafts survive quitting; `--resume` reviews them
+first without new model calls. `git push` triggers publication.
 
 ## Production release and recovery
 
 The workflow serializes the complete production process. After checks pass it
 deploys the API (including additive journal migrations), reconciles the live
-publication manifest with the private journal, generates content, builds and
-validates the static output, commits only the content directory, and publishes
-that exact artifact to Cloudflare Pages. The original source SHA and content
-commit are kept distinct. A `GITHUB_TOKEN` push does not trigger another workflow.
-`npm run deploy:web` now dispatches this workflow against committed `main`, so a
-manual release follows the same generation and publication checks. It does not
-upload uncommitted local files or bypass the journal with a direct Pages upload.
+publication manifest with the private journal, validates the committed catalog,
+builds the static output, and publishes that exact artifact to Cloudflare Pages
+with the source commit as its identity. It never generates content and never
+commits. `npm run deploy:web` dispatches this workflow against committed `main`;
+it does not upload uncommitted local files or bypass the journal.
 
-Before a mutation or web publication, the workflow checks that `main` has not
-advanced. An outdated source run stops rather than replacing a newer release.
-Retries may adopt intervening content-only commits to reuse their checkpoints.
-Already approved but unpublished pages consume the next five-page allowance
-before any new inference occurs.
+Before publication the workflow checks that `main` has not advanced. Each local
+approval has its own release identity (`<session>-<n>`), so consecutive pushes
+publish distinct snapshots. A single publication may add at most 50 new pages.
+After verification the workflow records the approved session's generation report
+(kept in `content/use-cases/runs/`) in the journal.
 
 The journal is written through the existing SSH connection, using private
 `python -m proxy.seo` commands in the API container. There is no public write API.
@@ -89,7 +145,7 @@ Publication is recorded only after the live manifest matches the build, every
 article is in the sitemap, and new URLs return rendered articles. A failed build
 or upload does not increase the published count. If publication succeeds but the
 final journal write fails, the next run reconciles the live manifest first.
-Workflow artifacts retain the baseline and generation report for diagnosis.
+Workflow artifacts retain the baseline and release inventory for diagnosis.
 
 For manual recovery, verify the production artifact before using `proxy.seo
 publish --file <manifest>`. Replaying the same snapshot is idempotent. Older or
@@ -121,15 +177,11 @@ npm run build:web
 ```
 
 The API tests need dedicated disposable PostgreSQL/Redis instances (see
-`docs/admin.md`). Local generation uses `uv run --project tools/seo --env-file .env
-python -m seo_content generate --run-id <unique-id> --source-sha <git-sha>
---baseline <verified-publication.json> --report <local-report.json>`. Fetch the
-current production manifest as the baseline; only an initial empty installation
-uses an empty inventory. Do not treat a network error as an empty baseline.
-
-Review an initial small generated batch in the browser and inspect its examples
-and rendered HTML before shipping. Search performance is monitored independently;
-passing structural and model checks does not promise indexing or rankings.
+`docs/admin.md`). Generation is the interactive session described above; there is
+no unattended batch mode. Before approving, exercise the demo in the preview,
+switch the site theme, and check the examples and rendered HTML. Search
+performance is monitored independently; passing structural and model checks does
+not promise indexing or rankings.
 
 The initial two-page batch has also received manual editorial review. All six
 examples were executed again after corrections, with fresh quality checks and a

@@ -184,6 +184,12 @@ def test_manifest_and_report_validation():
         RunReport.model_validate(run_report() | {"api_calls": -1})
     with pytest.raises(ValidationError):
         RunReport.model_validate(run_report() | {"duration_seconds": float("nan")})
+    reviewed = RunReport.model_validate(
+        run_report() | {"mode": "review", "approved_count": 2, "skipped_count": 1}
+    )
+    assert reviewed.mode == "review" and reviewed.approved_count == 2
+    with pytest.raises(ValidationError):
+        RunReport.model_validate(run_report() | {"mode": "manual"})
 
 
 async def test_concurrent_publication_is_idempotent(store):

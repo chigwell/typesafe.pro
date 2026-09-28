@@ -1,6 +1,7 @@
 """Version 1 storage and generation contracts, aligned with the public playground API."""
 
 import json
+import re
 from typing import Annotated, Literal
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, JsonValue, model_validator
@@ -136,6 +137,21 @@ class Expected(StrictModel):
         return self
 
 
+def expected_matches(request: EvaluationRequest, expected: dict[str, Expected]) -> None:
+    if request.questions.keys() != expected.keys():
+        raise ValueError("expected must cover exactly the request question IDs")
+    for key, question in request.questions.items():
+        item = expected[key]
+        if item.type != question.type:
+            raise ValueError("expectation type must match its question")
+        if item.type == "choice" and item.choice not in question.criteria:
+            raise ValueError("expected choice must exist in criteria")
+        if item.type == "score":
+            maximum = len(question.criteria) - 1
+            if item.max > maximum or item.max - item.min > 0.8 * maximum:
+                raise ValueError("score interval must fit and meaningfully narrow its rubric")
+
+
 class DraftExample(StrictModel):
     name: Short
     kind: Literal["primary", "alternative", "edge"]
@@ -145,18 +161,7 @@ class DraftExample(StrictModel):
 
     @model_validator(mode="after")
     def expected_questions(self):
-        if self.request.questions.keys() != self.expected.keys():
-            raise ValueError("expected must cover exactly the request question IDs")
-        for key, question in self.request.questions.items():
-            expected = self.expected[key]
-            if expected.type != question.type:
-                raise ValueError("expectation type must match its question")
-            if expected.type == "choice" and expected.choice not in question.criteria:
-                raise ValueError("expected choice must exist in criteria")
-            if expected.type == "score":
-                maximum = len(question.criteria) - 1
-                if expected.max > maximum or expected.max - expected.min > 0.8 * maximum:
-                    raise ValueError("score interval must fit and meaningfully narrow its rubric")
+        expected_matches(self.request, self.expected)
         return self
 
 
@@ -275,7 +280,162 @@ class Verification(StrictModel):
     model: Short
     verified_at: str
     quality: Quality
-    novelty_probability: Annotated[float, Field(ge=0.8, le=1)]
+    # >= 0.8 was automatically novel; 0.2–0.8 pages were explicitly accepted by a reviewer.
+    novelty_probability: Annotated[float, Field(gt=0.2, le=1)]
+
+
+DemoQuestions = Annotated[dict[str, Question], Field(min_length=1, max_length=20)]
+
+
+class DemoConcept(StrictModel):
+    """A visual, interactive demonstration idea whose questions are fixed by the page."""
+
+    title: Short
+    concept: Short
+    interaction: Short
+    visual: Short
+    questions: DemoQuestions
+
+    @model_validator(mode="after")
+    def questions_fit_public_api(self):
+        EvaluationRequest(state="probe", questions=self.questions)
+        return self
+
+
+class DemoConcepts(StrictModel):
+    concepts: Annotated[list[DemoConcept], Field(min_length=3, max_length=3)]
+
+
+class DemoSampleDraft(StrictModel):
+    state: Structured
+    description: Short
+    expected: dict[str, Expected]
+
+
+class DemoSample(StrictModel):
+    request: EvaluationRequest
+    description: Short
+    expected: dict[str, Expected]
+
+    @model_validator(mode="after")
+    def expected_questions(self):
+        expected_matches(self.request, self.expected)
+        return self
+
+
+class VerifiedDemoSample(DemoSample):
+    response: EvaluationResponse
+    verified_at: str
+
+    @model_validator(mode="after")
+    def verify_saved_answer(self):
+        assert_expected(self, self.response)
+        return self
+
+
+# Static screening of generated demo code. The sandboxed iframe and its CSP are the
+# real boundary; these patterns reject obviously unwanted code early with a message the
+# model can act on. Word boundaries avoid false positives such as `retrieval(`.
+DEMO_MARKUP_PATTERNS = [
+    (r"</script", "closing script tag"),
+    (r"</style", "closing style tag"),
+    (r"<script", "script element"),
+    (r"<style", "style element (put styles in css)"),
+    (r"<link", "link element"),
+    (r"<i?frame", "frame element"),
+    (r"<object", "object element"),
+    (r"<embed", "embed element"),
+    (r"<base", "base element"),
+    (r"<meta", "meta element"),
+    (r"<form", "form element (use keydown/click handlers instead)"),
+    (r"javascript:", "javascript: URL"),
+    (r"\bsrc\s*=", "src attribute or assignment"),
+    (r"\bsrcdoc\b", "srcdoc"),
+    (r"@import", "CSS import"),
+    (r"url\(\s*['\"]?\s*(?:https?:|//)", "remote URL in CSS"),
+    (r"expression\(", "CSS expression"),
+    # The frame auto-sizes to its content; viewport-relative sizes would grow it forever.
+    (r"\d\s*(?:[dsl]?v[hw]|vmin|vmax)\b", "viewport units (vh/vw); size content by its content"),
+]
+DEMO_SCRIPT_PATTERNS = [
+    (r"<!--", "HTML comment opener inside script"),
+    (r"\bfetch\s*\(", "fetch (use TypeSafeDemo.evaluate)"),
+    (r"\bXMLHttpRequest\b", "XMLHttpRequest"),
+    (r"\bWebSocket\b", "WebSocket"),
+    (r"\bEventSource\b", "EventSource"),
+    (r"\bnavigator\b", "navigator"),
+    (r"\bimport\b", "import"),
+    (r"\beval\s*\(", "eval"),
+    (r"\bFunction\s*\(", "Function constructor"),
+    (r"document\s*\.\s*cookie", "document.cookie"),
+    (r"\blocalStorage\b", "localStorage"),
+    (r"\bsessionStorage\b", "sessionStorage"),
+    (r"\bindexedDB\b", "indexedDB"),
+    (r"\bpostMessage\b", "postMessage"),
+    (r"\bwindow\s*\.\s*(?:top|parent|opener|frames)\b", "parent window access"),
+    (
+        r"(?:\bwindow|\bdocument|\bself|\bglobalThis)\s*\.\s*location\b|(?<![.\w$])location\s*(?:\.|=[^=]|\[)",
+        "location (navigation)",
+    ),
+    (r"\bwindow\s*\.\s*open\s*\(|(?<![.\w$])open\s*\(", "window.open"),
+    (r"\bdocument\s*\.\s*(?:write|domain)\b", "document.write/domain"),
+]
+
+
+def screen_demo_code(html: str, css: str, js: str) -> None:
+    problems = []
+    for name, text, patterns in (
+        ("html", html, DEMO_MARKUP_PATTERNS),
+        ("css", css, DEMO_MARKUP_PATTERNS),
+        ("js", js, DEMO_MARKUP_PATTERNS),
+        ("js", js, DEMO_SCRIPT_PATTERNS),
+    ):
+        # HTML/CSS are case-insensitive; JavaScript identifiers are not (`function (` is
+        # an ordinary function, `Function(` the constructor).
+        flags = 0 if patterns is DEMO_SCRIPT_PATTERNS else re.IGNORECASE
+        for pattern, label in patterns:
+            if re.search(pattern, text, flags):
+                problems.append(f"{name}: remove {label}")
+    if problems:
+        raise ValueError("; ".join(problems))
+
+
+DemoHtml = Annotated[str, Field(min_length=1, max_length=12000), AfterValidator(nonblank)]
+DemoCss = Annotated[str, Field(max_length=8000)]
+DemoJs = Annotated[str, Field(min_length=1, max_length=20000), AfterValidator(nonblank)]
+
+
+class DemoCode(StrictModel):
+    """Generated markup, styles and script for the sandboxed demo, plus sample inputs."""
+
+    html: DemoHtml
+    css: DemoCss
+    js: DemoJs
+    samples: Annotated[list[DemoSampleDraft], Field(min_length=2, max_length=4)]
+
+    @model_validator(mode="after")
+    def screened(self):
+        screen_demo_code(self.html, self.css, self.js)
+        states = {json.dumps(item.state, sort_keys=True) for item in self.samples}
+        if len(states) != len(self.samples):
+            raise ValueError("demo samples must have distinct input states")
+        return self
+
+
+class Demo(DemoConcept):
+    html: DemoHtml
+    css: DemoCss
+    js: DemoJs
+    samples: Annotated[list[VerifiedDemoSample], Field(min_length=2, max_length=4)]
+    verified_at: str
+
+    @model_validator(mode="after")
+    def screened(self):
+        screen_demo_code(self.html, self.css, self.js)
+        for sample in self.samples:
+            if sample.request.questions != self.questions:
+                raise ValueError("demo samples must use exactly the demo questions")
+        return self
 
 
 class Page(Idea):
@@ -285,6 +445,7 @@ class Page(Idea):
     solution: Text
     limitations: Annotated[list[Short], Field(min_length=1, max_length=6)]
     examples: Annotated[list[Example], Field(min_length=3, max_length=3)]
+    demo: Demo | None = None
     verification: Verification
     created_at: str
     updated_at: str
@@ -299,11 +460,15 @@ class Page(Idea):
         )
         from datetime import datetime
 
+        demo_times = []
+        if self.demo is not None:
+            demo_times = [self.demo.verified_at, *(s.verified_at for s in self.demo.samples)]
         for value in (
             self.created_at,
             self.updated_at,
             self.verification.verified_at,
             *(item.verified_at for item in self.examples),
+            *demo_times,
         ):
             if datetime.fromisoformat(value.replace("Z", "+00:00")).tzinfo is None:
                 raise ValueError("timestamps must include a timezone")
@@ -361,3 +526,6 @@ class Report(StrictModel):
     rejected_count: int = 0
     rejections: dict[str, int] = Field(default_factory=dict)
     catalog_hash: str
+    mode: Literal["batch", "review"] = "batch"
+    approved_count: int = 0
+    skipped_count: int = 0

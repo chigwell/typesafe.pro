@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import signal
 import threading
 import time
@@ -24,6 +25,7 @@ class ProviderError(RuntimeError):
         super().__init__(reason)
         self.retryable = retryable
         self.retry_after = retry_after
+        self.detail = None
 
 
 class StageError(ProviderError):
@@ -36,10 +38,12 @@ class BudgetExhausted(ProviderError):
 
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_CALL_SECONDS = 60
+# LLM7 answers large structured prompts slowly (30s+ is common); Jev stays at 60s.
+LLM_CALL_SECONDS = 240
 
 
 @contextmanager
-def wall_deadline(budget):
+def wall_deadline(budget, seconds=None):
     """Bound a complete synchronous HTTP exchange, including a trickling body.
 
     This CLI runs on the main thread on macOS/Linux. Preserve any enclosing
@@ -51,7 +55,8 @@ def wall_deadline(budget):
         raise ProviderError("provider_deadline_unavailable", retryable=False)
     budget.check_time()
     started = time.monotonic()
-    deadline = started + min(MAX_CALL_SECONDS, budget.max_seconds - budget.elapsed)
+    limit = MAX_CALL_SECONDS if seconds is None else seconds
+    deadline = started + min(limit, budget.max_seconds - budget.elapsed)
     previous_handler = signal.getsignal(signal.SIGALRM)
     previous_delay, previous_interval = signal.getitimer(signal.ITIMER_REAL)
     previous_deadline = started + previous_delay if previous_delay else None
@@ -112,6 +117,15 @@ class Budget:
     def elapsed(self):
         return self.previous_seconds + time.monotonic() - self.started
 
+    @contextmanager
+    def paused(self):
+        """Exclude time spent waiting for a human reviewer from the wall-clock budget."""
+        start = time.monotonic()
+        try:
+            yield
+        finally:
+            self.started += time.monotonic() - start
+
     def check(self):
         self.check_time()
         if self.calls >= self.max_calls:
@@ -134,8 +148,9 @@ class Budget:
 
     def backoff(self, attempt, error):
         self.check()
-        delay = max(2**attempt, error.retry_after or 0)
-        if delay >= self.max_seconds - self.elapsed or delay > 60:
+        # Honour Retry-After but never sleep longer than a minute per attempt.
+        delay = min(max(2**attempt, error.retry_after or 0), 60)
+        if delay >= self.max_seconds - self.elapsed:
             raise BudgetExhausted("retry_delay_exceeds_budget")
         time.sleep(delay)
         self.check()
@@ -152,10 +167,31 @@ class Budget:
                 setattr(self, attr, getattr(self, attr) + value)
 
 
+FENCED_JSON = re.compile(r"```(?:json)?\s*(\{.*\})\s*```", re.DOTALL)
+
+
+def fallback_json(content: str | None) -> str | None:
+    """Recover a JSON object the model returned without the requested <json> tags.
+
+    Models regularly answer with a ```json fence or a bare object; both carry a valid
+    payload that must not cost a retry. The schema still validates whatever is found.
+    """
+    if not content:
+        return None
+    fenced = FENCED_JSON.search(content)
+    if fenced:
+        return fenced.group(1)
+    start, end = content.find("{"), content.rfind("}")
+    if start != -1 and end > start:
+        return content[start : end + 1]
+    return None
+
+
 class Providers:
     def __init__(self, budget: Budget, client=None):
         self.budget = budget
         self.last_error = None
+        self.last_content = None
         self.client = client or httpx.Client(transport=httpx.HTTPTransport(retries=0))
         self.llm_url = os.environ.get("LLM7_BASE_URL", "https://api.llm7.io/v1").rstrip("/")
         self.llm_token = os.environ.get("LLM7_TOKEN", "")
@@ -166,17 +202,17 @@ class Providers:
         if not self.llm_url.startswith("https://"):
             raise ProviderError("https_required")
 
-    def _post(self, url, token, payload):
+    def _post(self, url, token, payload, seconds=None):
         self.budget.charge()
         try:
             with (
-                wall_deadline(self.budget),
+                wall_deadline(self.budget, seconds),
                 self.client.stream(
                     "POST",
                     url,
                     headers={"Authorization": f"Bearer {token}", "Accept-Encoding": "identity"},
                     json=payload,
-                    timeout=self.budget.timeout(),
+                    timeout=self.budget.timeout(seconds or MAX_CALL_SECONDS),
                 ) as response,
             ):
                 if response.status_code != 200:
@@ -193,7 +229,9 @@ class Providers:
                             delay = 0
                     raise ProviderError(
                         f"provider_http_{response.status_code}",
-                        retryable=response.status_code in (408, 429, 500, 502, 503, 504, 529),
+                        # 520–524 are Cloudflare edge errors (524: origin timeout) in front of LLM7.
+                        retryable=response.status_code
+                        in (408, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524, 529),
                         retry_after=max(0, delay),
                     )
                 # Identity avoids an unbounded decompression allocation before the
@@ -229,8 +267,11 @@ class Providers:
                     "messages": [{"role": roles[m.type], "content": m.content} for m in messages],
                     "max_tokens": 10000,
                 },
+                seconds=LLM_CALL_SECONDS,
             )
-            return AIMessage(content=result["choices"][0]["message"]["content"])
+            content = result["choices"][0]["message"]["content"]
+            self.last_content = content
+            return AIMessage(content=content)
         except ProviderError as exc:
             self.last_error = exc
             raise
@@ -254,9 +295,11 @@ class Providers:
                 )
             ),
         ]
+        problems = []
         for attempt in range(3):
             self.budget.check()
             self.last_error = None
+            self.last_content = None
             # The package loops <= max_retries, so 0 means exactly ONE call.
             result = llmatch(
                 messages=messages,
@@ -265,6 +308,14 @@ class Providers:
                 max_retries=0,
                 verbose=False,
             )
+            if not result["success"] and self.last_error is None:
+                recovered = fallback_json(result.get("final_content") or self.last_content)
+                if recovered is not None:
+                    result = {
+                        "success": True,
+                        "extracted_data": [recovered],
+                        "final_content": result.get("final_content") or self.last_content,
+                    }
             if result["success"]:
                 try:
                     data = json.loads(result["extracted_data"][0])
@@ -277,6 +328,10 @@ class Providers:
                         ]
                     else:
                         errors = [{"type": "invalid_json"}]
+                    problems = [
+                        ".".join(map(str, e.get("loc", []))) + ": " + e.get("message", e["type"])
+                        for e in errors[:4]
+                    ]
                     messages.append(AIMessage(content=result["final_content"][:60000]))
                     messages.append(
                         HumanMessage(
@@ -287,6 +342,8 @@ class Providers:
                         )
                     )
             else:
+                if self.last_error is None:
+                    problems = ["no <json>...</json> block in the reply"]
                 messages.append(
                     HumanMessage(
                         content=(
@@ -299,11 +356,15 @@ class Providers:
                 if not self.last_error.retryable or isinstance(self.last_error, BudgetExhausted):
                     raise self.last_error
                 if attempt == 2:
-                    raise ProviderError("llm_provider_unavailable") from None
+                    error = ProviderError("llm_provider_unavailable")
+                    error.detail = str(self.last_error)
+                    raise error from None
                 self.budget.backoff(attempt, self.last_error)
             elif attempt < 2:
                 self.budget.check()
-        raise StageError("llm_stage_failed")
+        error = StageError("llm_stage_failed")
+        error.detail = f"{schema.__name__}: " + "; ".join(problems)[:600]
+        raise error
 
     def evaluate(self, request: EvaluationRequest) -> EvaluationResponse:
         for attempt in range(3):
@@ -324,7 +385,9 @@ class Providers:
                         raise StageError("example_request_rejected") from None
                     raise
                 if attempt == 2:
-                    raise ProviderError("jev_stage_failed") from None
+                    error = ProviderError("jev_stage_failed")
+                    error.detail = str(exc)
+                    raise error from None
                 self.budget.backoff(attempt, exc)
             except ValueError:
                 if attempt == 2:

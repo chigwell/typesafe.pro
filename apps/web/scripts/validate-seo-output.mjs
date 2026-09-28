@@ -193,7 +193,20 @@ async function main() {
     assert(body.includes("The problem") && body.includes("Previous verification response"), `${entry.slug}: article and responses must render without JavaScript`);
     assert(body.includes('class="code-line"') && body.includes("urllib") && body.includes('id="use-case-request"'), `${entry.slug}: request and complete Python example must render without JavaScript`);
     assert(!findMeta(html, "name", "robots")?.content?.includes("noindex"), `${entry.slug}: published page disallows indexing`);
+    assert(!html.includes("use-case-draft-banner"), `${entry.slug}: a draft preview leaked into the published output`);
+    if (html.includes('id="use-case-demo"')) {
+      const frame = /<iframe\s+([^>]*)>/.exec(html);
+      const attrs = frame ? parseAttrs(frame[1]) : {};
+      assert(attrs.sandbox === "allow-scripts", `${entry.slug}: demo iframe must be sandboxed with exactly allow-scripts`);
+      const srcdoc = htmlDecode(attrs.srcdoc ?? "");
+      assert(srcdoc.includes('http-equiv="Content-Security-Policy"') && srcdoc.includes("default-src 'none'"), `${entry.slug}: demo document lacks its Content-Security-Policy`);
+      assert(srcdoc.includes("window.TypeSafeDemo"), `${entry.slug}: demo document lacks the host runtime`);
+      assert(body.includes("Verified sample results"), `${entry.slug}: demo sample results must render without JavaScript`);
+    }
   }
+  const exportedSlugs = (await readdir(resolve(OUT, "use-cases"))).filter((name) => name.endsWith(".html")).map((name) => name.slice(0, -5)).sort();
+  const releaseSlugs = release.pages.map((entry) => entry.slug).sort();
+  assert(JSON.stringify(exportedSlugs) === JSON.stringify(releaseSlugs), "Exported use-case pages differ from the release (draft leak or missing page)");
   assert(sitemapUrls.length === expectedUrls.size && sitemapUrls.every((url) => expectedUrls.has(url)), "Sitemap differs from published release");
   for (const url of expectedUrls) {
     if (url === `${SITE_URL}/`) continue;

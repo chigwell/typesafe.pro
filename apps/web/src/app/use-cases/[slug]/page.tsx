@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PublicPageViewTracker } from "@/components/PublicPageViewTracker";
 import { UseCaseCards } from "@/components/UseCaseCatalog";
+import { UseCaseDemo } from "@/components/UseCaseDemo";
 import { UseCasePlayground } from "@/components/UseCasePlayground";
 import { readUseCaseCatalog } from "@/lib/use-cases";
 import { jsonLd, OG_IMAGE_URL, SITE_NAME, SITE_URL } from "@/lib/seo";
@@ -45,11 +46,13 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(structured) }} />
     <a className="skip-link" href="#use-case-article">Skip to guide</a>
     <Header />
-    <PublicPageViewTracker path={`/use-cases/${page.slug}`} />
+    {page.draft ? null : <PublicPageViewTracker path={`/use-cases/${page.slug}`} />}
     <main className="container use-cases-main" id="use-case-article">
+      {page.draft ? <p className="use-case-draft-banner" role="status">Draft preview — not published. Approve, revise or skip it in the review session.</p> : null}
       <nav className="use-case-breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span>/</span><a href="/use-cases">Use cases</a><span>/</span><span>{page.industry}</span></nav>
       <article>
         <header className="use-case-hero"><p className="eyebrow">{page.industry} · {page.audience}</p><h1>{page.seo.title}</h1><p className="use-case-lede">{page.intro}</p><p className="use-case-date">Updated <time dateTime={page.updated_at}>{page.updated_at.slice(0, 10)}</time> · Examples verified with {page.verification.model}</p></header>
+        {page.demo ? <UseCaseDemo demo={page.demo} /> : null}
         <div className="use-case-prose"><section><h2>The problem</h2><p>{page.problem}</p></section><section><h2>How TypeSafe helps</h2><p>{page.solution}</p><dl><dt>Input</dt><dd>{page.input_description}</dd><dt>Decision</dt><dd>{page.decision}</dd><dt>Next action</dt><dd>{page.action}</dd></dl></section></div>
         <section className="use-case-examples" id="examples"><h2>Three verified examples</h2><p>These responses were returned during a previous API verification. New probabilities can differ.</p>{page.examples.map((example) => <details key={example.kind} open={example.kind === "primary"}><summary>{example.name} <span>({example.kind === "edge" ? "edge case" : example.kind})</span></summary><p><strong>Expected behavior:</strong> {example.expected_description}</p><h3>Input</h3><pre><code>{typeof example.request.state === "string" ? example.request.state : JSON.stringify(example.request.state, null, 2)}</code></pre><h3>Previous verification response</h3><p className="field-help">{example.response.model} · <time dateTime={example.verified_at}>{example.verified_at.slice(0, 10)}</time></p><pre><code>{JSON.stringify(example.response, null, 2)}</code></pre></details>)}</section>
         <UseCasePlayground examples={examples} />

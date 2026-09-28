@@ -1,6 +1,7 @@
 """Coordinate static content publication without exposing credentials or API mutations."""
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -10,13 +11,13 @@ import time
 import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://typesafe.pro"
 CONTENT = "content/use-cases/"
 MAX_MANIFEST_BYTES = 16 * 1024 * 1024
+MAX_NEW_PAGES = 50
 SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 
@@ -185,62 +186,11 @@ def baseline(output):
     write_json(output, previous)
 
 
-def ci_only():
-    if os.environ.get("GITHUB_ACTIONS") != "true":
-        raise ReleaseError("Git publication commands are restricted to GitHub Actions")
-
-
-def checkout_current():
-    ci_only()
-    source = os.environ["GITHUB_SHA"]
-    if not re.fullmatch(r"[a-f0-9]{40}", source):
-        raise ReleaseError("Invalid source SHA")
-    command(["git", "fetch", "origin", "main"])
-    current = git("rev-parse", "origin/main")
-    command(["git", "merge-base", "--is-ancestor", source, current])
-    changes = git("diff", "--name-only", source, current).splitlines()
-    if any(not path.startswith(CONTENT) for path in changes):
-        raise ReleaseError("A newer source release supersedes this deployment")
-    # A retry can reuse its previous bot content commit without rerunning inference.
-    command(["git", "checkout", "--detach", current])
-
-
 def assert_current(expected=None):
     expected = expected or git("rev-parse", "HEAD")
     remote_head = git("ls-remote", "origin", "refs/heads/main").split()[0]
     if remote_head != expected:
         raise ReleaseError("Main changed; refusing to publish an outdated build")
-
-
-def persist():
-    ci_only()
-    assert_current()
-    command(["git", "add", "--", CONTENT])
-    staged = git("diff", "--cached", "--name-only").splitlines()
-    if any(not path.startswith(CONTENT) for path in staged):
-        raise ReleaseError(
-            "Refusing to commit files outside the generated content catalog"
-        )
-    if staged:
-        command(
-            [
-                "git",
-                "-c",
-                "user.name=github-actions[bot]",
-                "-c",
-                "user.email=41898282+github-actions[bot]@users.noreply.github.com",
-                "commit",
-                "-m",
-                "chore(content): prepare verified TypeSafe use cases",
-            ]
-        )
-        command(["git", "push", "origin", "HEAD:main"])
-    sha = git("rev-parse", "HEAD")
-    output = os.environ.get("GITHUB_OUTPUT")
-    if output:
-        with open(output, "a") as stream:
-            stream.write(f"content_sha={sha}\n")
-    return sha
 
 
 def sitemap_urls(path="/sitemap.xml", seen=None):
@@ -291,11 +241,9 @@ def verify(manifest, previous, attempts=6):
 
 
 def verify_inventory(expected, old, attempts=6):
-    if (
-        len({p["slug"] for p in expected["pages"]} - {p["slug"] for p in old["pages"]})
-        > 5
-    ):
-        raise ReleaseError("Publication exceeds five new pages")
+    added = {p["slug"] for p in expected["pages"]} - {p["slug"] for p in old["pages"]}
+    if len(added) > MAX_NEW_PAGES:
+        raise ReleaseError(f"Publication exceeds {MAX_NEW_PAGES} new pages")
     for attempt in range(attempts):
         try:
             verify_once(expected, old)
@@ -306,44 +254,48 @@ def verify_inventory(expected, old, attempts=6):
             time.sleep(10)
 
 
-def record(report, failed=False):
-    if not Path(report).exists():
+def checkpoint_for(manifest):
+    """The review session stores each approval's report under a hash of its run ID."""
+    run_id = read_json(manifest).get("run_id", "")
+    if not isinstance(run_id, str) or not run_id:
+        return None
+    digest = hashlib.sha256(run_id.encode()).hexdigest()[:24]
+    return ROOT / CONTENT / "runs" / f"{digest}.json"
+
+
+def record(manifest):
+    """Record the local generation report of the released content in the journal."""
+    path = checkpoint_for(manifest)
+    if path is None or not path.exists():
+        print("No generation report for this release; nothing recorded.")
         return
-    value = read_json(report)
-    if failed:
-        value["status"] = "failed"
-        value["reason"] = "deployment_failed"
-        value["finished_at"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    checkpoint = read_json(path)
+    value = checkpoint.get("report") if isinstance(checkpoint, dict) else None
+    if not isinstance(value, dict):
+        raise ReleaseError("Invalid generation checkpoint")
     remote("record-run", value)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="operation", required=True)
-    commands.add_parser("checkout-current")
     commands.add_parser("assert-current")
-    commands.add_parser("persist")
     base = commands.add_parser("baseline")
     base.add_argument("--output", required=True)
     check = commands.add_parser("verify")
     check.add_argument("--manifest", required=True)
     check.add_argument("--baseline", required=True)
     report = commands.add_parser("record")
-    report.add_argument("--report", required=True)
-    report.add_argument("--failed", action="store_true")
+    report.add_argument("--release", required=True)
     args = parser.parse_args()
-    if args.operation == "checkout-current":
-        checkout_current()
-    elif args.operation == "assert-current":
+    if args.operation == "assert-current":
         assert_current()
-    elif args.operation == "persist":
-        persist()
     elif args.operation == "baseline":
         baseline(args.output)
     elif args.operation == "verify":
         verify(args.manifest, args.baseline)
     else:
-        record(args.report, args.failed)
+        record(args.release)
 
 
 if __name__ == "__main__":

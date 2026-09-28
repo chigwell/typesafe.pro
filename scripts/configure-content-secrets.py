@@ -1,4 +1,8 @@
-"""Copy explicitly selected local content credentials to GitHub Actions via stdin."""
+"""Validate the local content-generation credentials in the ignored `.env` file.
+
+Generation runs only on a developer machine (`npm run content:review`); CI never needs
+these values, so nothing is uploaded anywhere.
+"""
 
 import argparse
 import re
@@ -44,24 +48,14 @@ def settings(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--check", action="store_true", help="Validate locally without uploading"
+        "--check", action="store_true", help="Kept for compatibility; always checks"
     )
-    args = parser.parse_args()
+    parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     subprocess.run(["git", "check-ignore", "--quiet", ".env"], cwd=root, check=True)
     values = settings(root / ".env")
     for name in NAMES:
-        if not args.check:
-            subprocess.run(
-                ["gh", "secret", "set", name, "--repo", "chigwell/typesafe.pro"],
-                input=values[name],
-                text=True,
-                check=True,
-                capture_output=True,
-            )
-        print(
-            f"{name}: {'validated' if args.check else 'configured in GitHub Actions'}"
-        )
+        print(f"{name}: validated ({len(values[name])} characters, never printed)")
 
 
 if __name__ == "__main__":
@@ -69,4 +63,4 @@ if __name__ == "__main__":
         main()
     except (ValueError, OSError, subprocess.SubprocessError) as exc:
         detail = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
-        raise SystemExit("Content secret configuration failed: " + detail) from None
+        raise SystemExit("Content credential check failed: " + detail) from None

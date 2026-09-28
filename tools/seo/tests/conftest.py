@@ -3,6 +3,9 @@ import pytest
 from seo_content.catalog import atomic_write, canonical, sha256
 from seo_content.models import (
     SEO,
+    DemoCode,
+    DemoConcept,
+    DemoConcepts,
     Description,
     DraftExamples,
     EvaluationResponse,
@@ -11,6 +14,61 @@ from seo_content.models import (
     Ideas,
 )
 from seo_content.pipeline import create_page
+
+DEMO_QUESTIONS = {"mood": {"type": "noul", "instructions": "Is the message positive?"}}
+DEMO_HTML = (
+    '<label>Message <input id="demo-input" type="text"></label>'
+    '<button id="demo-run" type="button">Check</button>'
+    '<p id="demo-status" aria-live="polite"></p><div id="demo-visual"></div>'
+)
+DEMO_CSS = "#demo-visual{height:40px;background:var(--demo-accent);transition:width .4s}"
+DEMO_JS = """const input = document.getElementById("demo-input");
+const button = document.getElementById("demo-run");
+const status = document.getElementById("demo-status");
+const visual = document.getElementById("demo-visual");
+button.addEventListener("click", async () => {
+  button.disabled = true;
+  try {
+    const answers = await window.TypeSafeDemo.evaluate({ message: input.value });
+    visual.style.width = Math.round(answers.mood.noul * 100) + "%";
+    status.textContent = "Positive: " + answers.mood.noul.toFixed(2);
+  } catch (error) {
+    status.textContent = window.TypeSafeDemo.describeError(error);
+  } finally {
+    button.disabled = false;
+  }
+});
+"""
+
+
+def concept(number=1):
+    return DemoConcept(
+        title=f"Mood bar {number}",
+        concept="A bar grows with how positive the message is.",
+        interaction="Type a short customer message and press Check.",
+        visual="The bar width follows the noul probability.",
+        questions=DEMO_QUESTIONS,
+    )
+
+
+def demo_code():
+    return DemoCode(
+        html=DEMO_HTML,
+        css=DEMO_CSS,
+        js=DEMO_JS,
+        samples=[
+            {
+                "state": {"message": "Thanks, this was fast and friendly!"},
+                "description": "A clearly positive message.",
+                "expected": {"mood": {"type": "noul", "min": 0.8, "max": 1.0}},
+            },
+            {
+                "state": {"message": "Great support, thank you."},
+                "description": "Another positive message.",
+                "expected": {"mood": {"type": "noul", "min": 0.8, "max": 1.0}},
+            },
+        ],
+    )
 
 
 @pytest.fixture
@@ -81,6 +139,8 @@ class FakeProvider:
         self.duplicate_probability = 0.05
         self.example_probability = 0.95
         self.quality_probability = 0.95
+        self.demo_attempts = 0
+        self.demo_feedback = []
 
     def charge(self):
         if self.budget:
@@ -129,6 +189,12 @@ class FakeProvider:
                 description="Build a workshop routing workflow with verified "
                 "TypeSafe requests and interactive examples for developers.",
             )
+        if schema is DemoConcepts:
+            return DemoConcepts(concepts=[concept(i) for i in (1, 2, 3)])
+        if schema is DemoCode:
+            self.demo_attempts += 1
+            self.demo_feedback = list(context.get("reviewer_feedback", []))
+            return demo_code()
         raise AssertionError(schema)
 
     def evaluate(self, request):
@@ -148,3 +214,8 @@ class FakeProvider:
 @pytest.fixture
 def page():
     return create_page(idea(), 0.95, FakeProvider())
+
+
+@pytest.fixture
+def demo_page():
+    return create_page(idea(), 0.95, FakeProvider(), demo_concept=concept())

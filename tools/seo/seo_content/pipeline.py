@@ -1,40 +1,29 @@
-"""Bounded production generation, resumed by run ID and immutable content records."""
+"""Page generation stages shared by the interactive review session."""
 
-import secrets
-from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import ValidationError
 
-from .catalog import (
-    Catalog,
-    CatalogError,
-    atomic_write,
-    baseline_slugs,
-    compact,
-    fingerprint,
-    release_page,
-    sha256,
-)
+from .catalog import compact
+from .demo import build_demo
 from .models import (
     SEO,
+    DemoConcept,
     Description,
     DraftExamples,
     EvaluationRequest,
     Example,
     Explanation,
+    Idea,
     Ideas,
     NoulQuestion,
     Page,
     Quality,
-    Release,
-    Report,
     Verification,
     assert_expected,
 )
-from .novelty import Rejected, check_novelty
-from .providers import Budget, BudgetExhausted, ProviderError, Providers, StageError
+from .novelty import Rejected
 
 REFERENCE = (Path(__file__).parent / "reference.md").read_text()
 WORDS = (Path(__file__).parent / "words.txt").read_text().split()
@@ -126,8 +115,63 @@ def now():
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
-def create_page(idea, novelty_probability, provider) -> Page:
-    context = {"reference": REFERENCE, "scenario": compact(idea)}
+def propose_ideas(
+    recent: list,
+    provider,
+    rng,
+    skipped: list[dict] | None = None,
+    proposed: list[dict] | None = None,
+) -> Ideas:
+    """Ten candidate scenarios; existing, skipped and already proposed ones are avoided."""
+    return provider.structured(
+        Ideas,
+        (
+            "Propose exactly ten fresh, genuinely interesting applications of TypeSafe. Each "
+            "page will get an interactive visual demo where a visitor types a short text or "
+            "picks a small input, and the typed answers (a chosen option with probabilities, a "
+            "yes/no probability, or a score on a small scale) drive an animation: emoji float "
+            "up, colours fill a square in proportion to probabilities, a gauge sweeps, cards "
+            "reorder. So prefer scenarios whose input a visitor can type in one or two "
+            "sentences and whose answer is fun to see: emotions, tone, colours or moods a text "
+            "evokes, which persona or genre fits, how spicy/formal/urgent something is, which "
+            "category a short description belongs to, whether a message contains a request. "
+            "Mix everyday consumer and creative uses (music, food, games, travel, writing, "
+            "pets, fitness, education, design) with a few practical business ones. Each idea "
+            "still needs a user, a concrete problem, the input, the semantic decision and the "
+            "application's next action. Make the ten ideas differ from each other in task "
+            "type, audience and decision; do not produce several variants of one workflow. "
+            "Do not repeat or rephrase anything in existing_scenarios, skipped_scenarios or "
+            "already_proposed, including the same decision in another industry. random_words "
+            "are loose inspiration only: never put them in slugs or titles unless they "
+            "naturally belong. Slugs are short, descriptive kebab-case (2–5 words). Use a "
+            "normalized task_type such as tone-detection, color-association, intent-routing, "
+            "urgency-scoring or genre-matching. All text must be English."
+        ),
+        {
+            "reference": REFERENCE,
+            "random_words": rng.sample(WORDS, 5),
+            "existing_scenarios": [compact(p) for p in recent[-60:]],
+            "skipped_scenarios": skipped or [],
+            "already_proposed": proposed or [],
+        },
+    )
+
+
+def create_page(
+    idea: Idea,
+    novelty_probability: float,
+    provider,
+    *,
+    feedback=(),
+    demo_concept: DemoConcept | None = None,
+    warn=None,
+) -> Page:
+    """Write, execute and judge one page; a demo concept adds a verified visual demo."""
+    context = {
+        "reference": REFERENCE,
+        "scenario": compact(idea),
+        "reviewer_feedback": [str(item) for item in feedback if str(item).strip()],
+    }
     description = provider.structured(
         Description,
         (
@@ -155,6 +199,7 @@ def create_page(idea, novelty_probability, provider) -> Page:
             "Each must include an EvaluationRequest and independently predicted expected results "
             "for every question. Use only model jev-latest. The example request is the ENTIRE "
             "request sent by the playground. Include meaningful expected ranges for Noul/Score "
+            "(Noul: probabilities within 0–1 such as 0.7–1.0; Score: level indexes) "
             "and an exact label for Choice. Prefer one atomic question per request; use extra "
             "questions only for independently useful judgments. Use EXACTLY IDENTICAL question "
             "IDs, instructions and criteria in all three requests; vary only state. If the edge "
@@ -174,15 +219,50 @@ def create_page(idea, novelty_probability, provider) -> Page:
         ),
         context,
     )
-    examples = []
-    for draft in drafts.examples:
-        response = provider.evaluate(draft.request)
-        try:
-            assert_expected(draft, response)
-        except ValueError:
-            raise Rejected("example_expectation_failed") from None
-        examples.append(
-            Example(**draft.model_dump(exclude_none=True), response=response, verified_at=now())
+    # Expectations are predictions; when the live API disagrees, show the model what it
+    # actually returned and let it adjust inputs or expectations (at most two repairs).
+    for attempt in range(3):
+        examples, mismatches = [], []
+        for draft in drafts.examples:
+            response = provider.evaluate(draft.request)
+            try:
+                assert_expected(draft, response)
+            except ValueError as exc:
+                mismatches.append(
+                    {
+                        "example": draft.kind,
+                        "problem": str(exc),
+                        "expected": {
+                            k: v.model_dump(exclude_none=True) for k, v in draft.expected.items()
+                        },
+                        "actual_answers": response.model_dump(exclude_none=True)["answers"],
+                    }
+                )
+                continue
+            examples.append(
+                Example(**draft.model_dump(exclude_none=True), response=response, verified_at=now())
+            )
+        if not mismatches:
+            break
+        if attempt == 2:
+            raise Rejected("example_expectation_failed")
+        if warn:
+            warn(f"{len(mismatches)} example(s) did not match the live API; repairing")
+        drafts = provider.structured(
+            DraftExamples,
+            (
+                "Some examples did not match the live API (see `failed_examples` with the "
+                "actual answers). Return all three examples again. Keep the questions "
+                "identical across examples. For each failed example either change its "
+                "input so the intended outcome is clearly expressed, or change its "
+                "expectation to the behaviour you now expect, keeping it defensible and "
+                "consistent with the scenario. Keep the passing examples unchanged."
+            ),
+            {
+                **context,
+                "previous_examples": drafts.model_dump(exclude_none=True),
+                "failed_examples": mismatches,
+            },
         )
     context["verified_examples"] = [item.model_dump(exclude_none=True) for item in examples]
     explanation = provider.structured(
@@ -227,10 +307,15 @@ def create_page(idea, novelty_probability, provider) -> Page:
     except ValueError:
         raise Rejected("page_too_large_to_verify") from None
     quality_response = provider.evaluate(request)
+    scores = {key: answer.noul for key, answer in quality_response.answers.items()}
     try:
-        quality = Quality(**{key: answer.noul for key, answer in quality_response.answers.items()})
+        quality = Quality(**scores)
     except ValidationError:
-        raise Rejected("quality_threshold_failed") from None
+        low = ", ".join(f"{k}={v:.2f}" for k, v in scores.items() if v < 0.8)
+        raise Rejected(f"quality_threshold_failed: {low}") from None
+    demo = None
+    if demo_concept is not None:
+        demo = build_demo(idea, demo_concept, provider, now, feedback=feedback, warn=warn)
     timestamp = now()
     return Page(
         **{**idea.model_dump(), "problem": description.problem},
@@ -239,6 +324,7 @@ def create_page(idea, novelty_probability, provider) -> Page:
         solution=explanation.solution,
         limitations=explanation.limitations,
         examples=examples,
+        demo=demo,
         verification=Verification(
             model=quality_response.model,
             verified_at=timestamp,
@@ -250,167 +336,8 @@ def create_page(idea, novelty_probability, provider) -> Page:
     )
 
 
-def generate(
-    content_dir: Path,
-    *,
-    run_id: str,
-    source_sha: str,
-    baseline: Path,
-    report_path: Path,
-    provider_factory=Providers,
-    max_new_pages: int = 5,
-    budget: Budget | None = None,
-) -> Report:
-    import json
-    import random
-
-    if not run_id or len(run_id) > 200 or not source_sha or len(source_sha) > 100:
-        raise CatalogError("run ID and source SHA are required and must be bounded")
-    if not 0 <= max_new_pages <= 5:
-        raise CatalogError("publication allowance must be between zero and five")
-    catalog = Catalog(content_dir)
-    checkpoint_path = content_dir / "runs" / (sha256(run_id.encode())[:24] + ".json")
-    checkpoint = None
-    if checkpoint_path.exists():
-        try:
-            checkpoint = json.loads(checkpoint_path.read_bytes())
-            old_report = Report.model_validate(checkpoint["report"])
-            if old_report.run_id != run_id or old_report.source_sha != source_sha:
-                raise CatalogError("run ID already belongs to another source revision")
-            if checkpoint["complete"]:
-                release = Release.model_validate(checkpoint["release"])
-                if release.catalog_hash != catalog.manifest.catalog_hash:
-                    raise CatalogError("completed run no longer matches current catalog")
-                atomic_write(content_dir / "release.json", release.model_dump())
-                catalog.validate_release()
-                atomic_write(report_path, old_report.model_dump())
-                return old_report
-        except (ValueError, KeyError, TypeError):
-            raise CatalogError("invalid or mismatched run checkpoint") from None
-    published = baseline_slugs(baseline, catalog)
-    if checkpoint and checkpoint["baseline_slugs"] != published:
-        raise CatalogError("publication baseline changed during an unfinished run")
-    published_set = set(published)
-    pending = [p.slug for p in catalog.pages if p.slug not in published_set][:max_new_pages]
-    selected = [*published, *pending]
-    selected_set = set(selected)
-    seed = old_report.seed if checkpoint else secrets.randbits(32)
-    rng = random.Random(seed)
-    budget = budget or Budget()
-    if checkpoint:
-        budget.calls = old_report.api_calls
-        budget.input_tokens = old_report.input_tokens
-        budget.output_tokens = old_report.output_tokens
-        budget.previous_seconds = old_report.duration_seconds
-    report = Report(
-        run_id=run_id,
-        source_sha=source_sha,
-        status="skipped",
-        reason="no_candidates",
-        started_at=old_report.started_at if checkpoint else now(),
-        finished_at=now(),
-        duration_seconds=0,
-        seed=seed,
-        catalog_hash=catalog.manifest.catalog_hash,
-    )
-    rejected = Counter(old_report.rejections if checkpoint else {})
-    rounds = old_report.rounds if checkpoint else 0
-    newly_generated = old_report.generated_count if checkpoint else 0
-    release = None
-
-    def save(complete=False):
-        report.finished_at = now()
-        report.duration_seconds = round(budget.elapsed, 3)
-        report.rounds = rounds
-        report.api_calls = budget.calls
-        report.input_tokens = budget.input_tokens
-        report.output_tokens = budget.output_tokens
-        report.generated_count = newly_generated
-        report.rejections = dict(rejected)
-        report.rejected_count = sum(rejected.values())
-        report.catalog_hash = catalog.manifest.catalog_hash
-        atomic_write(
-            checkpoint_path,
-            {
-                "schema_version": 1,
-                "complete": complete,
-                "baseline_slugs": published,
-                "report": report.model_dump(),
-                "release": release.model_dump() if release is not None else None,
-            },
-        )
-
-    save()
-    budget.on_update = save
-    try:
-        if len(selected) - len(published) < max_new_pages:
-            provider = provider_factory(budget)
-            while rounds < 5 and len(selected) - len(published) < max_new_pages:
-                budget.check()
-                rounds += 1
-                save()
-                try:
-                    ideas = provider.structured(
-                        Ideas,
-                        (
-                            "Propose exactly ten distinct, useful applications of TypeSafe across "
-                            "industries. Each needs a user, problem, input, semantic decision, "
-                            "and action. Use a normalized task_type such as intent-routing "
-                            "or evidence-checking. Avoid cosmetic variants of existing "
-                            "workflows. Random words inspire variety only; ideas must make sense. "
-                            "All text must be English. Do not repeat listed existing scenarios."
-                        ),
-                        {
-                            "reference": REFERENCE,
-                            "random_words": rng.sample(WORDS, 5),
-                            "recent_scenarios": [compact(p) for p in catalog.pages[-40:]],
-                        },
-                    )
-                except StageError:
-                    rejected["idea_stage_failed"] += 1
-                    save()
-                    continue
-                save()
-                for idea in ideas.ideas:
-                    if len(selected) - len(published) >= max_new_pages:
-                        break
-                    try:
-                        novelty = check_novelty(idea, catalog.pages, provider)
-                        page = create_page(idea, novelty, provider)
-                        # Expansion can converge to an existing task even when the proposed
-                        # idea differed. This rejects a candidate, not an intact catalog.
-                        if any(fingerprint(old) == fingerprint(page) for old in catalog.pages):
-                            raise Rejected("expanded_scenario_duplicate")
-                        catalog.add(page)
-                        selected.append(page.slug)
-                        selected_set.add(page.slug)
-                        newly_generated += 1
-                    except (Rejected, StageError) as exc:
-                        rejected[str(exc)] += 1
-                    except ValidationError:
-                        rejected["page_schema_failed"] += 1
-                    save()
-    except BudgetExhausted:
-        report.reason = "budget_exhausted"
-    except ProviderError as exc:
-        # The code-only error string is deliberately safe for logs and the admin UI.
-        report.reason = str(exc)
-        report.status = "failed"
-    if len(selected) > len(published):
-        report.status = "prepared"
-        if report.reason == "no_candidates":
-            report.reason = "verified_pages_ready"
-    elif report.status != "failed":
-        report.status = "skipped"
-    release = Release(
-        run_id=run_id,
-        source_sha=source_sha,
-        catalog_hash=catalog.manifest.catalog_hash,
-        generated_at=now(),
-        pages=[release_page(p) for p in catalog.pages if p.slug in selected_set],
-    )
-    atomic_write(content_dir / "release.json", release.model_dump())
-    catalog.validate_release()
-    save(complete=True)
-    atomic_write(report_path, report.model_dump())
-    return report
+def rebuild_demo(page: Page, concept: DemoConcept, provider, feedback=(), warn=None) -> Page:
+    """Replace only the demo of an existing page; prose and examples stay untouched."""
+    idea = Idea.model_validate(compact(page))
+    demo = build_demo(idea, concept, provider, now, feedback=feedback, warn=warn)
+    return page.model_copy(update={"demo": demo, "updated_at": now()})

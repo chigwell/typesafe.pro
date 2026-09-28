@@ -1,8 +1,9 @@
 # Verified use-case content
 
-This isolated Python project prepares English use-case pages for the static website.
-Content lives in `content/use-cases`; neither ordinary builds nor validation call a model.
-The site publishes only the records listed in `release.json`.
+This isolated Python project prepares English use-case pages, each with a sandboxed
+interactive demo, for the static website. Content lives in `content/use-cases`; neither
+ordinary builds nor validation call a model. The site publishes only the records listed
+in `release.json`, and every record is approved by a human in the local review session.
 
 ## Commands
 
@@ -17,30 +18,34 @@ uv run --project tools/seo ruff format --check tools/seo
 ```
 
 Generation needs `LLM7_BASE_URL`, `LLM7_TOKEN`, `LLM7_MODEL`, and
-`TYPESAFE_ADMIN_API_TOKEN_1`. Load local secrets with uv, never add them to content:
+`TYPESAFE_ADMIN_API_TOKEN_1` in the ignored root `.env`. Load them with uv, never add
+them to content:
 
 ```sh
-uv run --project tools/seo --env-file .env python -m seo_content generate \
-  --run-id local-pilot-001 --source-sha FULL_GIT_COMMIT_SHA \
-  --baseline /tmp/published-manifest.json --report /tmp/content-report.json
+npm run content:review            # = uv run --project tools/seo --env-file .env python -m seo_content review
+npm run content:review -- --max-pages 1 --no-browser
+npm run content:review -- --resume
 ```
 
-Use a fresh run ID for a new attempt. A completed run with the same run ID and source SHA
-replays its original release and report without provider calls. A reused run ID with a
-different source SHA fails. The baseline must be the last confirmed public release
-manifest, reconciled with the deployment journal. For the first publication only:
+Options: `--max-pages` (approvals per session, 1–20, default 5), `--resume` (review
+pending drafts first), `--auto-select` (take every idea and the first demo concept),
+`--dev-url`, `--no-browser`, `--no-dev-server`, `--max-calls`, `--max-minutes`,
+`--session-id` (must match `^[A-Za-z0-9_.-]+$`; each approval gets `<session>-<n>`).
+To use a disposable catalog, put `--content-dir /tmp/catalog` before the subcommand;
+the directory must be `content/use-cases` inside a Git repository.
 
-```json
-{"schema_version":1,"run_id":"","source_sha":"","catalog_hash":"","generated_at":null,"pages":[]}
-```
-
-`--max-new-pages 1` can tighten the pilot limit; the hard maximum is five.
-To use a disposable catalog, put `--content-dir /tmp/catalog` before the subcommand.
+The session: preflight (credentials, catalog, clean `content/use-cases`, dev server) →
+ten ideas → pick → novelty → three demo concepts → pick → page + demo generation and
+verification → draft in `drafts/<slug>.json` → browser preview → `a`pprove / `f`eedback
+(`t`ext, `d`emo, `c`oncept, `b`oth) / `s`kip / `o`pen / `q`uit. Approval appends to the
+catalog, rewrites `release.json` to the whole catalog, writes `runs/<hash>.json` and
+commits `content/use-cases` only. See `docs/generated-pages.md` for the full flow.
 
 ## Pipeline and bounds
 
-- Each idea round requests ten scenarios; at most five rounds are attempted.
-- The complete run has a 15 minute and 200 external-call budget, including retries.
+- Each idea round requests ten scenarios; at most ten rounds per session.
+- A session has a 60 minute and 400 external-call budget by default, including retries;
+  time spent waiting for the reviewer is paused.
 - Each model stage makes at most three HTTP attempts. `llmatch-messages` extracts
   `<json>` contents with `max_retries=0`; the outer loop owns all retries. This avoids
   multiplying retries in llmatch, LangChain or the HTTP transport.
@@ -58,7 +63,14 @@ To use a disposable catalog, put `--content-dir /tmp/catalog` before the subcomm
   server-side admin credential. Expected Choice labels or meaningful Noul/Score ranges
   must match. Score uses the level index range `0..len(criteria)-1`, not a probability.
 - Three separate Noul judgments check usefulness, factual support and consistency;
-  all must be >=0.8. Only these complete pages enter the catalog.
+  all must be >=0.8.
+- The demo code (`Demo` in `models.py`) is screened with word-boundary patterns against
+  scripts, styles, links, frames, forms, `src`, remote CSS URLs, `fetch`, `XMLHttpRequest`,
+  `import`, `eval`, `Function`, storage, cookies, `location`, `postMessage`, parent-window
+  access and `document.write`; `node --check` verifies syntax; each of its 2–4 sample
+  states is executed with the demo's fixed questions and must meet its expectation. A
+  failure is fed back to the model up to twice. The reviewer then inspects the demo in
+  the sandboxed iframe before approval; only approved pages enter the catalog.
 
 ## Data and recovery
 
@@ -67,21 +79,20 @@ bytes; its catalog hash is SHA-256 of sorted-key compact JSON for the ordered sh
 list. Matching `index-*.json` files hold only compact scenario descriptions. Existing
 records remain unchanged when appending new records. Page appends use a validated write-ahead journal, fsynced before shard/index/manifest
 replacement. Loading the catalog replays an interrupted append idempotently; the
-original records must remain unchanged and all checksums must match. CI validates
-and commits the complete changed set before publishing the artifact.
+original records must remain unchanged and all checksums must match. The review session
+commits the complete changed set; CI validates it before publishing the artifact.
 
-The release is the previously published set plus at most five approved pending/new
-records. Unpublished records from failed deploys take priority over new generation.
-Generation checkpoints in `runs/` contain safe counters, error codes, baseline slugs,
-and the final release. The run budget is checkpointed at HTTP boundaries; interruption
-during an unapproved draft can discard that draft, but not approved pending records.
-Catalog, index, baseline and release corruption are hard errors; they must never be
-silently treated as provider outages. Deploy publication/accounting is owned by the
-repository's release scripts, not this generator.
+The release is the whole catalog: every record was approved by the reviewer. Each
+approval writes `runs/<sha256(run_id)[:24]>.json` with the session report (mode,
+counters, rejection codes, approved/skipped counts) and the release; CI records that
+report in the journal after publication. Drafts in `drafts/` are working files ignored
+by Git; `review-skips.json` remembers skipped ideas. Catalog, index and release
+corruption are hard errors; they must never be silently treated as provider outages.
+Deploy publication/accounting is owned by the repository's release scripts.
 
-`generated_count` reports records generated in that run. It does not report the
-publication delta: reused pending pages can be published with `generated_count=0`.
-The admin deployment journal computes added pages from consecutive published snapshots.
+`generated_count` reports records generated in that session, including regenerated
+attempts; `approved_count` is the number of pages committed. The admin deployment
+journal computes added pages from consecutive published snapshots.
 
 ## Novelty calibration
 

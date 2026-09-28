@@ -3,11 +3,12 @@ import sys
 from pathlib import Path
 
 from .catalog import Catalog, CatalogError
-from .pipeline import generate
+from .providers import Budget
+from .review import ReviewError, ReviewSession
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate independently verified TypeSafe pages")
+    parser = argparse.ArgumentParser(description="Verified TypeSafe use-case pages")
     parser.add_argument(
         "--content-dir",
         type=Path,
@@ -15,39 +16,48 @@ def main():
     )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("validate", help="Validate storage, examples, indexes and release offline")
-    create = commands.add_parser("generate", help="Prepare up to five new pages for production")
-    create.add_argument("--run-id", required=True)
-    create.add_argument("--source-sha", required=True)
-    create.add_argument("--baseline", type=Path, required=True)
-    create.add_argument("--report", type=Path, required=True)
-    create.add_argument(
-        "--max-new-pages",
-        type=int,
-        default=5,
-        help="Optional tighter allowance (0–5), primarily for controlled pilots",
+    review = commands.add_parser(
+        "review", help="Interactively generate, preview, approve or skip new pages"
     )
+    review.add_argument("--max-pages", type=int, default=5, help="Approvals per session (1–20)")
+    review.add_argument("--resume", action="store_true", help="Review pending drafts first")
+    review.add_argument(
+        "--auto-select", action="store_true", help="Take every idea and the first demo concept"
+    )
+    review.add_argument("--dev-url", default="http://localhost:3000")
+    review.add_argument("--no-browser", action="store_true", help="Print preview URLs only")
+    review.add_argument(
+        "--no-dev-server", action="store_true", help="Never start `npm run dev:web`"
+    )
+    review.add_argument("--max-calls", type=int, default=400)
+    review.add_argument("--max-minutes", type=float, default=60)
+    review.add_argument("--session-id", default=None)
     args = parser.parse_args()
     try:
         if args.command == "validate":
             catalog = Catalog(args.content_dir)
             release = catalog.validate_release()
             print(f"Validated {len(catalog.pages)} records; {len(release.pages)} released pages.")
-        else:
-            report = generate(
-                args.content_dir,
-                run_id=args.run_id,
-                source_sha=args.source_sha,
-                baseline=args.baseline,
-                report_path=args.report,
-                max_new_pages=args.max_new_pages,
-            )
-            print(
-                f"Content {report.status}: {report.reason}; "
-                f"generated={report.generated_count}, calls={report.api_calls}."
-            )
-        return 0
+            return 0
+        if not 1 <= args.max_pages <= 20:
+            raise ReviewError("--max-pages must be between 1 and 20")
+        session = ReviewSession(
+            args.content_dir,
+            session_id=args.session_id,
+            budget=Budget(max_calls=args.max_calls, max_seconds=args.max_minutes * 60),
+            dev_url=args.dev_url,
+            start_dev_server=not args.no_dev_server,
+            open_browser=not args.no_browser,
+            auto_select=args.auto_select,
+            max_pages=args.max_pages,
+        )
+        report = session.run(resume=args.resume)
+        return 0 if report.approved_count or report.skipped_count else 2
     except CatalogError as exc:
         print(f"Content integrity failure: {exc}", file=sys.stderr)
+        return 1
+    except ReviewError as exc:
+        print(f"Review cannot start: {exc}", file=sys.stderr)
         return 1
 
 

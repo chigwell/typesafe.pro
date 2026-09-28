@@ -1899,6 +1899,20 @@ h1 .accent {
 .use-case-code { margin-top: 32px; }
 .use-case-code .code-pre { max-height: 560px; }
 .use-case-related { margin-top: 52px; }
+.use-case-demo { margin: 0 0 44px; scroll-margin-top: 100px; }
+.use-case-demo > p { color: var(--body); max-width: 820px; }
+.use-case-demo > .eyebrow { color: var(--accent); }
+.use-case-demo-frame { margin-top: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.use-case-demo-frame iframe { display: block; width: 100%; height: 480px; border: 0; }
+.use-case-demo-samples { margin-top: 16px; }
+.use-case-demo-samples summary { cursor: pointer; font-weight: 600; }
+.use-case-demo-samples summary span { color: var(--muted); font-size: 13px; font-weight: 400; }
+.use-case-demo-samples ul { padding: 0; margin: 0; }
+.use-case-demo-samples li { list-style: none; margin-top: 14px; }
+.use-case-demo-samples li p { margin: 0 0 8px; color: var(--body); }
+.use-case-demo-samples pre { padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--canvas); overflow-x: auto; font: 13px/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.use-case-draft-banner { margin: 0 0 24px; padding: 12px 16px; border-radius: 10px; background: #fff3cd; color: #5c4400; font-weight: 600; }
+:root[data-theme="dark"] .use-case-draft-banner { background: #4a3a00; color: #ffe8a3; }
 .use-case-back { margin-top: 40px; }
 @media (min-width: 721px) and (max-width: 980px) {
   .header-cta { display: none; }

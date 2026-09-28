@@ -1,162 +1,52 @@
 import json
+import random
 
 import pytest
 from conftest import FakeProvider, idea
 
-from seo_content.catalog import Catalog, CatalogError, atomic_write, release_page
-from seo_content.models import Ideas
 from seo_content.novelty import Rejected, check_novelty, shortlist
-from seo_content.pipeline import create_page, generate
-from seo_content.providers import Budget, ProviderError
+from seo_content.pipeline import create_page, propose_ideas
+from seo_content.providers import StageError
 
 
-def test_full_run_limits_and_idempotency(content, baseline, tmp_path):
-    report_file = tmp_path / "report.json"
-    report = generate(
-        content,
-        run_id="ci/42",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=report_file,
-        provider_factory=FakeProvider,
-    )
-    assert report.status == "prepared"
-    assert report.generated_count == 5
-    assert report.rounds == 1
-    assert report.api_calls < 200
-    catalog = Catalog(content)
-    assert len(catalog.pages) == len(catalog.validate_release().pages) == 5
-    before = report_file.read_bytes()
+def test_propose_ideas_passes_recent_and_skipped_context():
+    class Capture(FakeProvider):
+        captured = None
+        task = ""
 
-    def never_called(_):
-        raise AssertionError("completed run must not invoke providers")
-
-    rerun = generate(
-        content,
-        run_id="ci/42",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=report_file,
-        provider_factory=never_called,
-    )
-    assert rerun == report
-    assert before == report_file.read_bytes()
-    with pytest.raises(CatalogError):
-        generate(
-            content,
-            run_id="ci/42",
-            source_sha="different",
-            baseline=baseline,
-            report_path=report_file,
-            provider_factory=never_called,
-        )
-
-
-def test_missing_provider_is_soft_failure(content, baseline, tmp_path):
-    def unavailable(_):
-        raise ProviderError("missing_credentials")
-
-    report = generate(
-        content,
-        run_id="no-secret",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=tmp_path / "report.json",
-        provider_factory=unavailable,
-    )
-    assert report.status == "failed" and report.reason == "missing_credentials"
-    assert Catalog(content).validate_release().pages == []
-
-
-def test_pending_pages_use_publication_allowance_first(content, baseline, tmp_path, page):
-    catalog = Catalog(content)
-    catalog.add(page)
-    report = generate(
-        content,
-        run_id="retry",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=tmp_path / "report.json",
-        provider_factory=FakeProvider,
-        max_new_pages=1,
-    )
-    assert report.status == "prepared" and report.api_calls == 0
-    assert report.generated_count == 0
-    assert Catalog(content).validate_release().pages == [release_page(page)]
-
-
-def test_five_rounds_when_every_idea_is_rejected(content, baseline, tmp_path, page):
-    catalog = Catalog(content)
-    catalog.add(page)
-    atomic_write(
-        baseline,
-        {
-            **json.loads((content / "release.json").read_bytes()),
-            "catalog_hash": catalog.manifest.catalog_hash,
-            "pages": [release_page(page).model_dump()],
-        },
-    )
-
-    class Duplicates(FakeProvider):
         def structured(self, schema, task, context):
-            if schema is Ideas:
-                self.charge()
-                return Ideas(ideas=[idea()] * 10)
+            self.captured = context
+            self.task = task
             return super().structured(schema, task, context)
 
-    report = generate(
-        content,
-        run_id="duplicates",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=tmp_path / "report.json",
-        provider_factory=Duplicates,
-    )
-    assert report.rounds == 5 and report.api_calls == 5
-    assert report.status == "skipped" and report.rejected_count == 50
+    provider = Capture()
+    ideas = propose_ideas([], provider, random.Random(1), [{"summary": "Old idea"}])
+    assert len(ideas.ideas) == 10
+    assert provider.captured["skipped_scenarios"] == [{"summary": "Old idea"}]
+    assert provider.captured["existing_scenarios"] == []
+    assert len(provider.captured["random_words"]) == 5
+    assert "skipped_scenarios" in provider.task and "visual demo" in provider.task
 
 
-def test_budget_preserves_only_complete_pages(content, baseline, tmp_path):
-    budget = Budget(max_calls=12)
-    report = generate(
-        content,
-        run_id="bounded",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=tmp_path / "report.json",
-        provider_factory=FakeProvider,
-        budget=budget,
-    )
-    assert report.api_calls == 12 and report.reason == "budget_exhausted"
-    assert report.status == "prepared" and report.generated_count == 1
-    assert len(Catalog(content).validate_release().pages) == 1
+def test_invalid_ideas_raise_stage_error():
+    class BadIdeas(FakeProvider):
+        def structured(self, schema, task, context):
+            raise StageError("llm_stage_failed")
+
+    with pytest.raises(StageError):
+        propose_ideas([], BadIdeas(), random.Random(1))
 
 
-def test_elapsed_budget_never_calls_provider(content, baseline, tmp_path):
-    budget = Budget(max_seconds=0)
-    report = generate(
-        content,
-        run_id="expired",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=tmp_path / "report.json",
-        provider_factory=FakeProvider,
-        budget=budget,
-    )
-    assert report.api_calls == 0 and report.reason == "budget_exhausted"
+def test_feedback_reaches_every_stage():
+    seen = []
 
+    class Capture(FakeProvider):
+        def structured(self, schema, task, context):
+            seen.append(context["reviewer_feedback"])
+            return super().structured(schema, task, context)
 
-def test_corrupt_catalog_is_hard_failure(content, baseline, tmp_path):
-    (content / "manifest.json").write_text("{}")
-    with pytest.raises(CatalogError):
-        generate(
-            content,
-            run_id="bad",
-            source_sha="abc",
-            baseline=baseline,
-            report_path=tmp_path / "report.json",
-            provider_factory=FakeProvider,
-        )
+    create_page(idea(1), 0.95, Capture(), feedback=["Shorter intro", ""])
+    assert seen and all(item == ["Shorter intro"] for item in seen)
 
 
 @pytest.mark.parametrize(
@@ -206,51 +96,6 @@ def test_bad_example_or_quality_never_publishes(attr, reason):
         create_page(idea(1), 0.95, provider)
 
 
-def test_invalid_candidate_stage_continues_with_other_candidates(content, baseline, tmp_path):
-    from seo_content.models import Description
-    from seo_content.providers import StageError
-
-    class OneBadCandidate(FakeProvider):
-        failed = False
-
-        def structured(self, schema, task, context):
-            if schema is Description and not self.failed:
-                self.failed = True
-                raise StageError("llm_stage_failed")
-            return super().structured(schema, task, context)
-
-    report = generate(
-        content,
-        run_id="one-bad",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=tmp_path / "report.json",
-        provider_factory=OneBadCandidate,
-    )
-    assert report.generated_count == 5
-    assert report.rejections == {"llm_stage_failed": 1}
-
-
-def test_invalid_ideas_can_retry_rounds(content, baseline, tmp_path):
-    from seo_content.providers import StageError
-
-    class BadIdeas(FakeProvider):
-        def structured(self, schema, task, context):
-            self.charge()
-            raise StageError("llm_stage_failed")
-
-    report = generate(
-        content,
-        run_id="bad-ideas",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=tmp_path / "report.json",
-        provider_factory=BadIdeas,
-    )
-    assert report.rounds == 5 and report.status == "skipped"
-    assert report.rejections == {"idea_stage_failed": 5}
-
-
 def test_calibration_pairs_validate_and_fit_requests():
     from pathlib import Path
 
@@ -265,37 +110,6 @@ def test_calibration_pairs_validate_and_fit_requests():
             Idea.model_validate(pair["candidate"]), [Idea.model_validate(pair["existing"])]
         )
         assert set(request.questions) == {"duplicate_0"}
-
-
-def test_expanded_fingerprint_collision_rejects_candidate_not_deployment(
-    content, baseline, tmp_path, page, monkeypatch
-):
-    catalog = Catalog(content)
-    catalog.add(page)
-    atomic_write(
-        baseline,
-        {
-            **json.loads((content / "release.json").read_bytes()),
-            "catalog_hash": catalog.manifest.catalog_hash,
-            "pages": [release_page(page).model_dump()],
-        },
-    )
-
-    def expanded_duplicate(idea, novelty, provider):
-        return page.model_copy(update={"slug": idea.slug, "summary": idea.summary})
-
-    monkeypatch.setattr("seo_content.pipeline.create_page", expanded_duplicate)
-    report = generate(
-        content,
-        run_id="expanded-duplicate",
-        source_sha="abc",
-        baseline=baseline,
-        report_path=tmp_path / "report.json",
-        provider_factory=FakeProvider,
-    )
-    assert report.status == "skipped" and report.rounds == 5
-    assert report.rejections == {"expanded_scenario_duplicate": 50}
-    assert Catalog(content).pages == [page]
 
 
 def test_quality_judges_final_article_with_actual_template_support():
@@ -336,3 +150,41 @@ def test_quality_boundary_remains_point_eight():
     provider.quality_probability = 0.8
     page = create_page(idea(1), 0.95, provider)
     assert page.verification.quality.useful == 0.8
+
+
+def test_failed_examples_are_repaired_with_actual_answers():
+    class FirstExamplesWrong(FakeProvider):
+        example_calls = 0
+        repair_context = None
+
+        def structured(self, schema, task, context):
+            if "failed_examples" in context:
+                self.repair_context = context
+                self.example_probability = 0.95
+            return super().structured(schema, task, context)
+
+        def evaluate(self, request):
+            if "repair" in request.questions:
+                self.example_calls += 1
+                if self.example_calls == 1:
+                    self.example_probability = 0.3
+            return super().evaluate(request)
+
+    provider = FirstExamplesWrong()
+    warnings = []
+    page = create_page(idea(1), 0.95, provider, warn=warnings.append)
+    failed = provider.repair_context["failed_examples"]
+    assert failed[0]["actual_answers"]["repair"]["noul"] == 0.3
+    assert page.examples[0].response.answers["repair"].noul == 0.95
+    assert any("repairing" in item for item in warnings)
+
+
+def test_uncertain_novelty_allowed_only_for_reviewer():
+    provider = FakeProvider()
+    provider.duplicate_probability = 0.5
+    with pytest.raises(Rejected, match="uncertain_novelty"):
+        check_novelty(idea(2), [idea(1)], provider)
+    assert check_novelty(idea(2), [idea(1)], provider, allow_uncertain=True) == 0.5
+    provider.duplicate_probability = 0.85
+    with pytest.raises(Rejected, match="semantic_duplicate"):
+        check_novelty(idea(2), [idea(1)], provider, allow_uncertain=True)

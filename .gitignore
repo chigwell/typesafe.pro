@@ -164,6 +164,7 @@ venv.bak/
 # Node / Next.js
 node_modules/
 .next/
+.next-dev/
 *.tsbuildinfo
 out/
 apps/web/.next/
@@ -243,3 +244,6 @@ coverage/
 # Local Cloudflare and app secrets
 .dev.vars
 .dev.vars.*
+
+# Local use-case review drafts (pending previews, never published)
+content/use-cases/drafts/

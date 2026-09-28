@@ -70,7 +70,14 @@ def novelty_request(candidate: Idea, others: list[Page | Idea]) -> EvaluationReq
     )
 
 
-def check_novelty(candidate: Idea, existing: list[Page | Idea], provider) -> float:
+def novelty_scan(
+    candidate: Idea, existing: list[Page | Idea], provider
+) -> tuple[float, str | None]:
+    """Highest duplicate probability against the catalog and the most similar slug.
+
+    Raises Rejected only for exact duplicates or oversized scenarios; callers decide how to
+    treat intermediate similarity.
+    """
     for item in existing:
         if (
             candidate.slug == item.slug
@@ -79,24 +86,40 @@ def check_novelty(candidate: Idea, existing: list[Page | Idea], provider) -> flo
         ):
             raise Rejected("deterministic_duplicate")
     comparisons = shortlist(candidate, existing)
-    maximum = 0.0
+    maximum, similar = 0.0, None
     # Keep each request within this generator's playground-compatible profile.
     start = 0
     while start < len(comparisons):
         size = min(20, len(comparisons) - start)
         while True:
             try:
-                request = novelty_request(candidate, comparisons[start : start + size])
+                batch = comparisons[start : start + size]
+                request = novelty_request(candidate, batch)
                 break
             except ValueError:
                 size //= 2
                 if not size:
                     raise Rejected("scenario_too_large") from None
         response = provider.evaluate(request)
-        maximum = max(maximum, *(answer.noul for answer in response.answers.values()))
-        if maximum >= 0.8:
-            raise Rejected("semantic_duplicate")
-        if maximum > 0.2:
-            raise Rejected("uncertain_novelty")
+        for i, item in enumerate(batch):
+            value = response.answers[f"duplicate_{i}"].noul
+            if value > maximum:
+                maximum, similar = value, item.slug
         start += size
+    return maximum, similar
+
+
+def check_novelty(
+    candidate: Idea, existing: list[Page | Idea], provider, *, allow_uncertain=False
+) -> float:
+    """Novelty probability (1 - max duplicate probability).
+
+    >= 0.8 duplicate probability is always rejected. Values in (0.2, 0.8) are rejected
+    unless a human reviewer is deciding (allow_uncertain).
+    """
+    maximum, _ = novelty_scan(candidate, existing, provider)
+    if maximum >= 0.8:
+        raise Rejected("semantic_duplicate")
+    if maximum > 0.2 and not allow_uncertain:
+        raise Rejected("uncertain_novelty")
     return 1 - maximum

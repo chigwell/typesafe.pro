@@ -1,3 +1,4 @@
+import json
 import signal
 import time
 
@@ -251,3 +252,26 @@ def test_shorter_enclosing_alarm_is_delivered_without_being_postponed():
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, old_handler)
         signal.setitimer(signal.ITIMER_REAL, *old_timer)
+
+
+def test_json_without_tags_is_recovered():
+    from seo_content.providers import fallback_json
+
+    assert fallback_json('Here:\n```json\n{"a": 1}\n```\nDone') == '{"a": 1}'
+    assert fallback_json('Sure! {"a": {"b": 2}} hope it helps') == '{"a": {"b": 2}}'
+    assert fallback_json("no json here") is None
+    assert fallback_json(None) is None
+
+
+def test_structured_accepts_fenced_json(monkeypatch):
+    seo = {
+        "title": "Route workshop requests with TypeSafe",
+        "description": "Build a workshop routing workflow with verified TypeSafe requests "
+        "and interactive examples.",
+    }
+    content = "```json\n" + json.dumps(seo) + "\n```"
+    body = {"choices": [{"message": {"content": content}}]}
+    instance = provider(monkeypatch, lambda _: httpx.Response(200, json=body), Budget())
+    result = instance.structured(SEO, "Generate", {})
+    assert result.title == "Route workshop requests with TypeSafe"
+    assert instance.budget.calls == 1

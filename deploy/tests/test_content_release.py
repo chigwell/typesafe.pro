@@ -96,58 +96,44 @@ def test_verification_checks_sitemap_and_new_html(monkeypatch):
         release.verify_once(current, old)
 
 
-def test_verification_cannot_publish_more_than_five_pages(tmp_path, monkeypatch):
+def test_verification_caps_new_pages_per_publication(tmp_path, monkeypatch):
     expected, previous = tmp_path / "next.json", tmp_path / "prior.json"
-    release.write_json(expected, manifest([f"case-{i}" for i in range(6)]))
+    release.write_json(expected, manifest([f"case-{i}" for i in range(51)]))
     release.write_json(previous, manifest())
     monkeypatch.setattr(release, "remote", lambda *_: pytest.fail("must not publish"))
-    with pytest.raises(release.ReleaseError, match="five"):
+    with pytest.raises(release.ReleaseError, match="50 new pages"):
         release.verify(expected, previous, attempts=1)
 
 
-def test_failure_report_preserves_run_identity(tmp_path, monkeypatch):
-    source = {
-        "run_id": "123",
-        "started_at": "2026-09-25T00:00:00Z",
-        "status": "prepared",
-    }
-    path = tmp_path / "report.json"
-    release.write_json(path, source)
+def test_record_sends_the_released_run_report(tmp_path, monkeypatch):
+    manifest_path = tmp_path / "release.json"
+    release.write_json(
+        manifest_path, manifest() | {"run_id": "local-20260927T100000Z-1"}
+    )
+    monkeypatch.setattr(release, "ROOT", tmp_path)
+    checkpoint = release.checkpoint_for(manifest_path)
+    assert (
+        checkpoint == tmp_path / "content/use-cases/runs/f3c231d28a2bec680f71a7d4.json"
+    )
     writes = []
     monkeypatch.setattr(
         release, "remote", lambda operation, payload: writes.append(payload)
     )
-    release.record(path, failed=True)
-    assert writes[0]["run_id"] == source["run_id"]
-    assert writes[0]["started_at"] == source["started_at"]
-    assert writes[0]["status"] == "failed"
-    assert writes[0]["reason"] == "deployment_failed"
-    assert release.read_json(path) == source
-
-
-def test_changed_main_is_rejected_without_push(monkeypatch):
-    monkeypatch.setenv("GITHUB_ACTIONS", "true")
-    monkeypatch.setattr(
-        release,
-        "git",
-        lambda *args: "old" if args[0] == "rev-parse" else "new\trefs/heads/main",
+    release.record(manifest_path)
+    assert writes == []
+    report = {
+        "run_id": "local-20260927T100000Z-1",
+        "status": "prepared",
+        "mode": "review",
+    }
+    release.write_json(
+        checkpoint, {"schema_version": 1, "complete": True, "report": report}
     )
-    monkeypatch.setattr(release, "command", lambda *_: pytest.fail("must not mutate"))
-    with pytest.raises(release.ReleaseError, match="Main changed"):
-        release.persist()
-
-
-def test_content_commit_cannot_include_other_staged_files(monkeypatch):
-    monkeypatch.setenv("GITHUB_ACTIONS", "true")
-    monkeypatch.setattr(release, "assert_current", lambda: None)
-    monkeypatch.setattr(
-        release, "git", lambda *args: "content/use-cases/manifest.json\n.env"
-    )
-    commands = []
-    monkeypatch.setattr(release, "command", lambda args: commands.append(args))
-    with pytest.raises(release.ReleaseError, match="outside"):
-        release.persist()
-    assert commands == [["git", "add", "--", "content/use-cases/"]]
+    release.record(manifest_path)
+    assert writes == [report]
+    release.write_json(checkpoint, {"schema_version": 1, "report": "bad"})
+    with pytest.raises(release.ReleaseError, match="checkpoint"):
+        release.record(manifest_path)
 
 
 def test_sitemap_cannot_fetch_an_external_origin(monkeypatch):

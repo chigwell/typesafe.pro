@@ -1,7 +1,7 @@
 import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { PublicPageViewTracker } from "./PublicPageViewTracker";
-import { catalogPageCount, catalogUrl, readUseCaseCatalog } from "@/lib/use-cases";
+import { catalogPageCount, catalogUrl, publishedPages } from "@/lib/use-cases";
 import { USE_CASES_PAGE_SIZE, type UseCasePage } from "@/lib/use-case-types";
 
 export function UseCaseCards({ pages }: { pages: UseCasePage[] }) {
@@ -9,7 +9,7 @@ export function UseCaseCards({ pages }: { pages: UseCasePage[] }) {
 }
 
 export function UseCaseCatalog({ page = 1 }: { page?: number }) {
-  const { pages } = readUseCaseCatalog();
+  const pages = publishedPages();
   const sorted = [...pages].sort((a, b) => b.created_at.localeCompare(a.created_at) || a.slug.localeCompare(b.slug));
   const count = catalogPageCount(pages);
   return <>

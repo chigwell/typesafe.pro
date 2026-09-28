@@ -5,8 +5,8 @@ from conftest import FakeProvider, idea
 from pydantic import ValidationError
 
 from seo_content import catalog as storage
-from seo_content.catalog import Catalog, CatalogError, canonical, sha256
-from seo_content.models import DraftExample, EvaluationResponse, assert_expected
+from seo_content.catalog import Catalog, CatalogError, canonical, encoded, sha256
+from seo_content.models import DraftExample, EvaluationResponse, Shard, assert_expected
 from seo_content.pipeline import create_page
 
 
@@ -293,3 +293,26 @@ def test_three_inputs_cannot_silently_change_the_question_rubric(change):
         examples[-1]["request"]["questions"]["q"]["criteria"]["review"] = "Unclear intent"
     with pytest.raises(ValidationError, match="identical question IDs"):
         DraftExamples(examples=examples)
+
+
+def test_repository_shards_round_trip_byte_identically():
+    """Appending a page re-serializes the last shard; existing pages must not change."""
+    from pathlib import Path
+
+    directory = Path(__file__).resolve().parents[3] / "content" / "use-cases"
+    catalog = Catalog(directory)
+    assert catalog.pages, "the repository catalog is expected to hold pages"
+    for entry in catalog.manifest.shards:
+        raw = (directory / entry.file).read_bytes()
+        shard = Shard.model_validate_json(raw)
+        pages = [page.model_dump(exclude_none=True) for page in shard.pages]
+        assert encoded({"schema_version": 1, "pages": pages}) == raw
+
+
+def test_page_with_demo_round_trips(content, demo_page):
+    catalog = Catalog(content)
+    catalog.add(demo_page)
+    loaded = Catalog(content)
+    assert loaded.pages[0].demo is not None
+    assert loaded.pages[0].demo.samples[0].response.answers["mood"].noul == 0.95
+    assert loaded.pages[0] == demo_page

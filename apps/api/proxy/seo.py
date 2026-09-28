@@ -67,6 +67,9 @@ class RunReport(StrictModel):
     rejected_count: Count
     rejections: dict[Annotated[str, Field(max_length=128)], Count]
     catalog_hash: CatalogHash | Literal[""]
+    mode: Literal["batch", "review"] | None = None
+    approved_count: Count | None = None
+    skipped_count: Count | None = None
 
     @model_validator(mode="after")
     def dates(self):
