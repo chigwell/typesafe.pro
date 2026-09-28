@@ -47,12 +47,13 @@ jobs:
       - run: uv run --project apps/api pytest apps/api/tests
       - run: uv run --project tools/seo ruff check tools/seo
       - run: uv run --project tools/seo ruff format --check tools/seo
-      - run: uv run --project tools/seo pytest tools/seo/tests
+      # jsdom from npm ci runs the generated-demo checks in the tools/seo tests.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: uv run --project tools/seo pytest tools/seo/tests
       - run: npm run test --workspace @typesafe-pro/web
       - run: npm run build:web
       - name: Check deployment scripts

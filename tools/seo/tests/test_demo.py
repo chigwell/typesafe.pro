@@ -4,7 +4,7 @@ import pytest
 from conftest import DEMO_CSS, DEMO_HTML, DEMO_JS, FakeProvider, concept, demo_code, idea
 from pydantic import ValidationError
 
-from seo_content.demo import build_demo, check_syntax, verify_demo
+from seo_content.demo import JSDOM, build_demo, check_syntax, exercise_demo, verify_demo
 from seo_content.models import Demo, DemoCode, screen_demo_code
 from seo_content.novelty import Rejected
 from seo_content.pipeline import create_page, now, rebuild_demo
@@ -103,6 +103,104 @@ def test_check_syntax_rejects_broken_javascript():
     assert check_syntax("const a = 1;") is None
     with pytest.raises(Rejected, match="demo_syntax_error"):
         check_syntax("const a = ;")
+
+
+needs_jsdom = pytest.mark.skipif(
+    shutil.which("node") is None or not (JSDOM / "package.json").is_file(),
+    reason="node or jsdom (npm ci) is not installed",
+)
+# The bug that shipped: answers treated as an array (probabilities are objects).
+ITERATES_ANSWER = DEMO_JS.replace(
+    'visual.style.width = Math.round(answers.mood.noul * 100) + "%";',
+    'const [first] = answers.mood; visual.style.width = first + "%";',
+)
+
+
+@needs_jsdom
+def test_exercise_demo_accepts_a_working_demo():
+    assert exercise_demo(verify_demo(concept(), demo_code(), FakeProvider(), now)) is None
+
+
+@needs_jsdom
+def test_exercise_demo_rejects_a_render_error_on_real_answers():
+    demo = verify_demo(concept(), demo_code(), FakeProvider(), now)
+    assert ITERATES_ANSWER != DEMO_JS
+    expected = (
+        r"demo_runtime_error: sample 1 .* TypeError: object is not iterable.*demo js line \d+"
+    )
+    with pytest.raises(Rejected, match=expected):
+        exercise_demo(demo.model_copy(update={"js": ITERATES_ANSWER}))
+
+
+@needs_jsdom
+@pytest.mark.parametrize(
+    ("js", "message"),
+    [
+        (
+            "const button = document.getElementById('demo-run');",
+            "did not call TypeSafeDemo.evaluate",
+        ),
+        ("document.getElementById('missing').textContent = 'x';", "throws on load: TypeError"),
+        (
+            "document.getElementById('demo-run').addEventListener('click', () => "
+            "window.TypeSafeDemo.evaluate({})"
+            ".then((a) => a.mood.noul.toFixed(1), (e) => e.detail.x));",
+            "failed request: unhandled rejection TypeError",
+        ),
+    ],
+)
+def test_exercise_demo_reports_each_kind_of_failure(js, message):
+    demo = verify_demo(concept(), demo_code(), FakeProvider(), now)
+    with pytest.raises(Rejected, match=message):
+        exercise_demo(demo.model_copy(update={"js": js}))
+
+
+@needs_jsdom
+def test_exercise_demo_contains_code_that_escapes_jsdom(monkeypatch):
+    # jsdom is not a security boundary: demo code can reach Node's `process`. The permission
+    # model and the empty environment must still deny secrets, files and child processes.
+    monkeypatch.setenv("TYPESAFE_CONTENT_TOKEN_1", "secret-that-must-not-leak")
+    probe = (
+        "const g = document.constructor.constructor('return this')();"
+        "document.getElementById('demo-run').addEventListener('click', () => {"
+        "  window.TypeSafeDemo.evaluate({}).catch(() => {});"
+        "  const leaks = [];"
+        "  const p = g.process;"
+        "  if (p && p.env.TYPESAFE_CONTENT_TOKEN_1) leaks.push('env');"
+        f"  try {{ p.getBuiltinModule('fs').readFileSync({str(__file__)!r}); leaks.push('fs'); }}"
+        "  catch (e) {}"
+        "  try { p.getBuiltinModule('child_process').execSync('true'); leaks.push('child'); }"
+        "  catch (e) {}"
+        "  if (leaks.length) throw new Error('leaked ' + leaks.join(','));"
+        "});"
+    )
+    demo = verify_demo(concept(), demo_code(), FakeProvider(), now)
+    assert exercise_demo(demo.model_copy(update={"js": probe})) is None
+
+
+@needs_jsdom
+def test_build_demo_feeds_runtime_errors_back_to_the_model():
+    class BrokenFirst(FakeProvider):
+        def structured(self, schema, task, context, **options):
+            result = super().structured(schema, task, context, **options)
+            if schema is DemoCode and self.demo_attempts == 1:
+                return result.model_copy(update={"js": ITERATES_ANSWER})
+            return result
+
+    provider = BrokenFirst()
+    demo = build_demo(idea(), concept(), provider, now)
+    assert provider.demo_attempts == 2
+    assert "demo_runtime_error" in provider.demo_feedback[-1]
+    assert demo.js == DEMO_JS
+
+
+def test_demo_prompt_describes_real_answer_shapes():
+    from seo_content.demo import RUNTIME_CONTRACT
+
+    shapes = RUNTIME_CONTRACT["answer_shapes"]
+    assert shapes["example"]["pressure"]["probabilities"] == {"0": 0.01, "1": 0.19, "2": 0.8}
+    assert "never an array" in shapes["rules"] and "Math.round" in shapes["rules"]
+    assert "answer_shapes" in RUNTIME_CONTRACT["js"]
 
 
 def test_verify_demo_records_live_answers():

@@ -50,7 +50,9 @@ LLM7 writes plain HTML, CSS and vanilla JavaScript against a small host runtime.
 The code is screened statically (no scripts, styles, links, frames, forms, `src`,
 `fetch`, `eval`, `import`, storage, `location`, `postMessage` and similar), syntax
 checked with `node --check`, and its two to four sample inputs are executed against
-the real API with predicted expectations before the reviewer ever sees it. On the
+the real API with predicted expectations. The demo itself is then run in jsdom on each
+sample's real answers (and on a failed request); a runtime error, or a button that never
+calls the API, is fed back to the model, all before the reviewer ever sees it. On the
 site the demo runs in an `<iframe sandbox="allow-scripts">` with an opaque origin
 and a `Content-Security-Policy` of `default-src 'none'` plus `connect-src` for the
 API only; the host runtime `window.TypeSafeDemo` is the only way to call the API,

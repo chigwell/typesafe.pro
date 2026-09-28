@@ -1,5 +1,5 @@
 import { Script } from "node:vm";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildDemoDocument, demoCsp } from "./demo-document";
 import { DEMO_RUNTIME } from "./demo-runtime";
 import { useCaseDemoFixture } from "@/test/use-case-fixture";
@@ -40,5 +40,38 @@ describe("sandboxed demo document", () => {
     expect(DEMO_RUNTIME).toContain("/v1/systemone");
     expect(DEMO_RUNTIME).toContain('credentials: "omit"');
     expect(DEMO_RUNTIME).toContain("typesafe-demo:height");
+  });
+
+  describe("runtime error messages", () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      delete (window as { TypeSafeDemo?: unknown }).TypeSafeDemo;
+    });
+    const runtime = () => {
+      new Function(DEMO_RUNTIME)();
+      return (window as unknown as { TypeSafeDemo: { evaluate(state: unknown): Promise<unknown>; describeError(error: unknown): string } }).TypeSafeDemo;
+    };
+
+    it("reports a rejected fetch as unreachable", async () => {
+      vi.stubGlobal("fetch", () => Promise.reject(new TypeError("Failed to fetch")));
+      const demo = runtime();
+      const error = await demo.evaluate({ text: "hi" }).catch((failure) => failure);
+      expect(demo.describeError(error)).toBe("The API could not be reached. Check your connection and try again.");
+    });
+
+    it("does not blame the network for a bug in the demo's own code", () => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      const demo = runtime();
+      let bug: unknown;
+      try {
+        Math.max(...({ 0: 0.2, 1: 0.8 } as unknown as number[]));
+      } catch (error) {
+        bug = error;
+      }
+      expect(demo.describeError(bug)).toBe("The demo could not display this result.");
+      expect(consoleError).toHaveBeenCalledWith(bug);
+      expect(demo.describeError(new Error("The free rate limit was reached. Try again in a minute."))).toContain("rate limit");
+      consoleError.mockRestore();
+    });
   });
 });

@@ -24,6 +24,8 @@ from .novelty import Rejected
 from .providers import StageError
 
 REFERENCE = (Path(__file__).parent / "reference.md").read_text()
+HARNESS = Path(__file__).parent / "demo_harness.mjs"
+JSDOM = Path(__file__).resolve().parents[3] / "node_modules" / "jsdom"
 # Single source for the demo brand kit, shared with the website that injects its CSS.
 BRAND_FILE = (
     Path(__file__).resolve().parents[3] / "apps" / "web" / "src" / "lib" / "demo-brand.json"
@@ -62,9 +64,8 @@ RUNTIME_CONTRACT = {
         "[{state, description, answers}] for pre-filling or an offline preview.\n"
         "window.TypeSafeDemo.evaluate(state) -> Promise<answers>: sends "
         "{model:'jev-latest', state, questions} to the live API and resolves with the "
-        "answers object keyed by question ID (choice answers have choice, probabilities, "
-        "confidence; noul answers have noul in [0,1]; score answers have score, "
-        "probabilities, confidence, legend). A new call aborts the previous one.\n"
+        "answers object keyed by question ID (exact shapes in `answer_shapes`). A new call "
+        "aborts the previous one.\n"
         "window.TypeSafeDemo.describeError(error) -> string: a short human message.\n"
         "window.TypeSafeDemo.onTheme(callback): callback('light'|'dark') now and on change.\n"
         "Rules: send a request only when the visitor presses the button or Enter, never on "
@@ -72,6 +73,45 @@ RUNTIME_CONTRACT = {
         "request is in flight. Show describeError(error) in the status element on failure. "
         "Do not use eval, Function, import, fetch, XMLHttpRequest, WebSocket, storage, "
         "cookies, location, postMessage, window.parent/top or document.write."
+    ),
+    # Real API answers (question IDs are examples). Generated demos used to treat
+    # `probabilities` as an array and `score` as an integer index; both crash at runtime.
+    "answer_shapes": {
+        "example": {
+            "kind": {
+                "type": "choice",
+                "choice": "spam",
+                "confidence": 0.97,
+                "probabilities": {"spam": 0.97, "ham": 0.03},
+            },
+            "urgent": {"type": "noul", "noul": 0.9},
+            "pressure": {
+                "type": "score",
+                "score": 1.79,
+                "confidence": 0.68,
+                "legend": {"0": "none", "1": "some", "2": "heavy"},
+                "probabilities": {"0": 0.01, "1": 0.19, "2": 0.8},
+            },
+        },
+        "rules": (
+            "`probabilities` is always a plain OBJECT, never an array: keyed by the choice "
+            'label for Choice and by the level index as a string ("0", "1", …) for '
+            "Score. Read it with Object.entries/Object.keys or by key (probabilities[label], "
+            "probabilities[String(level)]); never spread it, index it by position or call "
+            "array methods on it. Score `score` is a real-valued expected level (e.g. 1.79), "
+            "not an integer: use Math.round(score) (clamped to 0..levels-1) or the level with "
+            "the highest probability to pick a label, and the raw value for gauges. `legend` "
+            "maps the same string keys to the criteria. Every probability is in [0, 1]. The "
+            "saved answers in TypeSafeDemo.samples have exactly these shapes."
+        ),
+    },
+    "verification": (
+        "Before a person sees the demo, the script is run in a DOM for each sample: the "
+        'sample\'s ts-chip (data-sample="<index>") is clicked, or empty inputs are filled '
+        "from its state, then the main ts-btn is pressed and evaluate() resolves with the "
+        "sample's real answers. The button must call evaluate() and rendering the answers "
+        "must not throw or reach describeError; a rejected evaluate() must only show the "
+        "message in the status element."
     ),
 }
 
@@ -173,6 +213,65 @@ def check_syntax(js: str) -> str | None:
     return None
 
 
+def exercise_demo(demo: Demo) -> str | None:
+    """Run the demo in jsdom on its verified answers; raise Rejected on any runtime error.
+
+    The code is model-written, so Node runs it under its permission model (read access
+    only to the harness and jsdom; no writes, child processes or network) with an empty
+    environment. Returns a warning when this check cannot run on this machine.
+    """
+    node = shutil.which("node")
+    if node is None:
+        return "node is not installed; the demo was not exercised"
+    if not (JSDOM / "package.json").is_file():
+        return "jsdom is missing (run `npm ci`); the demo was not exercised"
+    payload = {
+        "html": demo.html,
+        "js": demo.js,
+        "questions": {key: q.model_dump(exclude_none=True) for key, q in demo.questions.items()},
+        "samples": [
+            {
+                "state": sample.request.state,
+                "description": sample.description,
+                "answers": {
+                    key: answer.model_dump(mode="json")
+                    for key, answer in sample.response.answers.items()
+                },
+            }
+            for sample in demo.samples
+        ],
+    }
+    command = [
+        node,
+        "--permission",
+        f"--allow-fs-read={HARNESS}",
+        f"--allow-fs-read={JSDOM.parent}/*",
+        str(HARNESS),
+        str(JSDOM),
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env={},
+        )
+    except subprocess.TimeoutExpired:
+        raise Rejected("demo_runtime_error: the demo did not finish within 60 s") from None
+    except (OSError, subprocess.SubprocessError):
+        return "the demo harness could not run; the demo was not exercised"
+    if result.returncode != 0:
+        if "--permission" in result.stderr or "bad option" in result.stderr:
+            return "this Node has no permission model (need Node 22+); the demo was not exercised"
+        return "the demo harness failed; the demo was not exercised"
+    errors = json.loads(result.stdout or "{}").get("errors", [])
+    if errors:
+        raise Rejected("demo_runtime_error: " + " | ".join(errors)[:900])
+    return None
+
+
 MIN_SAMPLES = 2
 
 
@@ -238,7 +337,11 @@ def build_demo(idea: Idea, concept: DemoConcept, provider, now, feedback=(), war
             warning = check_syntax(code.js)
             if warning and warn:
                 warn(warning)
-            return verify_demo(concept, code, provider, now)
+            demo = verify_demo(concept, code, provider, now)
+            warning = exercise_demo(demo)
+            if warning and warn:
+                warn(warning)
+            return demo
         except (Rejected, StageError) as exc:
             if attempt == 2:
                 raise

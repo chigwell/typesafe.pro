@@ -40,7 +40,12 @@ export const DEMO_RUNTIME = String.raw`(function () {
     if (!error) return "Something went wrong.";
     if (error.superseded) return "Replaced by a newer request.";
     if (error.name === "AbortError") return "The request timed out. Try again.";
-    if (error.name === "TypeError") return "The API could not be reached. Check your connection and try again.";
+    // Only a rejected fetch() is a network failure; any other TypeError is a bug in the demo.
+    if (error.network) return "The API could not be reached. Check your connection and try again.";
+    if (/^(?:TypeError|ReferenceError|RangeError)$/.test(error.name)) {
+      if (window.console) console.error(error);
+      return "The demo could not display this result.";
+    }
     return String(error.message || error);
   }
 
@@ -66,6 +71,9 @@ export const DEMO_RUNTIME = String.raw`(function () {
       cache: "no-store",
       redirect: "error",
       referrerPolicy: "no-referrer"
+    }).catch(function (error) {
+      if (error && error.name === "TypeError") error.network = true;
+      throw error;
     }).then(function (response) {
       if (!response.ok) {
         var failure = new Error(httpMessage(response.status, response.headers.get("Retry-After")));
