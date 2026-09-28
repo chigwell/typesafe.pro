@@ -3,7 +3,7 @@ import subprocess
 import time
 
 import pytest
-from conftest import FakeProvider
+from conftest import FakeFeed, FakeProvider, idea
 
 from seo_content.catalog import Catalog, CatalogError, atomic_write, canonical, sha256
 from seo_content.providers import Budget
@@ -86,7 +86,7 @@ def session(repo, answers, **options):
         out=lines.append,
         clock_url=None,
         sleep=lambda seconds: None,
-        **{"max_pages": 1, "session_id": "local-test", **options},
+        **{"max_pages": 1, "session_id": "local-test", "inspiration": FakeFeed(), **options},
     )
     review.lines = lines
     review.providers = providers
@@ -265,7 +265,7 @@ def test_duplicates_are_hidden_and_similar_ideas_flagged(repo):
     review = session(repo, ["q"])
     review.provider_factory = lambda budget: ScriptedNovelty(budget, [0.9, 0.9, 0.5])
     report = review.run()
-    shown = [line for line in review.lines if line[:3].strip().rstrip(".").isdigit()]
+    shown = [line for line in review.lines if ". route-workshop-" in line]
     assert len(shown) == 7
     assert any("Hid 2 idea(s)" in line for line in review.lines)
     assert any(
@@ -277,7 +277,8 @@ def test_duplicates_are_hidden_and_similar_ideas_flagged(repo):
 
 def test_reviewer_can_accept_a_partly_similar_idea(repo):
     seeded(repo)
-    review = session(repo, ["1", "1", "a"])
+    # Partly similar ideas are listed after the clearly new ones (9 candidates here).
+    review = session(repo, ["9", "1", "a"])
     review.provider_factory = lambda budget: ScriptedNovelty(budget, [0.5])
     review.run()
     pages = Catalog(repo / "content" / "use-cases").pages
@@ -299,7 +300,7 @@ def test_only_duplicates_request_a_new_round_automatically(repo):
     review = session(repo, ["q"])
     review.provider_factory = lambda budget: ScriptedNovelty(budget, [0.95] * 10)
     review.run()
-    assert any("every idea duplicated the catalog" in line for line in review.lines)
+    assert any("no new ideas survived" in line for line in review.lines)
     assert any("round 2" in line for line in review.lines)
 
 
@@ -309,7 +310,7 @@ def test_transient_provider_failures_are_retried(repo):
     class Flaky(FakeProvider):
         failures = 2
 
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             if self.failures:
                 self.failures -= 1
                 error = ProviderError("llm_provider_unavailable")
@@ -329,7 +330,7 @@ def test_persistent_provider_failure_asks_and_can_quit(repo):
     from seo_content.providers import ProviderError
 
     class Down(FakeProvider):
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             raise ProviderError("llm_provider_unavailable")
 
     review = session(repo, ["q"])
@@ -343,7 +344,7 @@ def test_credentials_errors_are_not_retried(repo):
     from seo_content.providers import ProviderError
 
     class Unauthorized(FakeProvider):
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             raise ProviderError("provider_http_401", retryable=False)
 
     review = session(repo, [])
@@ -367,8 +368,10 @@ def test_failed_page_is_retried_automatically_once(repo):
     review.provider_factory = QualityOnce
     report = review.run()
     assert report.approved_count == 1
-    assert report.rejections == {"quality_threshold_failed": 1}
-    assert any("Retrying automatically" in line for line in review.lines)
+    # A low quality score is now repaired in place instead of regenerating the page.
+    assert report.rejections == {}
+    assert any("revising the text" in line for line in review.lines)
+    assert not any("Retrying automatically" in line for line in review.lines)
 
 
 def test_budget_pause_excludes_reviewer_time():
@@ -440,7 +443,7 @@ def test_ctrl_c_during_generation_ends_cleanly(repo):
     from seo_content.models import DemoCode
 
     class Interrupted(FakeProvider):
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             if schema is DemoCode:
                 raise KeyboardInterrupt
             return super().structured(schema, task, context)
@@ -466,3 +469,111 @@ def test_progress_is_printed_for_each_stage(repo):
     ):
         assert f"· {label}" in text
     assert "Ctrl+C" in text
+
+
+def test_headlines_seed_each_round_and_are_shown(repo):
+    feed = FakeFeed()
+    review = session(repo, ["n", "q"], inspiration=feed)
+    review.run()
+    text = "\n".join(review.lines)
+    assert "Inspiration (test headlines):" in text
+    assert "1. Headline 1-0" in text and "1. Headline 2-0" in text
+    assert "↳ from: Headline 1-" in text
+    assert feed.calls == 2
+    contexts = review.providers[0].idea_contexts
+    assert [h["title"] for h in contexts[0]["inspiration"]][:2] == ["Headline 1-0", "Headline 1-1"]
+    assert contexts[1]["inspiration"][0]["title"] == "Headline 2-0"
+    assert contexts[1]["already_proposed"], "second round must see the first round's ideas"
+
+
+def test_hacker_news_outage_falls_back_to_words(repo):
+    review = session(repo, ["q"], inspiration=FakeFeed(fail=True))
+    report = review.run()
+    assert any("unavailable (offline); using random words" in line for line in review.lines)
+    assert report.inspiration_source == "words"
+    assert len(review.providers[0].idea_contexts[0]["inspiration"]) == 5
+
+
+def test_draft_records_its_inspiration_and_catalog_gets_plain_idea(repo):
+    session(repo, ["1", "1", "q"]).run()
+    draft = json.loads(
+        next((repo / "content" / "use-cases" / "drafts").glob("*.json")).read_bytes()
+    )
+    assert draft["inspiration"]["title"].startswith("Headline 1-")
+    assert "inspired_by" not in draft["idea"] and "inspired_by" not in draft["page"]
+
+
+def test_near_identical_ideas_are_hidden_before_duplicate_checks(repo):
+    from seo_content.models import IdeaCandidate, Ideas
+
+    class Clones(FakeProvider):
+        def structured(self, schema, task, context, **options):
+            if schema is Ideas:
+                self.idea_contexts.append(context)
+                base = [IdeaCandidate(**idea(1).model_dump())]
+                twins = [
+                    IdeaCandidate(
+                        **idea(1).model_dump()
+                        | {"slug": f"route-workshop-copy-{i}", "problem": f"Other {i} problem."}
+                    )
+                    for i in range(4)
+                ]
+                others = [IdeaCandidate(**idea(20 + i).model_dump()) for i in range(5)]
+                return Ideas(ideas=base + twins + others)
+            return super().structured(schema, task, context, **options)
+
+    review = session(repo, ["q"])
+    review.provider_factory = Clones
+    report = review.run()
+    assert report.rejections.get("low_diversity") == 4
+    assert any("Hid 4 near-identical idea(s)" in line for line in review.lines)
+
+
+def test_too_few_clean_ideas_trigger_extra_rounds_with_feedback(repo):
+    seeded(repo)
+    review = session(repo, ["q"])
+    # Every idea of the first two rounds is partly similar; the third round is clean.
+    made = []
+    review.provider_factory = lambda budget: (
+        made.append(ScriptedNovelty(budget, [0.5] * 18)) or made[-1]
+    )
+    review.run()
+    text = "\n".join(review.lines)
+    assert "Only 0 clearly new idea(s); asking for more with feedback (1/2)" in text
+    contexts = made[0].idea_contexts
+    assert len(contexts) == 3
+    near = contexts[1]["too_similar_last_time"]
+    assert near and near[0]["too_similar_to"]["summary"].startswith("Dispatch case10")
+    first = next(i for i, line in enumerate(review.lines) if line.startswith(" 1. "))
+    assert "partly similar" not in review.lines[first + 2]
+
+
+def test_unfocused_ideas_are_hidden_and_best_shown_first(repo):
+    class Focus(FakeProvider):
+        def evaluate(self, request):
+            response = super().evaluate(request)
+            for key, answer in response.answers.items():
+                if key.startswith("focused_"):
+                    index = int(key.split("_")[1])
+                    answer.noul = 0.2 if index < 3 else 0.5 + index / 20
+            return response
+
+    review = session(repo, ["q"])
+    review.provider_factory = Focus
+    report = review.run()
+    assert report.rejections.get("unfocused") == 3
+    assert any("Hid 3 unfocused idea(s)." in line for line in review.lines)
+    offers = [line for line in review.lines if ". route-workshop-" in line]
+    assert offers[0].startswith(" 1. route-workshop-19")
+
+
+def test_long_candidate_lists_are_capped_with_more(repo):
+    seeded(repo)
+    review = session(repo, ["m", "q"])
+    # Two partly similar rounds plus a third: far more than twelve candidates.
+    review.provider_factory = lambda budget: ScriptedNovelty(budget, [0.5] * 27)
+    review.run()
+    first = review.lines.index(next(line for line in review.lines if line.startswith(" 1. ")))
+    listing = [line for line in review.lines[first:] if ". route-workshop-" in line]
+    assert any("more partly similar idea(s): press m" in line for line in review.lines)
+    assert any(line.startswith("13. ") for line in listing)

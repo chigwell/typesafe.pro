@@ -30,7 +30,8 @@ npm run content:review -- --resume
 Options: `--max-pages` (approvals per session, 1–20, default 5), `--resume` (review
 pending drafts first), `--auto-select` (take every idea and the first demo concept),
 `--dev-url`, `--no-browser`, `--no-dev-server`, `--max-calls`, `--max-minutes`,
-`--session-id` (must match `^[A-Za-z0-9_.-]+$`; each approval gets `<session>-<n>`).
+`--inspiration hn|words|none` (idea seeds; default: the 5 newest Hacker News titles per
+round), `--headlines N`, `--session-id` (must match `^[A-Za-z0-9_.-]+$`; each approval gets `<session>-<n>`).
 To use a disposable catalog, put `--content-dir /tmp/catalog` before the subcommand;
 the directory must be `content/use-cases` inside a Git repository.
 

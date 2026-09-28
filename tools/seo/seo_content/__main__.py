@@ -32,6 +32,13 @@ def main():
     review.add_argument("--max-calls", type=int, default=400)
     review.add_argument("--max-minutes", type=float, default=60)
     review.add_argument("--session-id", default=None)
+    review.add_argument(
+        "--inspiration",
+        choices=["hn", "words", "none"],
+        default="hn",
+        help="Idea seeds: newest Hacker News titles (default), random words, or none",
+    )
+    review.add_argument("--headlines", type=int, default=5, help="Seeds per idea round (1–10)")
     args = parser.parse_args()
     try:
         if args.command == "validate":
@@ -50,6 +57,8 @@ def main():
             open_browser=not args.no_browser,
             auto_select=args.auto_select,
             max_pages=args.max_pages,
+            inspiration=args.inspiration,
+            headlines=min(max(args.headlines, 1), 10),
         )
         report = session.run(resume=args.resume)
         return 0 if report.approved_count or report.skipped_count else 2

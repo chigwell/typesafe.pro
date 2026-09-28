@@ -187,6 +187,17 @@ def fallback_json(content: str | None) -> str | None:
     return None
 
 
+class _Sampler:
+    """llmatch duck-typed adapter that forwards an optional sampling temperature."""
+
+    def __init__(self, provider, temperature):
+        self.provider = provider
+        self.temperature = temperature
+
+    def invoke(self, messages):
+        return self.provider.invoke(messages, self.temperature)
+
+
 class Providers:
     def __init__(self, budget: Budget, client=None):
         self.budget = budget
@@ -255,7 +266,7 @@ class Providers:
             if self.budget.on_update:
                 self.budget.on_update()
 
-    def invoke(self, messages):
+    def invoke(self, messages, temperature=None):
         """The llmatch duck-typed LLM adapter intentionally has no nested retry loop."""
         roles = {"human": "user", "ai": "assistant", "system": "system"}
         try:
@@ -266,6 +277,7 @@ class Providers:
                     "model": self.llm_model,
                     "messages": [{"role": roles[m.type], "content": m.content} for m in messages],
                     "max_tokens": 10000,
+                    **({} if temperature is None else {"temperature": temperature}),
                 },
                 seconds=LLM_CALL_SECONDS,
             )
@@ -279,7 +291,9 @@ class Providers:
             self.last_error = ProviderError("invalid_llm_response")
             raise self.last_error from None
 
-    def structured(self, schema: type[BaseModel], task: str, context: dict) -> BaseModel:
+    def structured(
+        self, schema: type[BaseModel], task: str, context: dict, temperature: float | None = None
+    ) -> BaseModel:
         messages = [
             SystemMessage(
                 content=(
@@ -303,7 +317,7 @@ class Providers:
             # The package loops <= max_retries, so 0 means exactly ONE call.
             result = llmatch(
                 messages=messages,
-                llm=self,
+                llm=_Sampler(self, temperature),
                 pattern=r"<json>\s*(.*?)\s*</json>",
                 max_retries=0,
                 verbose=False,

@@ -13,24 +13,35 @@ def test_propose_ideas_passes_recent_and_skipped_context():
     class Capture(FakeProvider):
         captured = None
         task = ""
+        options = None
 
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             self.captured = context
             self.task = task
+            self.options = options
             return super().structured(schema, task, context)
 
+    from seo_content.inspiration import Headline
+
     provider = Capture()
-    ideas = propose_ideas([], provider, random.Random(1), [{"summary": "Old idea"}])
+    headlines = [Headline(i, f"Title {i}", None, "hn") for i in range(5)]
+    ideas = propose_ideas(
+        [idea(3)], provider, random.Random(1), [{"summary": "Old idea"}], [], headlines
+    )
     assert len(ideas.ideas) == 10
     assert provider.captured["skipped_scenarios"] == [{"summary": "Old idea"}]
-    assert provider.captured["existing_scenarios"] == []
-    assert len(provider.captured["random_words"]) == 5
-    assert "skipped_scenarios" in provider.task and "visual demo" in provider.task
+    assert provider.captured["existing_scenarios"][0]["slug"] == "route-workshop-3"
+    assert provider.captured["inspiration"][4] == {"index": 4, "title": "Title 4"}
+    assert provider.captured["avoid_task_types"] == ["intent-routing-3"]
+    assert "inspired_by" in provider.task and "never mention Hacker News" in provider.task
+    # The fixed topic list made every round converge on the same themes.
+    assert "spicy" not in provider.task and "music, food" not in provider.task
+    assert provider.options == {"temperature": 1.0}
 
 
 def test_invalid_ideas_raise_stage_error():
     class BadIdeas(FakeProvider):
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             raise StageError("llm_stage_failed")
 
     with pytest.raises(StageError):
@@ -41,7 +52,7 @@ def test_feedback_reaches_every_stage():
     seen = []
 
     class Capture(FakeProvider):
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             seen.append(context["reviewer_feedback"])
             return super().structured(schema, task, context)
 
@@ -75,7 +86,7 @@ def test_same_summary_slug_or_fingerprint_rejected():
 
 def test_bm25_includes_all_matching_task_types():
     existing = [idea(i).model_copy(update={"task_type": "different-task"}) for i in range(250)]
-    existing[248] = existing[248].model_copy(update={"task_type": "intent-routing"})
+    existing[248] = existing[248].model_copy(update={"task_type": idea(999).task_type})
     selected = shortlist(idea(999), existing)
     assert existing[248] in selected
     assert len(selected) <= 31
@@ -157,7 +168,7 @@ def test_failed_examples_are_repaired_with_actual_answers():
         example_calls = 0
         repair_context = None
 
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             if "failed_examples" in context:
                 self.repair_context = context
                 self.example_probability = 0.95
@@ -188,3 +199,40 @@ def test_uncertain_novelty_allowed_only_for_reviewer():
     provider.duplicate_probability = 0.85
     with pytest.raises(Rejected, match="semantic_duplicate"):
         check_novelty(idea(2), [idea(1)], provider, allow_uncertain=True)
+
+
+def test_failed_quality_check_repairs_prose_but_keeps_verified_examples():
+    class LowConsistencyOnce(FakeProvider):
+        judged = 0
+
+        def evaluate(self, request):
+            if "useful" in request.questions:
+                self.judged += 1
+                self.quality_probability = 0.95
+                response = super().evaluate(request)
+                if self.judged == 1:
+                    response.answers["consistent"].noul = 0.78
+                return response
+            return super().evaluate(request)
+
+    provider = LowConsistencyOnce()
+    warnings = []
+    page = create_page(idea(1), 0.95, provider, warn=warnings.append)
+    assert provider.judged == 2
+    failed = provider.repairs[0]
+    assert [item["check"] for item in failed] == ["consistent"]
+    assert failed[0]["score"] == 0.78 and "saved request/response" in failed[0]["question"]
+    assert [e.name for e in page.examples] == [
+        f"Revised {k}" for k in ("primary", "alternative", "edge")
+    ]
+    assert all(e.response.answers["repair"].noul == 0.95 for e in page.examples)
+    assert page.verification.quality.consistent == 0.95
+    assert any("consistent=0.78" in w for w in warnings)
+
+
+def test_quality_gives_up_after_two_repairs():
+    provider = FakeProvider()
+    provider.quality_probability = 0.5
+    with pytest.raises(Rejected, match="quality_threshold_failed: useful=0.50"):
+        create_page(idea(1), 0.95, provider)
+    assert len(provider.repairs) == 2

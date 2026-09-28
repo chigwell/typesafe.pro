@@ -70,6 +70,7 @@ class RunReport(StrictModel):
     mode: Literal["batch", "review"] | None = None
     approved_count: Count | None = None
     skipped_count: Count | None = None
+    inspiration_source: Literal["hn", "words", "none"] | None = None
 
     @model_validator(mode="after")
     def dates(self):

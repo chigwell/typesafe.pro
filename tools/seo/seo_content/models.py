@@ -229,8 +229,17 @@ class Idea(StrictModel):
     action: Short
 
 
+class IdeaCandidate(Idea):
+    """A proposed idea plus the index of the inspiration headline it grew from (-1: none).
+
+    Only the Idea fields enter the catalog, so indexes and fingerprints are unchanged.
+    """
+
+    inspired_by: Annotated[int, Field(ge=-1, le=20)] = -1
+
+
 class Ideas(StrictModel):
-    ideas: Annotated[list[Idea], Field(min_length=10, max_length=10)]
+    ideas: Annotated[list[IdeaCandidate], Field(min_length=10, max_length=10)]
 
 
 class Description(StrictModel):
@@ -268,6 +277,27 @@ class Explanation(StrictModel):
 class SEO(StrictModel):
     title: Annotated[str, Field(min_length=20, max_length=75), AfterValidator(nonblank)]
     description: Annotated[str, Field(min_length=70, max_length=175), AfterValidator(nonblank)]
+
+
+class ExampleWording(StrictModel):
+    kind: Literal["primary", "alternative", "edge"]
+    name: Short
+    expected_description: Short
+
+
+class ArticleRepair(StrictModel):
+    """Revised prose for a page that failed a quality check; verified examples stay fixed."""
+
+    description: Description
+    explanation: Explanation
+    seo: SEO
+    examples: Annotated[list[ExampleWording], Field(min_length=3, max_length=3)]
+
+    @model_validator(mode="after")
+    def one_per_kind(self):
+        if {item.kind for item in self.examples} != {"primary", "alternative", "edge"}:
+            raise ValueError("exactly one wording per example kind is required")
+        return self
 
 
 class Quality(StrictModel):
@@ -529,3 +559,4 @@ class Report(StrictModel):
     mode: Literal["batch", "review"] = "batch"
     approved_count: int = 0
     skipped_count: int = 0
+    inspiration_source: Literal["hn", "words", "none"] | None = None

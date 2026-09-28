@@ -188,6 +188,8 @@ def test_manifest_and_report_validation():
         run_report() | {"mode": "review", "approved_count": 2, "skipped_count": 1}
     )
     assert reviewed.mode == "review" and reviewed.approved_count == 2
+    seeded = RunReport.model_validate(run_report() | {"inspiration_source": "hn"})
+    assert seeded.inspiration_source == "hn"
     with pytest.raises(ValidationError):
         RunReport.model_validate(run_report() | {"mode": "manual"})
 

@@ -73,7 +73,9 @@ and the runtime stops reporting if the height keeps changing, so content sized f
 the frame cannot grow it forever.
 
 Defaults: ten ideas per round, three attempts per model stage, 240 s per LLM7 call,
-two automatic repairs of examples and of the demo using the live API answers, one
+two automatic repairs of examples and of the demo using the live API answers, up to
+two in-place prose repairs when a quality check scores below 0.8 (the model sees the
+failing rubric; verified examples stay fixed), one
 automatic page retry with the failure as feedback, transient provider errors
 (timeouts, 429, 5xx, Cloudflare 52x) retried after 10 s and 30 s before asking, 400 external calls and 60 minutes per review
 session (time spent waiting for the reviewer is excluded). Corrupt catalog data
@@ -103,7 +105,22 @@ npm run content:review   # add: -- --max-pages 1 --no-browser --resume --auto-se
 ```
 
 The session refuses to start while `content/use-cases` has uncommitted changes or a
-merge is in progress. It proposes ten ideas and checks each against the catalog
+merge is in progress. Each idea round is seeded by the five newest Hacker News
+story titles (Algolia API, Firebase API as a fallback; a title is never used twice in
+a session). Every idea must grow out of one title's domain, audience or situation,
+without mentioning the news, Hacker News, companies or people from it; titles are
+cleaned, truncated and passed as untrusted data, and they are stored only in the
+draft (`inspiration`) and as `inspiration_source` in the run report — never on a
+published page. The idea stage runs at temperature 1.0, asks for a rotating mix of
+Choice/Noul/Score decisions, and avoids the catalog's most frequent task types. If
+Hacker News is unreachable the session falls back to random words. Near-identical
+ideas (repeated task type or ≥ 0.5 word overlap with the catalog or earlier proposals)
+are hidden before any API call. Headlines are loose themes only: ideas must be one
+focused, everyday judgment on a sentence any visitor can type. One Jev request then
+scores how focused and relatable each idea is (below 0.5 is hidden; the best are listed
+first). When fewer than five clearly new ideas remain, the session asks again up to
+twice, telling the model which earlier ideas were too close to which existing page.
+It proposes ten ideas and checks each against the catalog
 before showing them: clear duplicates (probability ≥ 0.8) are hidden and a new round
 is requested automatically when none remain; partly similar ideas (0.2–0.8) are shown
 with the most similar page so you can decide. Unused ideas stay available after you

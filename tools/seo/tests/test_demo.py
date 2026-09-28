@@ -187,7 +187,7 @@ def test_demo_prompt_carries_the_brand_kit():
     captured = {}
 
     class Capture(FakeProvider):
-        def structured(self, schema, task, context):
+        def structured(self, schema, task, context, **options):
             if schema is DemoCode:
                 captured.update(context)
                 captured["task"] = task

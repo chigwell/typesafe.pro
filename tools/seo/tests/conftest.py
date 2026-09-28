@@ -3,6 +3,7 @@ import pytest
 from seo_content.catalog import atomic_write, canonical, sha256
 from seo_content.models import (
     SEO,
+    ArticleRepair,
     DemoCode,
     DemoConcept,
     DemoConcepts,
@@ -11,6 +12,7 @@ from seo_content.models import (
     EvaluationResponse,
     Explanation,
     Idea,
+    IdeaCandidate,
     Ideas,
 )
 from seo_content.pipeline import create_page
@@ -120,9 +122,9 @@ def idea(number=1):
         slug=f"route-workshop-{number}",
         industry="workshops",
         audience="developers",
-        task_type="intent-routing",
+        task_type=f"intent-routing-{number}",
         search_intent=f"Route workshop message {number}",
-        summary=f"Dispatch distinct workshop workflow {number}",
+        summary=f"Dispatch case{number} using alpha{number} beta{number} gamma{number}",
         problem=f"Workshop workflow {number} needs a particular semantic decision.",
         input_description=f"A fictional request for workflow {number}",
         decision=f"Select workshop action number {number}",
@@ -140,17 +142,25 @@ class FakeProvider:
         self.example_probability = 0.95
         self.quality_probability = 0.95
         self.demo_attempts = 0
+        self.idea_contexts = []
+        self.repairs = []
         self.demo_feedback = []
 
     def charge(self):
         if self.budget:
             self.budget.charge()
 
-    def structured(self, schema, task, context):
+    def structured(self, schema, task, context, **options):
         self.charge()
         if schema is Ideas:
             self.round += 1
-            return Ideas(ideas=[idea(self.round * 10 + i) for i in range(10)])
+            self.idea_contexts.append(context)
+            return Ideas(
+                ideas=[
+                    IdeaCandidate(**idea(self.round * 10 + i).model_dump(), inspired_by=i % 5)
+                    for i in range(10)
+                ]
+            )
         if schema is Description:
             return Description(
                 intro="A developer receives different workshop requests. " * 3,
@@ -189,6 +199,21 @@ class FakeProvider:
                 description="Build a workshop routing workflow with verified "
                 "TypeSafe requests and interactive examples for developers.",
             )
+        if schema is ArticleRepair:
+            self.repairs.append(context["failed_checks"])
+            return ArticleRepair(
+                description=context["description"],
+                explanation=context["explanation"],
+                seo=context["seo"],
+                examples=[
+                    {
+                        "kind": e["kind"],
+                        "name": f"Revised {e['kind']}",
+                        "expected_description": e["expected_description"],
+                    }
+                    for e in context["verified_examples"]
+                ],
+            )
         if schema is DemoConcepts:
             return DemoConcepts(concepts=[concept(i) for i in (1, 2, 3)])
         if schema is DemoCode:
@@ -219,3 +244,24 @@ def page():
 @pytest.fixture
 def demo_page():
     return create_page(idea(), 0.95, FakeProvider(), demo_concept=concept())
+
+
+class FakeFeed:
+    """Deterministic inspiration headlines; never touches the network."""
+
+    label = "test headlines"
+
+    def __init__(self, fail=False):
+        self.fail = fail
+        self.calls = 0
+
+    def next(self, n=5):
+        from seo_content.inspiration import Headline, InspirationUnavailable
+
+        self.calls += 1
+        if self.fail:
+            raise InspirationUnavailable("offline")
+        return [
+            Headline(self.calls * 100 + i, f"Headline {self.calls}-{i}", None, "hn")
+            for i in range(n)
+        ]

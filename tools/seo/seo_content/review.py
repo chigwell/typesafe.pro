@@ -24,14 +24,17 @@ from pydantic import ValidationError
 from .catalog import (
     Catalog,
     atomic_write,
+    compact,
     fingerprint,
+    normalized,
     release_page,
     sha256,
 )
 from .demo import propose_concepts
+from .inspiration import InspirationUnavailable, WordsFeed, feed_for
 from .models import DemoConcept, Idea, Page, Release, Report
 from .novelty import Rejected, novelty_scan
-from .pipeline import create_page, now, propose_ideas, rebuild_demo
+from .pipeline import create_page, focus_scores, now, propose_ideas, rebuild_demo
 from .providers import Budget, BudgetExhausted, ProviderError, Providers, StageError
 
 RUN_ID = re.compile(r"^[A-Za-z0-9_.-]{1,120}$")
@@ -40,6 +43,21 @@ MAX_IDEA_ROUNDS = 10
 RETRY_DELAYS = (10, 30)
 DUPLICATE = 0.8
 SIMILAR = 0.2
+NEAR_IDENTICAL = 0.5
+MIN_FOCUS = 0.5
+SHOWN = 12
+CLEAN_TARGET = 5
+EXTRA_ROUNDS = 2
+
+
+def words_of(idea) -> set[str]:
+    return set(normalized(f"{idea.slug.replace('-', ' ')} {idea.summary}").split())
+
+
+def jaccard(a: set[str], b: set[str]) -> float:
+    return len(a & b) / len(a | b) if a and b else 0.0
+
+
 LINE = "─" * 72
 
 
@@ -209,6 +227,7 @@ STAGES = {
     "Explanation": "writing the solution and limitations",
     "SEO": "writing title and meta description",
     "DemoCode": "writing the interactive demo",
+    "ArticleRepair": "revising the text to pass the quality check",
 }
 
 
@@ -231,17 +250,21 @@ class ProgressProvider:
             self.out(f"    done in {seconds:.0f}s")
         return result
 
-    def structured(self, schema, task, context):
+    def structured(self, schema, task, context, **options):
         label = STAGES.get(schema.__name__, schema.__name__)
         if schema.__name__ == "DraftExamples" and "failed_examples" in context:
             label = "repairing examples that the API answered differently"
         if schema.__name__ == "DemoCode" and "previous_attempt" in context:
             label = "revising the interactive demo"
-        return self._timed(label, lambda: self.provider.structured(schema, task, context))
+        return self._timed(
+            label, lambda: self.provider.structured(schema, task, context, **options)
+        )
 
     def evaluate(self, request):
         keys = list(request.questions)
         if any(key.startswith("duplicate_") for key in keys):
+            return self.provider.evaluate(request)
+        if any(key.startswith("focused_") for key in keys):
             return self.provider.evaluate(request)
         label = "judging page quality" if "useful" in keys else "running an input on the live API"
         return self._timed(label, lambda: self.provider.evaluate(request))
@@ -272,6 +295,8 @@ class ReviewSession:
         out=print,
         clock_url="https://api.typesafe.pro/health",
         sleep=time.sleep,
+        inspiration="hn",
+        headlines=5,
     ):
         self.content_dir = Path(content_dir).resolve()
         self.repo_root = Path(repo_root).resolve() if repo_root else self.content_dir.parents[1]
@@ -293,10 +318,18 @@ class ReviewSession:
         # stay available across selections until used, skipped or the session ends.
         self.pool: list[tuple[Idea, float, str | None]] = []
         self.proposed: list[dict] = []
+        self.proposed_before_round: list[dict] = []
+        self.headline_count = headlines
+        self.origins: dict[str, dict] = {}
+        self.focus: dict[str, float] = {}
+        self.near_misses: list[dict] = []
+        self.show_all = False
         self.git = Git(self.repo_root)
         self.started_at = now()
         self.seed = secrets.randbits(32)
         self.rng = random.Random(self.seed)
+        self.feed = feed_for(inspiration, self.rng) if isinstance(inspiration, str) else inspiration
+        self.inspiration_source = inspiration if isinstance(inspiration, str) else "hn"
         self.rounds = 0
         self.generated = 0
         self.approved = 0
@@ -470,6 +503,7 @@ class ReviewSession:
             rejections=dict(self.rejected),
             catalog_hash=self.catalog.manifest.catalog_hash,
             mode="review",
+            inspiration_source=self.inspiration_source,
             approved_count=self.approved,
             skipped_count=self.skipped,
         )
@@ -505,60 +539,166 @@ class ReviewSession:
         self.skipped += 1
         self.out(f"Skipped {idea.slug}.")
 
-    def fill_pool(self):
-        """Propose ideas and keep only those that are not duplicates of the catalog."""
-        while not self.pool:
-            if self.rounds >= MAX_IDEA_ROUNDS:
-                raise ReviewError("too many idea rounds; end the session and start again")
-            self.rounds += 1
-            self.out(f"\nProposing ideas (round {self.rounds}) ...")
-            skipped = self.skips()
-            try:
-                ideas = self.resilient(
-                    "Idea generation",
-                    lambda: propose_ideas(
-                        self.catalog.pages,
-                        self.provider,
-                        self.rng,
-                        [{k: s[k] for k in ("summary", "task_type", "decision")} for s in skipped],
-                        self.proposed[-60:],
-                    ),
-                )
-            except StageError:
-                self.rejected["idea_stage_failed"] += 1
-                self.warn("the model did not return valid ideas; trying another round")
+    def next_headlines(self) -> list:
+        try:
+            headlines = self.feed.next(self.headline_count)
+        except InspirationUnavailable as exc:
+            self.warn(f"{self.feed.label} unavailable ({exc}); using random words instead")
+            self.feed = WordsFeed(self.rng)
+            self.inspiration_source = "words"
+            headlines = self.feed.next(self.headline_count)
+        if headlines:
+            self.out(f"Inspiration ({self.feed.label}):")
+            for number, headline in enumerate(headlines, 1):
+                self.out(f"  {number}. {brief(headline.title, 100)}")
+        return headlines
+
+    def diverse(self, candidates: list[Idea]) -> list[Idea]:
+        """Drop near-identical ideas before spending API calls on duplicate checks."""
+        from .pipeline import frequent_task_types
+
+        avoid = {normalized(t) for t in frequent_task_types(self.catalog.pages, [])[:6]}
+        kept, types, seen = [], set(), [words_of(p) for p in self.catalog.pages]
+        seen += [
+            set(normalized(f"{x['slug'].replace('-', ' ')} {x['summary']}").split())
+            for x in self.proposed_before_round
+        ]
+        hidden = 0
+        for idea in candidates:
+            task = normalized(idea.task_type)
+            words = words_of(idea)
+            if (
+                task in types
+                or task in avoid
+                or any(jaccard(words, w) >= NEAR_IDENTICAL for w in seen)
+            ):
+                hidden += 1
+                self.rejected["low_diversity"] += 1
                 continue
-            taken = {p.slug for p in self.catalog.pages}
-            taken.update(d["slug"] for d in self.pending_draft_files())
-            skipped_prints = {s["fingerprint"] for s in skipped}
-            fresh = []
-            for idea in ideas.ideas:
-                self.proposed.append({"slug": idea.slug, "summary": idea.summary})
-                if idea.slug in taken or fingerprint(idea) in skipped_prints:
-                    continue
-                taken.add(idea.slug)
-                fresh.append(idea)
-            self.out(f"Checking {len(fresh)} ideas against the catalog for duplicates ...")
-            hidden = 0
-            for idea in fresh:
-                try:
-                    duplicate, similar = self.resilient(
-                        "Duplicate check",
-                        lambda idea=idea: novelty_scan(idea, self.catalog.pages, self.provider),
-                    )
-                except Rejected as exc:
-                    self.rejected[str(exc)] += 1
-                    hidden += 1
-                    continue
-                if duplicate >= DUPLICATE:
-                    self.rejected["semantic_duplicate"] += 1
-                    hidden += 1
-                    continue
-                self.pool.append((idea, 1 - duplicate, similar if duplicate > SIMILAR else None))
-            if hidden:
-                self.out(f"Hid {hidden} idea(s) that duplicate existing pages.")
+            types.add(task)
+            seen.append(words)
+            kept.append(idea)
+        if hidden:
+            self.out(f"Hid {hidden} near-identical idea(s).")
+        return kept
+
+    def fill_pool(self):
+        """Collect focused, diverse, novel ideas; ask again with feedback when too few."""
+        extra = 0
+        while not self.pool or self.clean_count() < CLEAN_TARGET:
+            if self.pool:
+                if extra >= EXTRA_ROUNDS:
+                    break
+                extra += 1
+                self.out(
+                    f"Only {self.clean_count()} clearly new idea(s); asking for more with "
+                    f"feedback ({extra}/{EXTRA_ROUNDS}) ..."
+                )
+            self.idea_round()
             if not self.pool:
-                self.warn("every idea duplicated the catalog; asking for new ones")
+                self.warn("no new ideas survived; asking for more")
+        # Clearly new ideas first (most focused first), then partly similar ones from the
+        # most to the least novel.
+        self.pool.sort(
+            key=lambda item: (
+                item[2] is not None,
+                -(self.focus.get(item[0].slug, 0) if item[2] is None else item[1]),
+            )
+        )
+
+    def clean_count(self) -> int:
+        return sum(1 for _, _, similar in self.pool if similar is None)
+
+    def idea_round(self):
+        if self.rounds >= MAX_IDEA_ROUNDS:
+            raise ReviewError("too many idea rounds; end the session and start again")
+        self.rounds += 1
+        self.out(f"\nProposing ideas (round {self.rounds}) ...")
+        headlines = self.next_headlines()
+        skipped = self.skips()
+        try:
+            ideas = self.resilient(
+                "Idea generation",
+                lambda: propose_ideas(
+                    self.catalog.pages,
+                    self.provider,
+                    self.rng,
+                    [{k: s[k] for k in ("summary", "task_type", "decision")} for s in skipped],
+                    self.proposed[-60:],
+                    headlines,
+                    self.near_misses[-20:],
+                ),
+            )
+        except StageError:
+            self.rejected["idea_stage_failed"] += 1
+            self.warn("the model did not return valid ideas; trying another round")
+            return
+        taken = {p.slug for p in self.catalog.pages}
+        taken.update(d["slug"] for d in self.pending_draft_files())
+        taken.update(item[0].slug for item in self.pool)
+        skipped_prints = {s["fingerprint"] for s in skipped}
+        self.proposed_before_round = list(self.proposed)
+        fresh = []
+        for candidate in ideas.ideas:
+            idea = Idea.model_validate(compact(candidate))
+            self.proposed.append(
+                {"slug": idea.slug, "summary": idea.summary, "task_type": idea.task_type}
+            )
+            if idea.slug in taken or fingerprint(idea) in skipped_prints:
+                continue
+            taken.add(idea.slug)
+            if 0 <= candidate.inspired_by < len(headlines):
+                self.origins[idea.slug] = headlines[candidate.inspired_by].as_dict()
+            fresh.append(idea)
+        fresh = self.focused(self.diverse(fresh))
+        self.out(f"Checking {len(fresh)} ideas against the catalog for duplicates ...")
+        hidden = 0
+        by_slug = {p.slug: p for p in self.catalog.pages}
+        for idea in fresh:
+            try:
+                duplicate, similar = self.resilient(
+                    "Duplicate check",
+                    lambda idea=idea: novelty_scan(idea, self.catalog.pages, self.provider),
+                )
+            except Rejected as exc:
+                self.rejected[str(exc)] += 1
+                hidden += 1
+                continue
+            if duplicate > SIMILAR and similar in by_slug:
+                page = by_slug[similar]
+                self.near_misses.append(
+                    {
+                        "idea": idea.summary,
+                        "decision": idea.decision,
+                        "too_similar_to": {"summary": page.summary, "decision": page.decision},
+                    }
+                )
+            if duplicate >= DUPLICATE:
+                self.rejected["semantic_duplicate"] += 1
+                hidden += 1
+                continue
+            self.pool.append((idea, 1 - duplicate, similar if duplicate > SIMILAR else None))
+        if hidden:
+            self.out(f"Hid {hidden} idea(s) that duplicate existing pages.")
+
+    def focused(self, ideas: list[Idea]) -> list[Idea]:
+        """Ask Jev how focused each idea is; hide vague or specialist ones (one request)."""
+        if not ideas:
+            return ideas
+        try:
+            scores = self.resilient("Focus check", lambda: focus_scores(ideas, self.provider))
+        except (StageError, ValueError):
+            return ideas
+        kept = []
+        for idea, score in zip(ideas, scores, strict=True):
+            self.focus[idea.slug] = score
+            if score >= MIN_FOCUS:
+                kept.append(idea)
+            else:
+                self.rejected["unfocused"] += 1
+        if len(kept) < len(ideas):
+            self.out(f"Hid {len(ideas) - len(kept)} unfocused idea(s).")
+        return kept
 
     def pick_candidate(self) -> tuple[Idea, float, str | None]:
         while True:
@@ -566,20 +706,33 @@ class ReviewSession:
             if self.auto_select:
                 return self.pool.pop(0)
             self.header("Candidate ideas")
-            for number, (idea, novelty, similar) in enumerate(self.pool, 1):
+            shown = self.pool if self.show_all else self.pool[:SHOWN]
+            for number, (idea, novelty, similar) in enumerate(shown, 1):
                 self.out(f"{number:>2}. {idea.slug}  [{idea.industry} · {idea.task_type}]")
                 self.out(f"    {brief(idea.summary, 110)}")
+                origin = self.origins.get(idea.slug)
+                if origin and origin["source"] == "hn":
+                    self.out(f"    ↳ from: {brief(origin['title'], 100)}")
                 if similar:
                     self.out(
                         f"    ⚠ partly similar to /use-cases/{similar} (novelty {novelty:.2f})"
                     )
-            answer = self.ask("Pick an idea [number], [n]ew ideas, [q]uit: ").lower()
+            more = len(self.pool) - len(shown)
+            if more:
+                self.out(f"… {more} more partly similar idea(s): press m to list them.")
+            options = "Pick an idea [number], [n]ew ideas, " + ("[m]ore, " if more else "")
+            answer = self.ask(options + "[q]uit: ").lower()
+            if answer == "m":
+                self.show_all = True
+                continue
             if answer == "q":
                 raise Quit()
             if answer == "n":
                 self.pool.clear()
+                self.show_all = False
                 continue
-            if answer.isdigit() and 1 <= int(answer) <= len(self.pool):
+            if answer.isdigit() and 1 <= int(answer) <= len(shown):
+                self.show_all = False
                 return self.pool.pop(int(answer) - 1)
             self.warn("no valid selection")
 
@@ -708,6 +861,8 @@ class ReviewSession:
             "concept": concept.model_dump(exclude_none=True),
             "page": page.model_dump(exclude_none=True),
             "feedback": feedback,
+            "inspiration": self.origins.get(page.slug)
+            or (self.read_draft(page.slug) or {}).get("inspiration"),
             "created_at": created_at or now(),
             "updated_at": now(),
         }
