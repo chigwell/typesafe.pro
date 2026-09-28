@@ -30,9 +30,18 @@ async function run(check) {
   return { ...check, problems, ms: Date.now() - started };
 }
 
+// A fresh deploy (and a new workers.dev subdomain) answers 404 for a short while.
+async function waitForHome(deadline = Date.now() + 120_000) {
+  for (;;) {
+    const response = await fetch(`${BASE}/`, { signal: AbortSignal.timeout(20_000) }).catch(() => null);
+    if (response?.ok || Date.now() > deadline) return response ? response.text() : "";
+    await new Promise((done) => setTimeout(done, 5000));
+  }
+}
+
 async function main() {
   // Next.js assets referenced by the homepage must come from the static assets binding.
-  const home = await (await fetch(`${BASE}/`, { signal: AbortSignal.timeout(20_000) })).text();
+  const home = await waitForHome();
   const asset = /\/_next\/static\/[^"']+\.js/.exec(home)?.[0];
   const all = asset ? [...checks, { path: asset, status: 200, type: "javascript" }] : checks;
 
