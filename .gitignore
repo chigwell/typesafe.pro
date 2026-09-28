@@ -247,3 +247,7 @@ coverage/
 
 # Local use-case review drafts (pending previews, never published)
 content/use-cases/drafts/
+
+# OpenNext (Cloudflare Workers) build output
+.open-next/
+apps/web/.open-next/

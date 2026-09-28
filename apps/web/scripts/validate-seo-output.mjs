@@ -1,9 +1,11 @@
 #!/usr/bin/env node
-import { readdir, readFile, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
-
-const ROOT = resolve(new URL("..", import.meta.url).pathname);
-const OUT = resolve(ROOT, "out");
+// Validates the rendered site over HTTP: a local `npm run preview` or a deployed Worker.
+// Usage: node scripts/validate-seo-output.mjs [base-url] [--all]
+// Use-case pages come from the content API; without --all a sample of them is checked.
+const args = process.argv.slice(2);
+const BASE = (args.find((arg) => !arg.startsWith("--")) ?? process.env.WEB_URL ?? "http://localhost:8787").replace(/\/+$/, "");
+const API = (process.env.TYPESAFE_API_BASE ?? "https://api.typesafe.pro").replace(/\/+$/, "");
+const SAMPLE = args.includes("--all") ? Infinity : 25;
 const SITE_URL = "https://typesafe.pro";
 const GOOGLE_ADS_ID = "AW-18465939418";
 const errors = [];
@@ -37,53 +39,33 @@ function htmlDecode(value) {
     .replace(/&gt;/g, ">");
 }
 
-async function exists(path) {
-  try {
-    const info = await stat(path);
-    return info.isFile() ? info : null;
-  } catch {
-    return null;
-  }
-}
-
-async function walkFiles(dir) {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...(await walkFiles(path)));
-    else files.push(path);
-  }
-  return files;
-}
-
-async function exportedFileForUrl(urlValue) {
-  const url = new URL(htmlDecode(urlValue), SITE_URL);
-  const pathname = decodeURIComponent(url.pathname).replace(/^\//, "");
-  const candidates = [
-    resolve(OUT, pathname),
-    resolve(OUT, `${pathname}.png`),
-    resolve(OUT, pathname, "index.html"),
-    resolve(OUT, pathname, "index.png"),
-  ];
-
-  for (const candidate of candidates) {
-    const info = await exists(candidate);
-    if (info) return { path: candidate, info };
-  }
-
-  const base = pathname.split("/").pop();
-  if (!base) return null;
-  const files = await walkFiles(OUT);
-  for (const file of files) {
-    if (file.split("/").pop()?.startsWith(base)) {
-      const info = await exists(file);
-      if (info) return { path: file, info };
+async function get(url, { redirect = "follow" } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const response = await fetch(url, { redirect, headers: { "User-Agent": "typesafe-seo-validator" }, signal: AbortSignal.timeout(20_000) });
+      if (response.status >= 500 && attempt < 3) throw new Error(`HTTP ${response.status}`);
+      return response;
+    } catch (error) {
+      if (attempt >= 3) throw new Error(`${url}: ${error instanceof Error ? error.message : error}`);
+      await new Promise((done) => setTimeout(done, attempt * 2000));
     }
   }
-
-  return null;
 }
+
+async function text(path) {
+  const response = await get(`${BASE}${path}`);
+  assert(response.ok, `${path}: HTTP ${response.status}`);
+  return { body: await response.text(), response };
+}
+
+async function apiJson(path) {
+  const response = await get(`${API}${path}`);
+  if (!response.ok) throw new Error(`Content API ${path}: HTTP ${response.status}`);
+  return response.json();
+}
+
+/** Site URLs are absolute on typesafe.pro; fetch the same path from the site under test. */
+const local = (url) => new URL(htmlDecode(url), SITE_URL).pathname;
 
 function assertJsonLd(source) {
   const scripts = [...source.matchAll(/<script\s+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)];
@@ -123,7 +105,7 @@ function assertGoogleTag(source) {
 }
 
 async function main() {
-  const index = await readFile(resolve(OUT, "index.html"), "utf8");
+  const { body: index } = await text("/");
 
   assert(/<title>TypeSafe Jev Playground and API Gateway \| typesafe\.pro<\/title>/.test(index), "Homepage title is missing or unexpected");
   const description = findMeta(index, "name", "description")?.content;
@@ -145,55 +127,68 @@ async function main() {
   assert(Boolean(twitterImage), "Homepage lacks twitter:image");
 
   if (ogImage) {
-    const exported = await exportedFileForUrl(ogImage);
-    assert(Boolean(exported), `og:image does not resolve to an exported file: ${ogImage}`);
-    assert(!exported || exported.info.size > 1_000, "og:image export is unexpectedly small");
+    const response = await get(`${BASE}${local(ogImage)}`);
+    const bytes = response.ok ? (await response.arrayBuffer()).byteLength : 0;
+    assert(response.ok, `og:image does not resolve: ${ogImage} (HTTP ${response.status})`);
+    assert(/^image\/png/.test(response.headers.get("content-type") ?? ""), "og:image should be served as image/png");
+    assert(bytes > 1_000, "og:image is unexpectedly small");
   }
 
   assertJsonLd(index);
   assertGoogleTag(index);
 
-  const sitemapIndex = await readFile(resolve(OUT, "sitemap.xml"), "utf8");
+  // The API is the source of truth for what is published.
+  const first = await apiJson("/v1/use-cases-sitemap?chunk=0");
+  const published = [...first.items];
+  for (let chunk = 1; chunk < first.chunks; chunk += 1) published.push(...(await apiJson(`/v1/use-cases-sitemap?chunk=${chunk}`)).items);
+  assert(published.length === first.total, "Content API sitemap chunks do not add up to its total");
+
+  const { body: sitemapIndex, response: sitemapResponse } = await text("/sitemap.xml");
+  assert(/xml/.test(sitemapResponse.headers.get("content-type") ?? ""), "sitemap.xml should be served as XML");
   assert(sitemapIndex.includes("<sitemapindex"), "Sitemap must be a chunked sitemap index");
   const chunks = [...sitemapIndex.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
+  assert(chunks.length === first.chunks, `Sitemap index lists ${chunks.length} chunks, the API has ${first.chunks}`);
   const sitemapUrls = [];
   for (const chunk of chunks) {
-    assert(new RegExp(`^${SITE_URL.replaceAll(".", "\\.")}/sitemaps/\\d+\\.xml$`).test(chunk), "Unexpected sitemap chunk URL");
+    assert(new RegExp(`^${SITE_URL.replaceAll(".", "\\.")}/sitemaps/\\d+\\.xml$`).test(chunk), `Unexpected sitemap chunk URL: ${chunk}`);
     if (!chunk.startsWith(`${SITE_URL}/sitemaps/`)) continue;
-    const xml = await readFile(resolve(OUT, new URL(chunk).pathname.slice(1)), "utf8");
+    const { body: xml } = await text(local(chunk));
     const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
-    assert(urls.length <= 10_000, "Sitemap chunk exceeds 10,000 URLs");
+    assert(urls.length <= 10_002, "Sitemap chunk exceeds 10,000 use-case URLs");
     assert(/<lastmod>[^<]+<\/lastmod>/.test(xml), "Sitemap lacks lastmod");
     sitemapUrls.push(...urls);
   }
-  assert(sitemapUrls.includes(`${SITE_URL}/`), "Sitemap lacks homepage URL");
-  assert(sitemapUrls.includes(`${SITE_URL}/use-cases`), "Sitemap lacks use-case catalog");
+  const expectedUrls = new Set([`${SITE_URL}/`, `${SITE_URL}/use-cases`, ...published.map((entry) => `${SITE_URL}/use-cases/${entry.slug}`)]);
   assert(new Set(sitemapUrls).size === sitemapUrls.length, "Sitemap contains duplicate URLs");
+  assert(sitemapUrls.length === expectedUrls.size && sitemapUrls.every((url) => expectedUrls.has(url)), "Sitemap differs from the published use cases");
 
-  const release = JSON.parse(await readFile(resolve(OUT, "use-cases-manifest.json"), "utf8"));
-  assert(release.schema_version === 1 && Array.isArray(release.pages), "Invalid public release manifest");
-  const expectedUrls = new Set([`${SITE_URL}/`, `${SITE_URL}/use-cases`]);
-  const catalogPages = Math.max(1, Math.ceil(release.pages.length / 24));
-  for (let page = 2; page <= catalogPages; page += 1) expectedUrls.add(`${SITE_URL}/use-cases/page/${page}`);
-  for (const entry of release.pages) {
+  const { body: catalog } = await text("/use-cases");
+  assert(catalog.includes("<h1"), "/use-cases: missing rendered heading");
+  assert(linkTags(catalog).some((tag) => tag.rel === "canonical" && tag.href === `${SITE_URL}/use-cases`), "/use-cases: missing canonical");
+
+  const legacy = await get(`${BASE}/use-cases/page/2`, { redirect: "manual" });
+  assert([301, 308].includes(legacy.status) && legacy.headers.get("location")?.endsWith("/use-cases?page=2"), "/use-cases/page/2 should permanently redirect to /use-cases?page=2");
+
+  const sample = SAMPLE >= published.length ? published : [...published].sort(() => Math.random() - 0.5).slice(0, SAMPLE);
+  for (const entry of sample) {
     const url = `${SITE_URL}/use-cases/${entry.slug}`;
-    expectedUrls.add(url);
-    const html = await readFile(resolve(OUT, "use-cases", `${entry.slug}.html`), "utf8");
+    const detail = await apiJson(`/v1/use-cases/${entry.slug}`);
+    const { body: html } = await text(`/use-cases/${entry.slug}`);
     assert(linkTags(html).some((tag) => tag.rel === "canonical" && tag.href === url), `${entry.slug}: missing canonical`);
-    assert(htmlDecode(/<title>([^<]+)<\/title>/.exec(html)?.[1] ?? "") === entry.title, `${entry.slug}: title differs from manifest`);
+    assert(htmlDecode(/<title>([^<]+)<\/title>/.exec(html)?.[1] ?? "").startsWith(detail.page.seo.title), `${entry.slug}: title differs from the content API`);
     assert(Boolean(findMeta(html, "name", "description")?.content), `${entry.slug}: missing description`);
     assert(findMeta(html, "property", "og:url")?.content === url, `${entry.slug}: missing Open Graph URL`);
     const structured = [...html.matchAll(/<script\s+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].flatMap((match) => {
       try { const value = JSON.parse(match[1]); return value["@graph"] ?? [value]; }
       catch { errors.push(`${entry.slug}: invalid JSON-LD`); return []; }
     });
-    assert(structured.some((node) => node["@type"] === "TechArticle" && node.dateModified === entry.updated_at), `${entry.slug}: missing TechArticle or wrong date`);
+    assert(structured.some((node) => node["@type"] === "TechArticle" && node.dateModified === detail.page.updated_at), `${entry.slug}: missing TechArticle or wrong date`);
     assert(structured.some((node) => node["@type"] === "BreadcrumbList"), `${entry.slug}: missing breadcrumbs`);
     const body = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, "");
     assert(body.includes("The problem") && body.includes("Previous verification response"), `${entry.slug}: article and responses must render without JavaScript`);
     assert(body.includes('class="code-line"') && body.includes("urllib") && body.includes('id="use-case-request"'), `${entry.slug}: request and complete Python example must render without JavaScript`);
     assert(!findMeta(html, "name", "robots")?.content?.includes("noindex"), `${entry.slug}: published page disallows indexing`);
-    assert(!html.includes("use-case-draft-banner"), `${entry.slug}: a draft preview leaked into the published output`);
+    assert(!html.includes("use-case-draft-banner"), `${entry.slug}: a published page renders as a draft preview`);
     if (html.includes('id="use-case-demo"')) {
       const frame = /<iframe\s+([^>]*)>/.exec(html);
       // HTML attribute names are case-insensitive; React serializes srcDoc in camelCase.
@@ -205,35 +200,25 @@ async function main() {
       assert(body.includes("Verified sample results"), `${entry.slug}: demo sample results must render without JavaScript`);
     }
   }
-  const exportedSlugs = (await readdir(resolve(OUT, "use-cases"))).filter((name) => name.endsWith(".html")).map((name) => name.slice(0, -5)).sort();
-  const releaseSlugs = release.pages.map((entry) => entry.slug).sort();
-  assert(JSON.stringify(exportedSlugs) === JSON.stringify(releaseSlugs), "Exported use-case pages differ from the release (draft leak or missing page)");
-  assert(sitemapUrls.length === expectedUrls.size && sitemapUrls.every((url) => expectedUrls.has(url)), "Sitemap differs from published release");
-  for (const url of expectedUrls) {
-    if (url === `${SITE_URL}/`) continue;
-    const html = await readFile(resolve(OUT, `${new URL(url).pathname.slice(1)}.html`), "utf8");
-    assert(html.includes("<h1"), `${url}: missing rendered heading`);
-  }
-  const allFiles = await walkFiles(OUT);
-  assert(!allFiles.some((file) => /\/(?:novelty-index|checkpoints?|pages-\d+)\.json$/.test(file)), "Private generation data leaked into static output");
-  assert(!allFiles.some((file) => /\/use-cases\/(?:_empty|page\/0)\.(?:html|txt)$/.test(file)), "Empty export sentinels must not be public routes");
 
-  const robotsTxt = await readFile(resolve(OUT, "robots.txt"), "utf8");
+  const missing = await get(`${BASE}/use-cases/this-use-case-does-not-exist`);
+  assert(missing.status === 404, `Unknown use case should return 404, got ${missing.status}`);
+
+  const { body: robotsTxt } = await text("/robots.txt");
   assert(/User-Agent: \*/i.test(robotsTxt), "robots.txt lacks wildcard user-agent");
   assert(/Allow: \//i.test(robotsTxt), "robots.txt should allow crawling");
   assert(robotsTxt.includes(`Sitemap: ${SITE_URL}/sitemap.xml`), "robots.txt lacks sitemap reference");
 
-  const headers = await readFile(resolve(OUT, "_headers"), "utf8");
-  assert(headers.includes("/opengraph-image"), "_headers lacks opengraph-image rule");
-  assert(/Content-Type:\s*image\/png/i.test(headers), "_headers should serve opengraph-image as image/png");
+  const admin = await get(`${BASE}/admin`);
+  assert(/noindex/.test(admin.headers.get("x-robots-tag") ?? ""), "/admin should send X-Robots-Tag: noindex");
 
   if (errors.length) {
-    console.error(`SEO validation failed (${errors.length} errors):\n${errors.map((error) => `- ${error}`).join("\n")}`);
+    console.error(`SEO validation failed for ${BASE} (${errors.length} errors):\n${errors.map((error) => `- ${error}`).join("\n")}`);
     process.exitCode = 1;
     return;
   }
 
-  console.log(`SEO validation passed: homepage, ${release.pages.length} use-case pages, release whitelist, sitemap chunks, robots, and OG image.`);
+  console.log(`SEO validation passed for ${BASE}: homepage, ${sample.length}/${published.length} use-case pages, sitemap chunks, robots, admin headers and OG image.`);
 }
 
 main().catch((error) => {

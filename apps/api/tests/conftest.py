@@ -79,7 +79,7 @@ def database_url(tmp_path_factory):
     directory = tmp_path_factory.mktemp("pg")
     data = directory / "data"
     subprocess.run(
-        [initdb, "-D", str(data), "-A", "trust", "-U", "typesafe", "--no-locale"],
+        [initdb, "-D", str(data), "-A", "trust", "-U", "typesafe", "--no-locale", "-E", "UTF8"],
         check=True,
         stdout=subprocess.DEVNULL,
     )

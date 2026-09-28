@@ -1,9 +1,11 @@
 # Verified use-case content
 
 This isolated Python project prepares English use-case pages, each with a sandboxed
-interactive demo, for the static website. Content lives in `content/use-cases`; neither
-ordinary builds nor validation call a model. The site publishes only the records listed
-in `release.json`, and every record is approved by a human in the local review session.
+interactive demo, for the website. Pages live in the API's Postgres database and are
+written only through the content API (`/admin/api/content`, bearer
+`TYPESAFE_CONTENT_TOKEN_1`); the site renders them per request from the public, cached
+read API. Neither builds nor validation call a model, and every page is approved by a
+human in the local review session before it is published.
 
 ## Commands
 
@@ -11,15 +13,16 @@ From the repository root:
 
 ```sh
 uv sync --project tools/seo --frozen
-uv run --project tools/seo python -m seo_content validate
+npm run content:check             # validate every stored page against the schema
 uv run --project tools/seo pytest tools/seo/tests
 uv run --project tools/seo ruff check tools/seo
 uv run --project tools/seo ruff format --check tools/seo
 ```
 
-Generation needs `LLM7_BASE_URL`, `LLM7_TOKEN`, `LLM7_MODEL`, and
-`TYPESAFE_ADMIN_API_TOKEN_1` in the ignored root `.env`. Load them with uv, never add
-them to content:
+Generation needs `LLM7_BASE_URL`, `LLM7_TOKEN`, `LLM7_MODEL`,
+`TYPESAFE_ADMIN_API_TOKEN_1` and `TYPESAFE_CONTENT_TOKEN_1` in the ignored root `.env`
+(`python3 scripts/configure-content-secrets.py` checks them). `TYPESAFE_API_BASE`
+selects another API, e.g. a local one. Load them with uv, never add them to content:
 
 ```sh
 npm run content:review            # = uv run --project tools/seo --env-file .env python -m seo_content review
@@ -29,18 +32,23 @@ npm run content:review -- --resume
 
 Options: `--max-pages` (approvals per session, 1–20, default 5), `--resume` (review
 pending drafts first), `--auto-select` (take every idea and the first demo concept),
-`--dev-url`, `--no-browser`, `--no-dev-server`, `--max-calls`, `--max-minutes`,
-`--inspiration hn|words|none` (idea seeds; default: the 5 newest Hacker News titles per
-round), `--headlines N`, `--session-id` (must match `^[A-Za-z0-9_.-]+$`; each approval gets `<session>-<n>`).
-To use a disposable catalog, put `--content-dir /tmp/catalog` before the subcommand;
-the directory must be `content/use-cases` inside a Git repository.
+`--preview-base` (site that renders previews; default `https://typesafe.pro`, e.g.
+`http://localhost:8787` for `npm run preview --workspace @typesafe-pro/web`),
+`--no-browser`, `--max-calls`, `--max-minutes`, `--inspiration hn|words|none` (idea
+seeds; default: the 5 newest Hacker News titles per round), `--headlines N`,
+`--session-id` (must match `^[A-Za-z0-9_.-]+$`; each approval gets `<session>-<n>`).
 
-The session: preflight (credentials, catalog, clean `content/use-cases`, dev server) →
-ten ideas → pick → novelty → three demo concepts → pick → page + demo generation and
-verification → draft in `drafts/<slug>.json` → browser preview → `a`pprove / `f`eedback
-(`t`ext, `d`emo, `c`oncept, `b`oth) / `s`kip / `o`pen / `q`uit. Approval appends to the
-catalog, rewrites `release.json` to the whole catalog, writes `runs/<hash>.json` and
-commits `content/use-cases` only. See `docs/generated-pages.md` for the full flow.
+The session: preflight (credentials, content API, categories, known pages) → ten ideas →
+pick → novelty → three demo concepts → pick → page + demo generation and verification →
+category and 2–5 tags → draft stored in the API with its review state → signed preview
+link on the site → `a`pprove / `f`eedback (`t`ext, `d`emo, `c`oncept, `b`oth) / `s`kip /
+`o`pen / `q`uit. Approval publishes the page (it is live immediately, no deploy) and
+records the run report. See `docs/generated-pages.md` for the full flow.
+
+Other commands: `npm run content:check` validates every stored page;
+`npm run content:import` is the one-time import of the former `content/use-cases` file
+catalog (pages keep their dates, drafts their review state; `--taxonomy heuristic`
+assigns categories without a model).
 
 ## Pipeline and bounds
 
@@ -75,25 +83,17 @@ commits `content/use-cases` only. See `docs/generated-pages.md` for the full flo
 
 ## Data and recovery
 
-Page shards contain at most 100 pages or 1 MiB. `manifest.json` hashes the exact shard
-bytes; its catalog hash is SHA-256 of sorted-key compact JSON for the ordered shard
-list. Matching `index-*.json` files hold only compact scenario descriptions. Existing
-records remain unchanged when appending new records. Page appends use a validated write-ahead journal, fsynced before shard/index/manifest
-replacement. Loading the catalog replays an interrupted append idempotently; the
-original records must remain unchanged and all checksums must match. The review session
-commits the complete changed set; CI validates it before publishing the artifact.
-
-The release is the whole catalog: every record was approved by the reviewer. Each
-approval writes `runs/<sha256(run_id)[:24]>.json` with the session report (mode,
-counters, rejection codes, approved/skipped counts) and the release; CI records that
-report in the journal after publication. Drafts in `drafts/` are working files ignored
-by Git; `review-skips.json` remembers skipped ideas. Catalog, index and release
-corruption are hard errors; they must never be silently treated as provider outages.
-Deploy publication/accounting is owned by the repository's release scripts.
+Pages, drafts, skips and run reports are rows in the API database; nothing is written to
+the repository. A draft carries its review state (idea, concept, feedback, attempt), so
+`--resume` continues on any machine. Skipped ideas are stored with their fingerprint and
+any draft of them is archived; later rounds never propose them again. Content API failures
+(429, 5xx, network) reuse the session's retries; a 401 stops the session before any model
+call. Stored pages are revalidated with `npm run content:check`.
 
 `generated_count` reports records generated in that session, including regenerated
-attempts; `approved_count` is the number of pages committed. The admin deployment
-journal computes added pages from consecutive published snapshots.
+attempts; `approved_count` is the number of pages published. Each approval records the
+session report (mode, counters, rejection codes, approved/skipped counts) in the journal
+that the admin dashboard reads.
 
 ## Novelty calibration
 

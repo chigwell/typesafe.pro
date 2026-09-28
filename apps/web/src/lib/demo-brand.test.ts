@@ -3,8 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEMO_BRAND, DEMO_BRAND_CSS } from "./demo-brand";
 import { buildDemoDocument } from "./demo-document";
-import { validateUseCase } from "./use-cases";
-import { useCaseDemoFixture, useCaseFixture } from "@/test/use-case-fixture";
+import { useCaseDemoFixture } from "@/test/use-case-fixture";
 
 const globals = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
 
@@ -42,24 +41,5 @@ describe("demo brand kit", () => {
     // Demos made before the kit style their own buttons by class and rely on this base look.
     expect(DEMO_BRAND_CSS).toMatch(/(^|\n)#demo button\{[^}]*background:var\(--ts-button\)/);
     expect(DEMO_BRAND_CSS).not.toContain("button:not([class])");
-  });
-  it("rejects demos sized with viewport units", () => {
-    const demo = useCaseDemoFixture();
-    demo.css = "#demo-visual{min-height:60vh}";
-    expect(() => validateUseCase({ ...useCaseFixture(), demo })).toThrow(/viewport units/);
-    demo.css = "#demo-visual{height:40px}";
-    demo.js = "el.style.height = 50 + 'dvh';";
-    expect(() => validateUseCase({ ...useCaseFixture(), demo })).not.toThrow();
-    demo.js = "el.style.height = '50dvh';";
-    expect(() => validateUseCase({ ...useCaseFixture(), demo })).toThrow(/viewport units/);
-  });
-  it("accepts ordinary functions and the word location, but not navigation", () => {
-    const demo = useCaseDemoFixture();
-    demo.js = "button.addEventListener('click', function () { label.textContent = 'Enter a location'; dialog.open(); });";
-    expect(() => validateUseCase({ ...useCaseFixture(), demo })).not.toThrow();
-    for (const js of ["window.location = 'x'", "location.href = 'x'", "new Function('x')"]) {
-      demo.js = js;
-      expect(() => validateUseCase({ ...useCaseFixture(), demo }), js).toThrow(/forbidden API/);
-    }
   });
 });

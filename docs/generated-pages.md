@@ -1,19 +1,20 @@
 # Generated use-case pages
 
 The public site renders `/use-cases` and `/use-cases/<slug>` from a single template
-and versioned JSON in `content/use-cases`. Page content is generated only by the
-local interactive review command (`npm run content:review`), where a human approves
-every page before it is committed. CI, normal Next.js builds, PR checks, and tests
-never call an LLM.
+per request, reading the public use-case API (`/v1/use-cases`, `/v1/use-cases/{slug}`,
+`/v1/use-case-facets`, `/v1/use-cases-sitemap`; documented in `/openapi.json`). Pages
+are stored in Postgres. Page content is generated only by the local interactive review
+command (`npm run content:review`), where a human approves every page before it is
+published. CI, Next.js builds, PR checks, and tests never call an LLM.
 
 ## Data and quality
 
-`manifest.json` lists numbered page shards with their byte hashes. Each shard
-holds at most 100 pages or 1 MiB. Compact scenario indexes support duplicate
-retrieval. `release.json` selects the pages included in one static build; the site
-exports the same inventory at `/use-cases-manifest.json`. Run checkpoints preserve
-the random seed, completed work, report, and release across retries. Articles and
-their slugs are append-only during generation.
+Each page has a status (`draft`, `published`, `archived`), one of the seeded
+categories, 2–5 tags, denormalised card fields for the listing, the full validated page
+JSON, and a weighted full-text vector for search. Only published pages appear in the
+listing, search, facets and sitemap; drafts are reachable only through a signed,
+expiring preview link. The generator reads a compact list of every non-archived page
+for duplicate retrieval. Slugs are never reused.
 
 The Python generator in `tools/seo` has its own frozen environment. LLM7 supplies
 English ideas, prose, API requests, and qualitative expected outcomes. A bounded
@@ -81,15 +82,18 @@ the input description, decision and action with the verified example questions, 
 stay fixed; the best-scoring version is kept), one
 automatic page retry with the failure as feedback, transient provider errors
 (timeouts, 429, 5xx, Cloudflare 52x) retried after 10 s and 30 s before asking, 400 external calls and 60 minutes per review
-session (time spent waiting for the reviewer is excluded). Corrupt catalog data
-fails the build; provider unavailability ends the session with pending drafts kept.
+session (time spent waiting for the reviewer is excluded). A stored page that fails
+the schema fails `npm run content:check`; provider unavailability ends the session with pending drafts kept.
 
 ## Setup
 
 Keep these values in the ignored root `.env`: `LLM7_BASE_URL`, `LLM7_TOKEN`,
-`LLM7_MODEL`, and `TYPESAFE_ADMIN_API_TOKEN_1`. The last credential authenticates to
-the local TypeSafe.pro gateway; upstream master credentials are not used by the
-generator and none of these credentials belong in `NEXT_PUBLIC_*` variables.
+`LLM7_MODEL`, `TYPESAFE_ADMIN_API_TOKEN_1` and `TYPESAFE_CONTENT_TOKEN_1`. The admin
+API token authenticates Jev requests to the TypeSafe.pro gateway; the content token
+(at least 32 characters, the same value as the production secret) is the only credential
+the content write API accepts, and the admin cookie is not. Upstream master credentials
+are not used by the generator and none of these credentials belong in `NEXT_PUBLIC_*`
+variables.
 
 Validate the local configuration (values are never printed or uploaded):
 
@@ -97,18 +101,16 @@ Validate the local configuration (values are never printed or uploaded):
 python3 scripts/configure-content-secrets.py
 ```
 
-CI needs none of these credentials: generation happens only on the reviewer's
-machine and the production job has read-only repository permissions.
+CI never generates content; it only needs `TYPESAFE_CONTENT_TOKEN_1` to configure the
+deployed API.
 
 ## Local review session
 
 ```sh
-npm run dev:web          # optional; the session starts it when missing
 npm run content:review   # add: -- --max-pages 1 --no-browser --resume --auto-select
 ```
 
-The session refuses to start while `content/use-cases` has uncommitted changes or a
-merge is in progress. Each idea round is seeded by the five newest Hacker News
+Each idea round is seeded by the five newest Hacker News
 story titles (Algolia API, Firebase API as a fallback; a title is never used twice in
 a session). Every idea must grow out of one title's domain, audience or situation,
 without mentioning the news, Hacker News, companies or people from it; titles are
@@ -128,49 +130,39 @@ before showing them: clear duplicates (probability ≥ 0.8) are hidden and a new
 is requested automatically when none remain; partly similar ideas (0.2–0.8) are shown
 with the most similar page so you can decide. Unused ideas stay available after you
 pick one. It then offers three demo concepts, generates and verifies the page and demo,
-writes a draft to `content/use-cases/drafts/<slug>.json` (ignored by Git) and
-opens `http://localhost:3000/use-cases/<slug>` in the dev server, which renders
-pending drafts with a visible banner. Drafts never reach the catalog listing,
-sitemap, manifest or production builds.
+picks a category and tags, stores the draft in the API and opens a signed preview link
+(`https://typesafe.pro/use-cases/<slug>?preview=<token>`, or the site given by
+`--preview-base`), which renders the draft with a visible banner and `noindex`.
+Drafts never reach the listing, search, sitemap or facets.
 
 For each draft: `a` approves, `f` regenerates the text, the demo, the demo concept
 or both with your written feedback (all feedback accumulates and is passed to the
 model), `s` skips the idea, `o` reopens the preview and `q` ends the session.
-Approval appends the page to the catalog, rewrites `release.json` to the complete
-catalog, stores the run report under `runs/`, and commits only `content/use-cases`
-as `chore(content): add use case <slug>` with your Git identity. Skipped ideas are
-recorded in `review-skips.json`, excluded from later proposals and committed at
-the end of the session. Pending drafts survive quitting; `--resume` reviews them
-first without new model calls. `git push` triggers publication.
+Approval publishes the page — it is live on the site immediately, without a deploy —
+and records the session's run report. Skipped ideas are stored and excluded from later
+proposals. Pending drafts survive quitting; `--resume` reviews them first without new
+model calls.
 
-## Production release and recovery
+## Production deployment
 
-The workflow serializes the complete production process. After checks pass it
-deploys the API (including additive journal migrations), reconciles the live
-publication manifest with the private journal, validates the committed catalog,
-builds the static output, and publishes that exact artifact to Cloudflare Pages
-with the source commit as its identity. It never generates content and never
-commits. `npm run deploy:web` dispatches this workflow against committed `main`;
-it does not upload uncommitted local files or bypass the journal.
+Content and code ship separately. Publishing a page is a content API write and needs no
+deploy. A push to `main` runs the workflow, which after all checks deploys the API
+(including migrations), then builds the web app with OpenNext and deploys it as the
+Cloudflare Worker `typesafe-pro-web`, and finally runs `npm run smoke` and
+`npm run validate:seo -- --all` against the deployed Worker. The SEO validation compares
+the sitemap with the API's published pages and checks every article's canonical,
+metadata, structured data and server-rendered content.
 
-Before publication the workflow checks that `main` has not advanced. Each local
-approval has its own release identity (`<session>-<n>`), so consecutive pushes
-publish distinct snapshots. A single publication may add at most 50 new pages.
-After verification the workflow records the approved session's generation report
-(kept in `content/use-cases/runs/`) in the journal.
+Both scripts take a base URL, so the same checks run locally:
 
-The journal is written through the existing SSH connection, using private
-`python -m proxy.seo` commands in the API container. There is no public write API.
-Publication is recorded only after the live manifest matches the build, every
-article is in the sitemap, and new URLs return rendered articles. A failed build
-or upload does not increase the published count. If publication succeeds but the
-final journal write fails, the next run reconciles the live manifest first.
-Workflow artifacts retain the baseline and release inventory for diagnosis.
+```sh
+npm run build:web && npm run preview --workspace @typesafe-pro/web
+npm run smoke --workspace @typesafe-pro/web            # http://localhost:8787 by default
+npm run validate:seo --workspace @typesafe-pro/web -- http://localhost:8787 --all
+```
 
-For manual recovery, verify the production artifact before using `proxy.seo
-publish --file <manifest>`. Replaying the same snapshot is idempotent. Older or
-conflicting snapshots are rejected; an intentional rollback needs a fresh release
-identity and time, not replay of an old publication record.
+`TYPESAFE_API_BASE` (in `apps/web/.dev.vars` for the Worker, in the environment for the
+scripts) points both at a local API.
 
 ## Admin and monitoring
 
@@ -178,20 +170,20 @@ The admin dashboard's Generated pages section reads protected `/admin/api/seo/`
 summary, pages, and runs endpoints. It displays the current published inventory,
 the difference in the last successful deployment, the latest attempt, rejection
 counts, API calls/token usage when available, and page-level traffic. Totals are
-derived from verified publication snapshots, not the number of JSON files in Git.
+derived from the recorded runs and the pages stored in the API.
 
 The existing tracker records visits. `total_hits` counts recorded hits;
 `unique_visitors` aggregates the existing IP/page/day identities, so a person
 returning on another day is counted again. This is not an all-time unique-person
-metric. Page content and sitemap remain static and do not depend on analytics.
+metric. Page content and sitemap do not depend on analytics.
 
 ## Verification and local use
 
 ```sh
 uv sync --project tools/seo --frozen
-npm run content:validate
+npm run content:check
 npm run content:test
-uv run --project apps/api pytest apps/api/tests deploy/tests --basetemp=/private/tmp/typesafe-tests
+uv run --project apps/api pytest apps/api/tests --basetemp=/private/tmp/typesafe-tests
 npm run test:web
 npm run build:web
 ```

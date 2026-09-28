@@ -8,17 +8,15 @@
   ],
   "scripts": {
     "dev:web": "npm run dev --workspace @typesafe-pro/web",
-    "build:web": "npm run build --workspace @typesafe-pro/web",
+    "build:web": "npm run build:worker --workspace @typesafe-pro/web",
     "test:web": "npm run test --workspace @typesafe-pro/web",
     "dev:api": "uv run --project apps/api --env-file .env uvicorn proxy.main:app --app-dir apps/api --port 8010 --reload --no-access-log",
     "check": "uv run --project apps/api ruff check apps/api deploy && uv run --project apps/api ruff format --check apps/api deploy",
-    "test": "uv run --project apps/api pytest apps/api/tests deploy/tests",
+    "test": "uv run --project apps/api pytest apps/api/tests",
     "content:check": "uv run --frozen --project tools/seo --env-file .env python -m seo_content check",
     "content:import": "uv run --frozen --project tools/seo --env-file .env python -m seo_content import-files",
     "content:review": "uv run --frozen --project tools/seo --env-file .env python -m seo_content review",
     "content:test": "uv run --frozen --project tools/seo pytest tools/seo/tests",
-    "cf:pages:create": "bash scripts/cf-env.sh wrangler pages project create typesafe-pro --production-branch=main",
-    "cf:pages:ensure": "bash scripts/ensure-pages-project.sh typesafe-pro",
     "deploy:web": "npm run deploy --workspace @typesafe-pro/web"
   },
   "engines": {

@@ -1,6 +1,12 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "typesafe-pro",
+  "name": "typesafe-pro-web",
+  "main": ".open-next/worker.js",
   "compatibility_date": "2026-09-21",
-  "pages_build_output_dir": "out"
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  // Served on *.workers.dev until the typesafe.pro custom domain is moved from Pages.
+  "workers_dev": true,
+  "vars": { "TYPESAFE_API_BASE": "https://api.typesafe.pro" },
+  "observability": { "enabled": true }
 }

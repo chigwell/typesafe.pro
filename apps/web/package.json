@@ -5,16 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node scripts/finalize-static-export.mjs && npm run validate:seo",
-    "preview": "bash ../../scripts/cf-env.sh wrangler pages dev out --compatibility-date=2026-09-21",
-    "deploy": "gh workflow run deploy.yml --ref main --repo chigwell/typesafe.pro",
+    "build": "next build",
+    "build:worker": "opennextjs-cloudflare build",
+    "preview": "opennextjs-cloudflare preview",
+    "deploy": "bash ../../scripts/cf-env.sh opennextjs-cloudflare deploy",
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate:seo": "node scripts/validate-seo-output.mjs"
+    "validate:seo": "node scripts/validate-seo-output.mjs",
+    "smoke": "node scripts/smoke-web.mjs",
+    "api:types": "openapi-typescript ${TYPESAFE_API_BASE:-https://api.typesafe.pro}/openapi.json -o src/lib/api-types.ts"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.6",
     "lucide-react": "^0.475.0",
-    "next": "^15.1.6",
+    "next": "^15.5.24",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -26,6 +30,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "jsdom": "^26.0.0",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.7.3",
     "vitest": "^3.0.4"
   }

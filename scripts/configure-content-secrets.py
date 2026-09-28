@@ -10,7 +10,13 @@ import subprocess
 from pathlib import Path
 from urllib.parse import urlsplit
 
-NAMES = ("LLM7_BASE_URL", "LLM7_MODEL", "LLM7_TOKEN", "TYPESAFE_ADMIN_API_TOKEN_1")
+NAMES = (
+    "LLM7_BASE_URL",
+    "LLM7_MODEL",
+    "LLM7_TOKEN",
+    "TYPESAFE_ADMIN_API_TOKEN_1",
+    "TYPESAFE_CONTENT_TOKEN_1",
+)
 
 
 def settings(path):
@@ -31,6 +37,8 @@ def settings(path):
         values[name] = value
     if missing := set(NAMES) - set(values):
         raise ValueError("Missing variables: " + ", ".join(sorted(missing)))
+    if len(values["TYPESAFE_CONTENT_TOKEN_1"]) < 32:
+        raise ValueError("TYPESAFE_CONTENT_TOKEN_1 must contain at least 32 characters")
     url = urlsplit(values["LLM7_BASE_URL"])
     if (
         url.scheme != "https"

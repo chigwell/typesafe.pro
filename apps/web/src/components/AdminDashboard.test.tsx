@@ -262,7 +262,7 @@ describe("AdminDashboard", () => {
     const user = userEvent.setup();
     render(<AdminDashboard />);
     await screen.findByRole("link", { name: "Support routing 1" });
-    expect(screen.getByText("Added in last successful deploy")).toBeInTheDocument();
+    expect(screen.getByText("Published in the last 7 days")).toBeInTheDocument();
     expect(screen.getAllByText("published")).toHaveLength(2);
     expect(screen.getAllByText("duplicate: 1")).toHaveLength(2);
     await user.click(screen.getByRole("button", { name: "Next generated pages page" }));

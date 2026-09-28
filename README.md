@@ -9,8 +9,8 @@ The API is compatible with the TypeSafe evaluation endpoint. See the
 response schema.
 
 The website also provides verified, interactive use-case guides with sandboxed visual
-demos. Their JSON catalog, the local LLM7/Jev review session (`npm run content:review`),
-deployment recovery, and admin publication statistics are documented in
+demos. Their storage and public API, the local LLM7/Jev review session
+(`npm run content:review`), deployment, and admin publication statistics are documented in
 [Generated use-case pages](docs/generated-pages.md).
 
 ## Quick start
