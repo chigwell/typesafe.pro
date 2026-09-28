@@ -74,8 +74,11 @@ the frame cannot grow it forever.
 
 Defaults: ten ideas per round, three attempts per model stage, 240 s per LLM7 call,
 two automatic repairs of examples and of the demo using the live API answers, up to
-two in-place prose repairs when a quality check scores below 0.8 (the model sees the
-failing rubric; verified examples stay fixed), one
+two in-place prose repairs when a quality check scores below 0.8 (a consistency
+failure is first localised with one Jev request per page part: each example, framing,
+solution, limitations; the model sees the failing rubric and weak parts and may realign
+the input description, decision and action with the verified example questions, which
+stay fixed; the best-scoring version is kept), one
 automatic page retry with the failure as feedback, transient provider errors
 (timeouts, 429, 5xx, Cloudflare 52x) retried after 10 s and 30 s before asking, 400 external calls and 60 minutes per review
 session (time spent waiting for the reviewer is excluded). Corrupt catalog data

@@ -236,3 +236,42 @@ def test_quality_gives_up_after_two_repairs():
     with pytest.raises(Rejected, match="quality_threshold_failed: useful=0.50"):
         create_page(idea(1), 0.95, provider)
     assert len(provider.repairs) == 2
+
+
+def test_consistency_failure_is_localised_and_framing_realigned():
+    class FramingMismatch(FakeProvider):
+        judged = 0
+
+        def evaluate(self, request):
+            response = super().evaluate(request)
+            if "useful" in request.questions:
+                self.judged += 1
+                if self.judged == 1:
+                    response.answers["consistent"].noul = 0.6
+            if "framing" in request.questions:
+                response.answers["framing"].noul = 0.44
+                response.answers["solution"].noul = 0.58
+            return response
+
+    provider = FramingMismatch()
+    warnings = []
+    page = create_page(idea(1), 0.95, provider, warn=warnings.append)
+    assert provider.repair_contexts[0]["weak_parts"] == {"framing": 0.44, "solution": 0.58}
+    assert provider.repair_contexts[0]["framing"]["decision"] == idea(1).decision
+    assert page.decision == "Choose one: " + idea(1).decision
+    assert any("weakest parts: framing, solution" in w for w in warnings)
+
+
+def test_best_version_is_kept_when_a_repair_makes_it_worse():
+    class GetsWorse(FakeProvider):
+        judged = 0
+
+        def evaluate(self, request):
+            response = super().evaluate(request)
+            if "useful" in request.questions:
+                self.judged += 1
+                response.answers["consistent"].noul = {1: 0.79, 2: 0.5, 3: 0.6}[self.judged]
+            return response
+
+    with pytest.raises(Rejected, match="consistent=0.79"):
+        create_page(idea(1), 0.95, GetsWorse())

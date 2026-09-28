@@ -285,9 +285,18 @@ class ExampleWording(StrictModel):
     expected_description: Short
 
 
+class Framing(StrictModel):
+    """How the page states the task; must match the verified example questions."""
+
+    input_description: Short
+    decision: Short
+    action: Short
+
+
 class ArticleRepair(StrictModel):
     """Revised prose for a page that failed a quality check; verified examples stay fixed."""
 
+    framing: Framing
     description: Description
     explanation: Explanation
     seo: SEO

@@ -144,6 +144,7 @@ class FakeProvider:
         self.demo_attempts = 0
         self.idea_contexts = []
         self.repairs = []
+        self.repair_contexts = []
         self.demo_feedback = []
 
     def charge(self):
@@ -201,7 +202,11 @@ class FakeProvider:
             )
         if schema is ArticleRepair:
             self.repairs.append(context["failed_checks"])
+            self.repair_contexts.append(context)
+            framing = dict(context["framing"])
+            framing["decision"] = "Choose one: " + framing["decision"]
             return ArticleRepair(
+                framing=framing,
                 description=context["description"],
                 explanation=context["explanation"],
                 seo=context["seo"],
