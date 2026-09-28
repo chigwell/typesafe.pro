@@ -106,6 +106,8 @@ jobs:
       - name: Build the web Worker
         run: npm run build:web
       - name: Deploy the web Worker
+        env:
+          CF_WORKERS_SCRIPT: ${{ secrets.CF_WORKERS_SCRIPT }}
         run: npm run deploy:web
       - name: Smoke-test the web Worker
         run: npm run smoke --workspace @typesafe-pro/web

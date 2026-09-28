@@ -12,7 +12,8 @@ if [[ -f "${ROOT_DIR}/.env" ]]; then
 fi
 
 CF_ACCOUNT_ID="${CF_ACCOUNT_ID:-${CLOUDFLARE_ACCOUNT_ID:-}}"
-CF_API_TOKEN="${CF_API_TOKEN:-${CLOUDFLARE_API_TOKEN:-}}"
+# CF_WORKERS_SCRIPT is the token scoped to Workers Scripts: Edit (web Worker deploys).
+CF_API_TOKEN="${CF_WORKERS_SCRIPT:-${CF_API_TOKEN:-${CLOUDFLARE_API_TOKEN:-}}}"
 
 if [[ -z "${CF_ACCOUNT_ID:-}" ]]; then
   echo "Missing CF_ACCOUNT_ID or CLOUDFLARE_ACCOUNT_ID in .env or environment" >&2
