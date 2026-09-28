@@ -279,6 +279,16 @@ class SEO(StrictModel):
     description: Annotated[str, Field(min_length=70, max_length=175), AfterValidator(nonblank)]
 
 
+TagSlug = Annotated[str, Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=40)]
+
+
+class Taxonomy(StrictModel):
+    """Where a page is listed: one existing category and a few short topic tags."""
+
+    category: Annotated[str, Field(pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$", max_length=64)]
+    tags: Annotated[list[TagSlug], Field(min_length=2, max_length=5)]
+
+
 class ExampleWording(StrictModel):
     kind: Literal["primary", "alternative", "edge"]
     name: Short

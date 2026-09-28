@@ -1,17 +1,12 @@
-"""Interactive local review: propose ideas, generate a page with a demo, preview it in the
-running Next.js dev server, then approve (append + commit), give feedback, or skip."""
+"""Interactive review: propose ideas, generate a page with a demo, save it as a draft in the
+content API, preview it on the site with a signed link, then publish, revise or skip."""
 
-import json
-import os
 import random
 import re
 import secrets
-import signal
-import socket
 import subprocess
 import time
 import urllib.error
-import urllib.parse
 import urllib.request
 import webbrowser
 from collections import Counter
@@ -21,24 +16,23 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from .catalog import (
-    Catalog,
-    atomic_write,
-    compact,
-    fingerprint,
-    normalized,
-    release_page,
-    sha256,
-)
+from .catalog import compact, fingerprint, normalized
+from .content_api import ContentApi, ContentApiError
 from .demo import propose_concepts
 from .inspiration import InspirationUnavailable, WordsFeed, feed_for
-from .models import DemoConcept, Idea, Page, Release, Report
+from .models import DemoConcept, Idea, Page, Report
 from .novelty import Rejected, novelty_scan
-from .pipeline import create_page, focus_scores, now, propose_ideas, rebuild_demo
+from .pipeline import (
+    choose_taxonomy,
+    create_page,
+    focus_scores,
+    now,
+    propose_ideas,
+    rebuild_demo,
+)
 from .providers import Budget, BudgetExhausted, ProviderError, Providers, StageError
 
 RUN_ID = re.compile(r"^[A-Za-z0-9_.-]{1,120}$")
-CONTENT = "content/use-cases"
 MAX_IDEA_ROUNDS = 10
 RETRY_DELAYS = (10, 30)
 DUPLICATE = 0.8
@@ -66,157 +60,11 @@ class ReviewError(Exception):
 
 
 class Quit(Exception):
-    """The reviewer ended the session; pending drafts stay on disk."""
+    """The reviewer ended the session; pending drafts stay in the content API."""
 
 
 def session_id_now():
     return datetime.now(UTC).strftime("local-%Y%m%dT%H%M%SZ")
-
-
-class Git:
-    def __init__(self, root: Path):
-        self.root = root
-
-    def run(self, *args, check=True):
-        return subprocess.run(
-            ["git", *args], cwd=self.root, capture_output=True, text=True, check=check
-        )
-
-    def output(self, *args) -> str:
-        return self.run(*args).stdout.strip()
-
-    def changed_content_paths(self) -> list[str]:
-        paths = []
-        for line in self.run("status", "--porcelain", "--", CONTENT).stdout.splitlines():
-            path = line[3:].split(" -> ")[-1].strip().strip('"')
-            if path.startswith(f"{CONTENT}/drafts/"):
-                continue
-            paths.append(path)
-        return paths
-
-
-class DevServer:
-    """Detect, optionally start, warm up and stop `next dev` for draft previews."""
-
-    def __init__(self, url: str, root: Path, out, *, start_allowed=True):
-        self.url = url.rstrip("/")
-        self.root = root
-        self.out = out
-        self.start_allowed = start_allowed
-        self.process = None
-
-    def page_url(self, slug: str) -> str:
-        return f"{self.url}/use-cases/{slug}"
-
-    @property
-    def port(self) -> int:
-        return urllib.parse.urlsplit(self.url).port or 3000
-
-    def _get(self, path: str, timeout: float) -> tuple[int | None, str]:
-        request = urllib.request.Request(self.url + path, headers={"Cache-Control": "no-cache"})
-        try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                return response.status, response.read(400_000).decode("utf-8", "replace")
-        except urllib.error.HTTPError as error:
-            return error.code, ""
-        except (urllib.error.URLError, OSError, ValueError):
-            return None, ""
-
-    def is_up(self, timeout=15) -> bool:
-        status, body = self._get("/use-cases", timeout)
-        return status == 200 and "use-case" in body
-
-    def listening(self) -> bool:
-        try:
-            with socket.create_connection(("127.0.0.1", self.port), timeout=2):
-                return True
-        except OSError:
-            return False
-
-    def ensure(self, ask=None) -> bool:
-        if self.is_up():
-            self.out(f"Dev server detected at {self.url}")
-            return True
-        if self.listening():
-            # Something holds the port but does not render (for example a dev server whose
-            # build directory was replaced). Starting another would move it to a new port.
-            self.out(f"A server on port {self.port} is not rendering pages correctly.")
-            answer = (
-                ask(
-                    f"[r]estart the process on port {self.port}, [c]ontinue without previews: "
-                ).lower()
-                if ask
-                else "c"
-            )
-            if answer != "r" or not self.kill_listener():
-                self.out("Continuing without automatic previews; restart `npm run dev:web`.")
-                return False
-        if not self.start_allowed:
-            self.out(f"No dev server at {self.url}; run `npm run dev:web` for previews.")
-            return False
-        self.out(f"Starting `npm run dev:web` for previews at {self.url} ...")
-        self.process = subprocess.Popen(
-            ["npm", "run", "dev:web", "--", "--port", str(self.port)],
-            cwd=self.root,
-            # The dev server must never read the reviewer's keystrokes.
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-        deadline = time.monotonic() + 90
-        while time.monotonic() < deadline:
-            if self.process.poll() is not None:
-                break
-            if self.is_up(timeout=5):
-                self.out("Dev server is ready.")
-                return True
-            time.sleep(2)
-        self.out("Dev server did not become ready; previews must be opened manually.")
-        return False
-
-    def kill_listener(self) -> bool:
-        try:
-            pids = subprocess.run(
-                ["lsof", "-t", f"-iTCP:{self.port}", "-sTCP:LISTEN"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            ).stdout.split()
-        except (OSError, subprocess.SubprocessError):
-            return False
-        for pid in pids:
-            try:
-                os.kill(int(pid), signal.SIGTERM)
-            except (ProcessLookupError, ValueError, PermissionError):
-                pass
-        for _ in range(20):
-            if not self.listening():
-                return True
-            time.sleep(0.5)
-        return False
-
-    def warm(self, slug: str) -> bool:
-        # `next dev` compiles on first request and caches generateStaticParams
-        # stale-while-revalidate, so a new draft can 404 once; retry until it renders.
-        for _ in range(15):
-            status, body = self._get(f"/use-cases/{slug}", timeout=120)
-            if status == 200 and slug in body:
-                return True
-            time.sleep(2)
-        return False
-
-    def stop(self):
-        if self.process is None or self.process.poll() is not None:
-            return
-        try:
-            os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
-            self.process.wait(timeout=10)
-        except (ProcessLookupError, subprocess.TimeoutExpired, OSError):
-            try:
-                self.process.kill()
-            except OSError:
-                pass
 
 
 STAGES = {
@@ -278,15 +126,12 @@ def brief(text: str, limit: int) -> str:
 class ReviewSession:
     def __init__(
         self,
-        content_dir: Path,
         *,
         session_id: str | None = None,
         budget: Budget | None = None,
         provider_factory=Providers,
-        repo_root: Path | None = None,
-        dev_server=None,
-        dev_url="http://localhost:3000",
-        start_dev_server=True,
+        api_factory=ContentApi,
+        preview_base="https://typesafe.pro",
         open_browser=True,
         opener=webbrowser.open,
         auto_select=False,
@@ -298,14 +143,11 @@ class ReviewSession:
         inspiration="hn",
         headlines=5,
     ):
-        self.content_dir = Path(content_dir).resolve()
-        self.repo_root = Path(repo_root).resolve() if repo_root else self.content_dir.parents[1]
         self.session_id = session_id or session_id_now()
         self.budget = budget or Budget(max_calls=400, max_seconds=3600)
         self.provider_factory = provider_factory
-        self.dev_server = dev_server or DevServer(
-            dev_url, self.repo_root, out, start_allowed=start_dev_server
-        )
+        self.api_factory = api_factory
+        self.preview_base = preview_base.rstrip("/")
         self.open_browser = open_browser
         self.opener = opener
         self.auto_select = auto_select
@@ -324,7 +166,6 @@ class ReviewSession:
         self.focus: dict[str, float] = {}
         self.near_misses: list[dict] = []
         self.show_all = False
-        self.git = Git(self.repo_root)
         self.started_at = now()
         self.seed = secrets.randbits(32)
         self.rng = random.Random(self.seed)
@@ -335,10 +176,12 @@ class ReviewSession:
         self.approved = 0
         self.skipped = 0
         self.rejected = Counter()
-        self.commits = []
-        self.catalog = None
+        self.published: list[str] = []
+        self.api = None
+        self.known: list[Idea] = []
+        self.categories: list[dict] = []
         self.provider = None
-        self.source_sha = ""
+        self.source_sha = "0000000"
 
     # ----- console helpers -------------------------------------------------------------
 
@@ -370,31 +213,23 @@ class ReviewSession:
     def preflight(self):
         if not RUN_ID.fullmatch(self.session_id):
             raise ReviewError("session ID must match ^[A-Za-z0-9_.-]{1,120}$")
-        if self.content_dir.relative_to(self.repo_root).as_posix() != CONTENT:
-            raise ReviewError(f"content directory must be {CONTENT} inside the repository")
+        self.source_sha = generator_version()
         try:
-            toplevel = Path(self.git.output("rev-parse", "--show-toplevel")).resolve()
-        except (subprocess.CalledProcessError, OSError):
-            raise ReviewError("not inside a Git repository") from None
-        if toplevel != self.repo_root:
-            raise ReviewError("repository root does not match the content directory")
-        if (self.repo_root / ".git" / "MERGE_HEAD").exists():
-            raise ReviewError("finish the merge in progress before reviewing content")
-        dirty = [
-            path
-            for path in self.git.changed_content_paths()
-            if path != f"{CONTENT}/review-skips.json"
-        ]
-        if dirty:
-            raise ReviewError(
-                "commit or stash these changes in the content catalog first: " + ", ".join(dirty)
-            )
-        self.source_sha = self.git.output("rev-parse", "HEAD")
-        self.catalog = Catalog(self.content_dir)
+            self.api = self.api_factory()
+            self.categories = self.api.categories()
+            self.refresh_known()
+        except ContentApiError as exc:
+            if exc.status == 401:
+                raise ReviewError("the content API rejected TYPESAFE_CONTENT_TOKEN_1") from None
+            raise ReviewError(f"the content API is not available ({exc})") from None
         self.provider = ProgressProvider(self.provider_factory(self.budget), self.out)
         self.check_clock()
-        with self.budget.paused():
-            self.dev_server.ensure(self.ask)
+
+    def refresh_known(self):
+        """Every non-archived page and draft: the reference set for novelty and diversity."""
+        self.known = [
+            Idea.model_validate(compact_fields(item)) for item in self.api.compact_pages()
+        ]
 
     def check_clock(self):
         if not self.clock_url:
@@ -414,8 +249,8 @@ class ReviewSession:
     def run(self, *, resume=False) -> Report:
         self.header(f"TypeSafe use-case review · session {self.session_id}")
         self.out(
-            "Press q at any prompt or Ctrl+C at any time to stop. Approved pages are already "
-            "committed; unfinished drafts stay in content/use-cases/drafts/ (--resume)."
+            "Press q at any prompt or Ctrl+C at any time to stop. Approved pages are "
+            "published at once; unfinished drafts stay in the content API (--resume)."
         )
         self.preflight()
         try:
@@ -428,18 +263,13 @@ class ReviewSession:
                 idea, novelty, similar = self.pick_candidate()
                 self.process_idea(idea, novelty, similar)
         except (Quit, KeyboardInterrupt):
-            self.out("\nSession ended by reviewer; pending drafts remain in drafts/.")
+            self.out("\nSession ended by reviewer; pending drafts are kept (--resume).")
         except BudgetExhausted:
-            self.out("\nSession budget exhausted; pending drafts remain in drafts/.")
+            self.out("\nSession budget exhausted; pending drafts are kept (--resume).")
         except ProviderError as exc:
-            self.out(f"\nProvider failure: {self.describe(exc)}; pending drafts remain in drafts/.")
+            self.out(f"\nProvider failure: {self.describe(exc)}; pending drafts are kept.")
         except ReviewError as exc:
-            self.out(f"\nSession stopped: {exc}; pending drafts remain in drafts/.")
-        finally:
-            try:
-                self.commit_skips()
-            finally:
-                self.dev_server.stop()
+            self.out(f"\nSession stopped: {exc}; pending drafts are kept (--resume).")
         return self.summary()
 
     @staticmethod
@@ -478,10 +308,10 @@ class ReviewSession:
             f"approved={self.approved} skipped={self.skipped} generated={self.generated} "
             f"api_calls={self.budget.calls} rejections={dict(self.rejected)}"
         )
-        for sha, message in self.commits:
-            self.out(f"  {sha} {message}")
-        if self.commits:
-            self.out("Run `git push` to deploy the approved pages.")
+        for slug in self.published:
+            self.out(f"  published {self.preview_base}/use-cases/{slug}")
+        if self.published:
+            self.out("Published pages are live now (cached responses refresh within minutes).")
         return report
 
     def report(self, run_id: str, status: str, reason: str | None = None) -> Report:
@@ -501,7 +331,7 @@ class ReviewSession:
             generated_count=self.generated,
             rejected_count=sum(self.rejected.values()),
             rejections=dict(self.rejected),
-            catalog_hash=self.catalog.manifest.catalog_hash,
+            catalog_hash="",
             mode="review",
             inspiration_source=self.inspiration_source,
             approved_count=self.approved,
@@ -511,31 +341,20 @@ class ReviewSession:
     # ----- ideas -----------------------------------------------------------------------
 
     def skips(self) -> list[dict]:
-        path = self.content_dir / "review-skips.json"
-        if not path.exists():
-            return []
-        try:
-            data = json.loads(path.read_bytes())
-            return list(data["skipped"])
-        except (ValueError, KeyError, TypeError):
-            raise ReviewError("review-skips.json is corrupt") from None
+        return self.resilient("Loading skipped ideas", self.api.skips)
 
-    def record_skip(self, idea: Idea, reason: str):
-        skipped = self.skips()
-        skipped.append(
-            {
-                "slug": idea.slug,
-                "fingerprint": fingerprint(idea),
-                "task_type": idea.task_type,
-                "summary": idea.summary,
-                "decision": idea.decision,
-                "reason": reason or "",
-                "at": now(),
-            }
-        )
-        atomic_write(
-            self.content_dir / "review-skips.json", {"schema_version": 1, "skipped": skipped}
-        )
+    def record_skip(self, idea: Idea, reason: str, *, archive=False):
+        item = {
+            "slug": idea.slug,
+            "fingerprint": fingerprint(idea),
+            "task_type": idea.task_type,
+            "summary": idea.summary,
+            "decision": idea.decision,
+            "reason": (reason or "")[:800],
+        }
+        self.resilient("Recording the skip", lambda: self.api.add_skip(item))
+        if archive:
+            self.resilient("Archiving the draft", lambda: self.api.archive(idea.slug))
         self.skipped += 1
         self.out(f"Skipped {idea.slug}.")
 
@@ -557,8 +376,8 @@ class ReviewSession:
         """Drop near-identical ideas before spending API calls on duplicate checks."""
         from .pipeline import frequent_task_types
 
-        avoid = {normalized(t) for t in frequent_task_types(self.catalog.pages, [])[:6]}
-        kept, types, seen = [], set(), [words_of(p) for p in self.catalog.pages]
+        avoid = {normalized(t) for t in frequent_task_types(self.known, [])[:6]}
+        kept, types, seen = [], set(), [words_of(p) for p in self.known]
         seen += [
             set(normalized(f"{x['slug'].replace('-', ' ')} {x['summary']}").split())
             for x in self.proposed_before_round
@@ -620,7 +439,7 @@ class ReviewSession:
             ideas = self.resilient(
                 "Idea generation",
                 lambda: propose_ideas(
-                    self.catalog.pages,
+                    self.known,
                     self.provider,
                     self.rng,
                     [{k: s[k] for k in ("summary", "task_type", "decision")} for s in skipped],
@@ -633,8 +452,7 @@ class ReviewSession:
             self.rejected["idea_stage_failed"] += 1
             self.warn("the model did not return valid ideas; trying another round")
             return
-        taken = {p.slug for p in self.catalog.pages}
-        taken.update(d["slug"] for d in self.pending_draft_files())
+        taken = {p.slug for p in self.known}
         taken.update(item[0].slug for item in self.pool)
         skipped_prints = {s["fingerprint"] for s in skipped}
         self.proposed_before_round = list(self.proposed)
@@ -653,12 +471,12 @@ class ReviewSession:
         fresh = self.focused(self.diverse(fresh))
         self.out(f"Checking {len(fresh)} ideas against the catalog for duplicates ...")
         hidden = 0
-        by_slug = {p.slug: p for p in self.catalog.pages}
+        by_slug = {p.slug: p for p in self.known}
         for idea in fresh:
             try:
                 duplicate, similar = self.resilient(
                     "Duplicate check",
-                    lambda idea=idea: novelty_scan(idea, self.catalog.pages, self.provider),
+                    lambda idea=idea: novelty_scan(idea, self.known, self.provider),
                 )
             except Rejected as exc:
                 self.rejected[str(exc)] += 1
@@ -812,7 +630,7 @@ class ReviewSession:
                         warn=self.warn,
                     ),
                 )
-                if any(fingerprint(old) == fingerprint(page) for old in self.catalog.pages):
+                if any(fingerprint(old) == fingerprint(page) for old in self.known):
                     raise Rejected("expanded_scenario_duplicate")
                 self.generated += 1
                 return page
@@ -848,71 +666,106 @@ class ReviewSession:
 
     # ----- drafts ----------------------------------------------------------------------
 
-    def draft_path(self, slug: str) -> Path:
-        return self.content_dir / "drafts" / f"{slug}.json"
+    def taxonomy(self, page: Page) -> tuple[str | None, list[str]]:
+        try:
+            chosen = self.resilient(
+                "Choosing category and tags",
+                lambda: choose_taxonomy(page, self.categories, self.provider),
+            )
+            return chosen.category, list(chosen.tags)
+        except (Rejected, StageError, ValidationError) as exc:
+            self.warn(f"no category or tags assigned ({str(exc)[:120]}); edit them later")
+            return None, []
 
-    def save_draft(self, idea, novelty, concept, page, *, attempt, feedback, created_at=None):
-        draft = {
-            "schema_version": 1,
-            "status": "pending",
-            "attempt": attempt,
-            "idea": idea.model_dump(),
-            "novelty": novelty,
-            "concept": concept.model_dump(exclude_none=True),
-            "page": page.model_dump(exclude_none=True),
-            "feedback": feedback,
-            "inspiration": self.origins.get(page.slug)
-            or (self.read_draft(page.slug) or {}).get("inspiration"),
-            "created_at": created_at or now(),
-            "updated_at": now(),
+    def save_draft(
+        self, idea, novelty, concept, page, *, attempt, feedback, created_at=None, listing=None
+    ):
+        category, tags = listing or self.taxonomy(page)
+        meta = {
+            "headline": self.origins.get(page.slug),
+            "review": {
+                "idea": idea.model_dump(),
+                "concept": concept.model_dump(exclude_none=True),
+                "feedback": feedback,
+                "attempt": attempt,
+                "created_at": created_at or now(),
+            },
         }
-        atomic_write(self.draft_path(page.slug), draft)
-        return draft
+        saved = self.resilient(
+            "Saving the draft",
+            lambda: self.api.put(
+                page.model_dump(exclude_none=True),
+                status="draft",
+                category=category,
+                tags=tags,
+                meta=meta,
+                novelty=novelty,
+            ),
+        )
+        if not any(item.slug == page.slug for item in self.known):
+            self.known.append(Idea.model_validate(compact(page)))
+        return {
+            "slug": page.slug,
+            "idea": meta["review"]["idea"],
+            "concept": meta["review"]["concept"],
+            "page": page.model_dump(exclude_none=True),
+            "novelty": novelty,
+            "feedback": feedback,
+            "attempt": attempt,
+            "created_at": meta["review"]["created_at"],
+            "category": category,
+            "tags": tags,
+            "revision": saved["revision"],
+        }
+
+    def draft_from_api(self, item: dict) -> dict | None:
+        review = (item.get("inspiration") or {}).get("review") or {}
+        try:
+            Page.model_validate(item["page"])
+            Idea.model_validate(review["idea"])
+            DemoConcept.model_validate(review["concept"])
+        except (ValidationError, KeyError, TypeError):
+            self.warn(f"draft {item.get('slug')} has no review state and was ignored")
+            return None
+        return {
+            "slug": item["slug"],
+            "idea": review["idea"],
+            "concept": review["concept"],
+            "page": item["page"],
+            "novelty": item.get("novelty") or 0.8,
+            "feedback": review.get("feedback", []),
+            "attempt": review.get("attempt", 1),
+            "created_at": review.get("created_at"),
+            "category": item.get("category"),
+            "tags": item.get("tags", []),
+            "revision": item.get("revision"),
+        }
 
     def read_draft(self, slug: str) -> dict | None:
-        try:
-            data = json.loads(self.draft_path(slug).read_bytes())
-        except (OSError, ValueError):
-            return None
-        return data if isinstance(data, dict) else None
-
-    def pending_draft_files(self) -> list[dict]:
-        directory = self.content_dir / "drafts"
-        if not directory.is_dir():
-            return []
-        drafts = []
-        for path in sorted(directory.glob("*.json")):
-            try:
-                data = json.loads(path.read_bytes())
-            except ValueError:
-                continue
-            if isinstance(data, dict) and data.get("status") == "pending":
-                data["slug"] = path.stem
-                drafts.append(data)
-        return drafts
+        for item in self.resilient("Loading drafts", self.api.drafts):
+            if item["slug"] == slug:
+                return self.draft_from_api(item)
+        return None
 
     def pending_drafts(self) -> list[dict]:
-        drafts = []
-        for data in self.pending_draft_files():
-            try:
-                Page.model_validate(data["page"])
-                Idea.model_validate(data["idea"])
-                DemoConcept.model_validate(data["concept"])
-            except (ValidationError, KeyError, TypeError):
-                self.warn(f"draft {data['slug']} is invalid and was ignored")
-                continue
-            drafts.append(data)
+        drafts = [
+            draft
+            for item in self.resilient("Loading drafts", self.api.drafts)
+            if (draft := self.draft_from_api(item)) is not None
+        ]
         if drafts:
             self.out(f"Resuming {len(drafts)} pending draft(s).")
         return drafts
 
+    def preview_url(self, slug: str) -> str:
+        token = self.resilient("Creating a preview link", lambda: self.api.preview_token(slug))
+        return f"{self.preview_base}/use-cases/{slug}?preview={token}"
+
     def preview(self, slug: str):
-        url = self.dev_server.page_url(slug)
-        with self.budget.paused():
-            if not self.dev_server.warm(slug):
-                self.warn("the dev server did not render the draft yet; try [o]pen again")
-            self.out(f"Preview: {url}")
-            if self.open_browser:
+        url = self.preview_url(slug)
+        self.out(f"Preview: {url}")
+        if self.open_browser:
+            with self.budget.paused():
                 self.opener(url)
 
     def review_draft(self, draft: dict):
@@ -923,30 +776,29 @@ class ReviewSession:
         feedback = list(draft.get("feedback", []))
         attempt = int(draft.get("attempt", 1))
         created_at = draft.get("created_at")
-        loaded = draft.get("updated_at")
+        listing = (draft.get("category"), list(draft.get("tags") or []))
+        loaded = draft.get("revision")
         self.preview(page.slug)
         while True:
-            # The browser always shows the file on disk; if it changed since it was loaded
-            # (another session or a manual regeneration), switch to it before any decision.
+            # The preview shows the stored draft; if another session changed it since it was
+            # loaded, switch to that version before any decision.
             latest = self.read_draft(page.slug)
-            if latest is not None and latest.get("updated_at") != loaded:
-                try:
-                    page = Page.model_validate(latest["page"])
-                    concept = DemoConcept.model_validate(latest["concept"])
-                    feedback = list(latest.get("feedback", []))
-                    attempt = int(latest.get("attempt", attempt))
-                    loaded = latest.get("updated_at")
-                    self.warn(f"the draft changed on disk; now reviewing attempt {attempt}")
-                except (ValidationError, KeyError, TypeError, ValueError):
-                    self.warn("the draft on disk changed but is invalid; keeping this version")
-                    loaded = latest.get("updated_at")
+            if latest is not None and latest.get("revision") != loaded:
+                page = Page.model_validate(latest["page"])
+                concept = DemoConcept.model_validate(latest["concept"])
+                feedback = list(latest.get("feedback", []))
+                attempt = int(latest.get("attempt", attempt))
+                listing = (latest.get("category"), list(latest.get("tags") or []))
+                loaded = latest.get("revision")
+                self.warn(f"the draft changed elsewhere; now reviewing attempt {attempt}")
             self.header(f"Review: {page.slug} (attempt {attempt})")
             self.out(f"Title: {page.seo.title}")
             self.out(f"Demo:  {page.demo.title if page.demo else 'none'}")
+            tags = ", ".join(listing[1]) or "none"
+            self.out(f"Listed under: {listing[0] or 'no category'} · tags: {tags}")
             answer = self.ask("[a]pprove  [f]eedback  [s]kip  [o]pen  [q]uit: ").lower()
             if answer == "a":
                 self.approve(page)
-                self.draft_path(page.slug).unlink(missing_ok=True)
                 return
             if answer == "o":
                 self.preview(page.slug)
@@ -954,8 +806,7 @@ class ReviewSession:
             if answer == "q":
                 raise Quit()
             if answer == "s":
-                self.record_skip(idea, self.ask("Reason (optional): "))
-                self.draft_path(page.slug).unlink(missing_ok=True)
+                self.record_skip(idea, self.ask("Reason (optional): "), archive=True)
                 return
             if answer != "f":
                 self.warn("no valid selection")
@@ -991,7 +842,7 @@ class ReviewSession:
                 elif scope == "concept":
                     chosen = self.choose_concept(idea, demo_notes)
                     if chosen is None:
-                        self.draft_path(page.slug).unlink(missing_ok=True)
+                        self.resilient("Archiving the draft", lambda: self.api.archive(page.slug))
                         return
                     concept = chosen
                     page = self.resilient(
@@ -1032,8 +883,9 @@ class ReviewSession:
                 attempt=attempt,
                 feedback=feedback,
                 created_at=created_at,
+                listing=listing,
             )
-            loaded = draft["updated_at"]
+            loaded = draft["revision"]
             self.preview(page.slug)
 
     # ----- approval --------------------------------------------------------------------
@@ -1042,44 +894,33 @@ class ReviewSession:
         if page.demo is None:
             raise ReviewError("a page without a verified demo cannot be approved")
         run_id = f"{self.session_id}-{self.approved + 1}"
-        self.catalog.add(page)
-        release = Release(
-            run_id=run_id,
-            source_sha=self.source_sha,
-            catalog_hash=self.catalog.manifest.catalog_hash,
-            generated_at=now(),
-            pages=[release_page(p) for p in self.catalog.pages],
-        )
-        atomic_write(self.content_dir / "release.json", release.model_dump())
-        self.catalog.validate_release()
+        self.resilient("Publishing", lambda: self.api.publish(page.slug))
         self.approved += 1
+        self.published.append(page.slug)
         report = self.report(run_id, "prepared", "approved_by_reviewer")
-        atomic_write(
-            self.content_dir / "runs" / (sha256(run_id.encode())[:24] + ".json"),
-            {
-                "schema_version": 1,
-                "complete": True,
-                "report": report.model_dump(),
-                "release": release.model_dump(),
-            },
-        )
-        self.commit(f"chore(content): add use case {page.slug}")
-        self.out(f"Approved {page.slug} ({len(self.catalog.pages)} pages in the catalog).")
+        try:
+            self.resilient(
+                "Recording the run", lambda: self.api.record_run(report.model_dump(mode="json"))
+            )
+        except ContentApiError as exc:
+            self.warn(f"the run report was not recorded ({exc}); the page is published")
+        self.out(f"Published {page.slug}: {self.preview_base}/use-cases/{page.slug}")
 
-    def commit(self, message: str):
-        paths = self.git.changed_content_paths()
-        if not paths:
-            return
-        self.git.run("add", "--", *paths)
-        self.git.run("commit", "-q", "-m", message, "--", *paths)
-        committed = self.git.output("diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD")
-        outside = [p for p in committed.splitlines() if not p.startswith(f"{CONTENT}/")]
-        if outside:
-            raise ReviewError("commit touched files outside the content catalog: " + str(outside))
-        sha = self.git.output("rev-parse", "--short", "HEAD")
-        self.commits.append((sha, message))
-        self.out(f"Committed {sha}: {message}")
 
-    def commit_skips(self):
-        if f"{CONTENT}/review-skips.json" in self.git.changed_content_paths():
-            self.commit("chore(content): record skipped use-case ideas")
+def compact_fields(item: dict) -> dict:
+    return {key: item[key] for key in Idea.model_fields}
+
+
+def generator_version() -> str:
+    """The generator's git revision for run reports (hex), or zeros outside a checkout."""
+    try:
+        value = subprocess.run(
+            ["git", "rev-parse", "--short=12", "HEAD"],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "0000000"
+    return value if re.fullmatch(r"[0-9a-f]{7,64}", value) else "0000000"

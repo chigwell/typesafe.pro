@@ -48,7 +48,6 @@ jobs:
       - run: uv run --project tools/seo ruff check tools/seo
       - run: uv run --project tools/seo ruff format --check tools/seo
       - run: uv run --project tools/seo pytest tools/seo/tests
-      - run: uv run --project tools/seo python -m seo_content validate
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -110,7 +109,6 @@ jobs:
         run: python3 deploy/content_release.py baseline --output "$RUNNER_TEMP/seo-baseline.json"
       - name: Build and validate the exact publication artifact
         run: |
-          uv run --frozen --project tools/seo python -m seo_content validate
           npm run build:web
       - name: Ensure Pages project exists
         run: npm run cf:pages:ensure

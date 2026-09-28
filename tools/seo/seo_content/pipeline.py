@@ -21,6 +21,7 @@ from .models import (
     NoulQuestion,
     Page,
     Quality,
+    Taxonomy,
     Verification,
     assert_expected,
 )
@@ -541,3 +542,33 @@ def rebuild_demo(page: Page, concept: DemoConcept, provider, feedback=(), warn=N
     idea = Idea.model_validate(compact(page))
     demo = build_demo(idea, concept, provider, now, feedback=feedback, warn=warn)
     return page.model_copy(update={"demo": demo, "updated_at": now()})
+
+
+def choose_taxonomy(page: Page, categories: list[dict], provider) -> Taxonomy:
+    """Pick one existing category and 2–5 reusable topic tags for the listing filters."""
+    allowed = {item["slug"] for item in categories}
+    taxonomy = provider.structured(
+        Taxonomy,
+        (
+            "Choose where this use case is listed. category: exactly one slug from "
+            "`categories` that best matches the decision the page teaches. tags: 2–5 short, "
+            "reusable, lower-case kebab-case topic tags a visitor might filter by (domain "
+            "such as support, music, ecommerce, education, health; input such as reviews, "
+            "chat, email; question style such as sentiment or urgency). Prefer tags from "
+            "`popular_tags` when they fit; no brand names, no near-duplicates."
+        ),
+        {
+            "categories": categories,
+            "popular_tags": [],
+            "page": {
+                "title": page.seo.title,
+                "summary": page.summary,
+                "task_type": page.task_type,
+                "industry": page.industry,
+                "decision": page.decision,
+            },
+        },
+    )
+    if taxonomy.category not in allowed:
+        raise Rejected(f"taxonomy_unknown_category: {taxonomy.category}")
+    return taxonomy

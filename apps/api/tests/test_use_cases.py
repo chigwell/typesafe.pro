@@ -349,3 +349,16 @@ async def test_listing_stays_fast_with_1200_pages(api, store):
     assert results[1].json()["total"] == 1200 and len(results[1].json()["items"]) == 24
     assert results[2].json()["total"] == 1200
     assert elapsed < 2, f"three cold queries took {elapsed:.2f}s"
+
+
+def test_fingerprint_matches_the_generator():
+    import sys
+
+    sys.path.insert(0, str(ROOT / "tools" / "seo"))
+    try:
+        from seo_content.catalog import fingerprint as generator_fingerprint
+        from seo_content.models import Page as GeneratorPage
+    finally:
+        sys.path.pop(0)
+    page = Page.model_validate(FIXTURE)
+    assert fingerprint(page) == generator_fingerprint(GeneratorPage.model_validate(FIXTURE))

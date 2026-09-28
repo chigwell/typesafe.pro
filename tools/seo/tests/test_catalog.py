@@ -1,52 +1,7 @@
-import json
-
 import pytest
-from conftest import FakeProvider, idea
 from pydantic import ValidationError
 
-from seo_content import catalog as storage
-from seo_content.catalog import Catalog, CatalogError, canonical, encoded, sha256
-from seo_content.models import DraftExample, EvaluationResponse, Shard, assert_expected
-from seo_content.pipeline import create_page
-
-
-def test_shard_rollover_and_hashes(content, page, monkeypatch):
-    monkeypatch.setattr(storage, "MAX_PAGES", 1)
-    catalog = Catalog(content)
-    catalog.add(page)
-    catalog.add(create_page(idea(2), 0.95, FakeProvider()))
-    assert [s.count for s in catalog.manifest.shards] == [1, 1]
-    entries = [s.model_dump() for s in catalog.manifest.shards]
-    assert catalog.manifest.catalog_hash == sha256(canonical(entries))
-    raw = (content / "pages-0001.json").read_bytes()
-    assert catalog.manifest.shards[0].sha256 == sha256(raw)
-    index = json.loads((content / "index-0001.json").read_bytes())
-    assert index["scenarios"][0]["slug"] == page.slug
-
-
-def test_byte_limit_rollover(content, page, monkeypatch):
-    catalog = Catalog(content)
-    catalog.add(page)
-    monkeypatch.setattr(storage, "MAX_BYTES", (content / "pages-0001.json").stat().st_size + 100)
-    catalog.add(create_page(idea(2), 0.95, FakeProvider()))
-    assert len(catalog.manifest.shards) == 2
-
-
-@pytest.mark.parametrize("filename", ["pages-0001.json", "index-0001.json"])
-def test_tampering_rejected(content, page, filename):
-    Catalog(content).add(page)
-    (content / filename).write_text("{}")
-    with pytest.raises(CatalogError):
-        Catalog(content)
-
-
-def test_existing_pages_not_rewritten(content, page):
-    catalog = Catalog(content)
-    catalog.add(page)
-    before = json.loads((content / "pages-0001.json").read_bytes())["pages"][0]
-    catalog.add(create_page(idea(2), 0.95, FakeProvider()))
-    after = json.loads((content / "pages-0001.json").read_bytes())["pages"][0]
-    assert before == after
+from seo_content.models import DraftExample, EvaluationResponse, assert_expected
 
 
 @pytest.mark.parametrize("kind", ["choice", "noul", "score"])
@@ -162,76 +117,6 @@ def test_distribution_integrity_checked():
         assert_expected(example, response)
 
 
-@pytest.mark.parametrize("existing_pages", [0, 1])
-@pytest.mark.parametrize("crash_after", [1, 2, 3, 4])
-def test_append_recovers_after_every_file_write(content, monkeypatch, crash_after, existing_pages):
-    catalog = Catalog(content)
-    original = create_page(idea(1), 0.95, FakeProvider())
-    if existing_pages:
-        catalog.add(original)
-    approved = create_page(idea(2), 0.95, FakeProvider())
-    real_write = storage.atomic_write
-    writes = 0
-
-    def interrupted_write(path, value):
-        nonlocal writes
-        real_write(path, value)
-        writes += 1
-        if writes == crash_after:
-            raise OSError("simulated process interruption")
-
-    monkeypatch.setattr(storage, "atomic_write", interrupted_write)
-    with pytest.raises((OSError, CatalogError)):
-        catalog.add(approved)
-    monkeypatch.setattr(storage, "atomic_write", real_write)
-    recovered = Catalog(content)
-    expected = [original, approved] if existing_pages else [approved]
-    assert recovered.pages == expected
-    assert not (content / "append-journal.json").exists()
-    assert Catalog(content).pages == expected
-
-
-def test_recovery_itself_can_be_interrupted(content, monkeypatch):
-    approved = create_page(idea(1), 0.95, FakeProvider())
-    real_write = storage.atomic_write
-
-    def fail_after_shard(path, value):
-        real_write(path, value)
-        if path.name.startswith("pages-"):
-            raise OSError("interrupted during recovery")
-
-    monkeypatch.setattr(storage, "atomic_write", fail_after_shard)
-    with pytest.raises(CatalogError):
-        Catalog(content).add(approved)
-    with pytest.raises(CatalogError):
-        Catalog(content)
-    monkeypatch.setattr(storage, "atomic_write", real_write)
-    assert Catalog(content).pages == [approved]
-
-
-def test_invalid_journal_cannot_overwrite_existing_catalog(content, monkeypatch):
-    catalog = Catalog(content)
-    catalog.add(create_page(idea(1), 0.95, FakeProvider()))
-    before = (content / "pages-0001.json").read_bytes()
-    real_write = storage.atomic_write
-
-    def fail_after_journal(path, value):
-        real_write(path, value)
-        if path.name == "append-journal.json":
-            raise OSError("interrupted before mutation")
-
-    monkeypatch.setattr(storage, "atomic_write", fail_after_journal)
-    with pytest.raises(OSError):
-        catalog.add(create_page(idea(2), 0.95, FakeProvider()))
-    monkeypatch.setattr(storage, "atomic_write", real_write)
-    journal = json.loads((content / "append-journal.json").read_bytes())
-    journal["file"] = "../outside.json"
-    real_write(content / "append-journal.json", journal)
-    with pytest.raises(CatalogError):
-        Catalog(content)
-    assert (content / "pages-0001.json").read_bytes() == before
-
-
 @pytest.mark.parametrize(
     "changes",
     [
@@ -293,26 +178,3 @@ def test_three_inputs_cannot_silently_change_the_question_rubric(change):
         examples[-1]["request"]["questions"]["q"]["criteria"]["review"] = "Unclear intent"
     with pytest.raises(ValidationError, match="identical question IDs"):
         DraftExamples(examples=examples)
-
-
-def test_repository_shards_round_trip_byte_identically():
-    """Appending a page re-serializes the last shard; existing pages must not change."""
-    from pathlib import Path
-
-    directory = Path(__file__).resolve().parents[3] / "content" / "use-cases"
-    catalog = Catalog(directory)
-    assert catalog.pages, "the repository catalog is expected to hold pages"
-    for entry in catalog.manifest.shards:
-        raw = (directory / entry.file).read_bytes()
-        shard = Shard.model_validate_json(raw)
-        pages = [page.model_dump(exclude_none=True) for page in shard.pages]
-        assert encoded({"schema_version": 1, "pages": pages}) == raw
-
-
-def test_page_with_demo_round_trips(content, demo_page):
-    catalog = Catalog(content)
-    catalog.add(demo_page)
-    loaded = Catalog(content)
-    assert loaded.pages[0].demo is not None
-    assert loaded.pages[0].demo.samples[0].response.answers["mood"].noul == 0.95
-    assert loaded.pages[0] == demo_page

@@ -1,6 +1,7 @@
 import pytest
 
-from seo_content.catalog import atomic_write, canonical, sha256
+from seo_content.catalog import compact, fingerprint
+from seo_content.content_api import ContentApiError
 from seo_content.models import (
     SEO,
     ArticleRepair,
@@ -14,6 +15,7 @@ from seo_content.models import (
     Idea,
     IdeaCandidate,
     Ideas,
+    Taxonomy,
 )
 from seo_content.pipeline import create_page
 
@@ -71,50 +73,6 @@ def demo_code():
             },
         ],
     )
-
-
-@pytest.fixture
-def content(tmp_path):
-    directory = tmp_path / "content"
-    checksum = sha256(canonical([]))
-    atomic_write(
-        directory / "manifest.json",
-        {
-            "schema_version": 1,
-            "total": 0,
-            "shards": [],
-            "catalog_hash": checksum,
-        },
-    )
-    atomic_write(
-        directory / "release.json",
-        {
-            "schema_version": 1,
-            "run_id": "initial",
-            "source_sha": "initial",
-            "catalog_hash": checksum,
-            "generated_at": "2026-09-25T00:00:00Z",
-            "pages": [],
-        },
-    )
-    return directory
-
-
-@pytest.fixture
-def baseline(tmp_path):
-    path = tmp_path / "baseline.json"
-    atomic_write(
-        path,
-        {
-            "schema_version": 1,
-            "run_id": "",
-            "source_sha": "",
-            "catalog_hash": "",
-            "generated_at": None,
-            "pages": [],
-        },
-    )
-    return path
 
 
 def idea(number=1):
@@ -219,6 +177,8 @@ class FakeProvider:
                     for e in context["verified_examples"]
                 ],
             )
+        if schema is Taxonomy:
+            return Taxonomy(category="routing-triage", tags=["workshops", "routing"])
         if schema is DemoConcepts:
             return DemoConcepts(concepts=[concept(i) for i in (1, 2, 3)])
         if schema is DemoCode:
@@ -270,3 +230,127 @@ class FakeFeed:
             Headline(self.calls * 100 + i, f"Headline {self.calls}-{i}", None, "hn")
             for i in range(n)
         ]
+
+
+CATEGORIES = [
+    {"slug": "routing-triage", "name": "Routing & triage", "description": ""},
+    {"slug": "tone-sentiment", "name": "Tone & sentiment", "description": ""},
+]
+
+
+class FakeApi:
+    """In-memory stand-in for the content API (same method names as ContentApi)."""
+
+    base = "https://api.test"
+
+    def __init__(self):
+        self.items = {}
+        self.skip_items = []
+        self.runs = []
+        self.calls = []
+        self.fail = None
+
+    def _check(self, name):
+        self.calls.append(name)
+        if self.fail and self.fail[0] == name:
+            status = self.fail[1]
+            raise ContentApiError(
+                f"content_api_http_{status}", status=status, retryable=status >= 500
+            )
+
+    def compact_pages(self):
+        self._check("compact_pages")
+        from seo_content.models import Page
+
+        result = []
+        for item in self.items.values():
+            if item["status"] == "archived":
+                continue
+            page = Page.model_validate(item["page"])
+            result.append(
+                {**compact(page), "status": item["status"], "fingerprint": fingerprint(page)}
+            )
+        return result
+
+    def drafts(self):
+        self._check("drafts")
+        return [
+            {
+                "slug": slug,
+                "page": item["page"],
+                "inspiration": item["meta"],
+                "novelty": item["novelty"],
+                "revision": item["revision"],
+                "category": item["category"],
+                "tags": sorted(item["tags"]),
+            }
+            for slug, item in self.items.items()
+            if item["status"] == "draft"
+        ]
+
+    def categories(self):
+        self._check("categories")
+        return CATEGORIES
+
+    def skips(self):
+        self._check("skips")
+        return list(self.skip_items)
+
+    def put(
+        self,
+        page,
+        *,
+        status="draft",
+        category=None,
+        tags=(),
+        meta=None,
+        novelty=None,
+        published_at=None,
+    ):
+        self._check("put")
+        old = self.items.get(page["slug"])
+        self.items[page["slug"]] = {
+            "page": page,
+            "status": status,
+            "category": category,
+            "tags": list(tags),
+            "meta": meta if meta is not None else (old or {}).get("meta"),
+            "novelty": novelty,
+            "revision": (old["revision"] + 1) if old else 1,
+            "published_at": published_at,
+        }
+        return {
+            "slug": page["slug"],
+            "status": status,
+            "revision": self.items[page["slug"]]["revision"],
+        }
+
+    def publish(self, slug):
+        self._check("publish")
+        self.items[slug]["status"] = "published"
+        self.items[slug]["revision"] += 1
+        return {"slug": slug, "status": "published"}
+
+    def archive(self, slug):
+        self._check("archive")
+        self.items[slug]["status"] = "archived"
+        return {"slug": slug, "status": "archived"}
+
+    def preview_token(self, slug):
+        self._check("preview_token")
+        return f"tok-{slug}"
+
+    def add_skip(self, item):
+        self._check("add_skip")
+        self.skip_items.append(item)
+
+    def record_run(self, report):
+        self._check("record_run")
+        self.runs.append(report)
+        return {"recorded": True}
+
+    def status(self, slug):
+        return self.items[slug]["status"] if slug in self.items else None
+
+    def published(self):
+        return [slug for slug, item in self.items.items() if item["status"] == "published"]
