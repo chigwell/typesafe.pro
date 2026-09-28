@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "run_id": "local-20260928T094543Z-1",
-  "source_sha": "5b9ed92c3e3325d4198aba59b739a4847ae27e5a",
-  "catalog_hash": "e2751f10a0c42fcb334375bee53cf8854b1e6227587d8c7cdc4e3a8b642c6b4b",
-  "generated_at": "2026-09-28T09:50:11.029286Z",
+  "run_id": "local-20260928T103123Z-1",
+  "source_sha": "5be237593d671dd690fec3fb32c1b4b5d6da0c3a",
+  "catalog_hash": "63749b9d0f281faae9bdf6ae8dcf03871cdb54986b5f069e7b3c55c983f8dc2d",
+  "generated_at": "2026-09-28T10:39:29.230029Z",
   "pages": [
     {
       "slug": "library-catalog-routing",
@@ -46,6 +46,12 @@
       "title": "Score Recipe Heat Levels from Dish Descriptions for UI Gauges",
       "created_at": "2026-09-28T09:42:44.812424Z",
       "updated_at": "2026-09-28T09:42:44.812424Z"
+    },
+    {
+      "slug": "language-learner-grammar-error",
+      "title": "Detect Subject-Verb Agreement Errors in Learner Text",
+      "created_at": "2026-09-28T10:39:00.535045Z",
+      "updated_at": "2026-09-28T10:39:00.535045Z"
     }
   ]
 }

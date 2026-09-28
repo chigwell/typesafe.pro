@@ -84,6 +84,18 @@
       "input_description": "A short free-text dish description or ingredient combination written by a home cook.",
       "decision": "Score: Rate reported heat intensity across 5 levels from 0 (mild / zero spice) to 4 (extreme fire / pepperhead).",
       "action": "Downstream code animates a heat gauge UI component and displays appropriate spice indicator icons."
+    },
+    {
+      "slug": "language-learner-grammar-error",
+      "industry": "Language Learning Apps",
+      "audience": "Self-Directed Learners",
+      "task_type": "confusing-grammar-flag",
+      "search_intent": "Identify subject-verb agreement errors in user foreign language practice text.",
+      "summary": "Detect grammatical agreement mistakes in learner text to present immediate feedback.",
+      "problem": "The input consists of a single practice sentence written by a language learner. Because learners express ideas with varied vocabulary and sentence structures, simple pattern matching often misses agreement mismatches or flags false positives. The application must evaluate the sentence for subject-verb agreement errors so the learning interface can conditionally display a revision tip.",
+      "input_description": "A single practice sentence written by a language learner.",
+      "decision": "Noul: Does the submitted sentence contain a subject-verb agreement error?",
+      "action": "Learning UI highlights the verb phrase and displays a focused grammar tip."
     }
   ]
 }

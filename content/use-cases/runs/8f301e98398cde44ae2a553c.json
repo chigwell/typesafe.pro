@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "complete": true,
+  "report": {
+    "run_id": "local-20260928T103123Z-1",
+    "source_sha": "5be237593d671dd690fec3fb32c1b4b5d6da0c3a",
+    "status": "prepared",
+    "reason": "approved_by_reviewer",
+    "started_at": "2026-09-28T10:31:23.996021Z",
+    "finished_at": "2026-09-28T10:39:29.238464Z",
+    "duration_seconds": 351.295,
+    "seed": 2873605596,
+    "rounds": 3,
+    "api_calls": 55,
+    "input_tokens": 154401,
+    "output_tokens": 57491,
+    "generated_count": 1,
+    "rejected_count": 6,
+    "rejections": {
+      "unfocused": 5,
+      "semantic_duplicate": 1
+    },
+    "catalog_hash": "63749b9d0f281faae9bdf6ae8dcf03871cdb54986b5f069e7b3c55c983f8dc2d",
+    "mode": "review",
+    "approved_count": 1,
+    "skipped_count": 0,
+    "inspiration_source": "hn"
+  },
+  "release": {
+    "schema_version": 1,
+    "run_id": "local-20260928T103123Z-1",
+    "source_sha": "5be237593d671dd690fec3fb32c1b4b5d6da0c3a",
+    "catalog_hash": "63749b9d0f281faae9bdf6ae8dcf03871cdb54986b5f069e7b3c55c983f8dc2d",
+    "generated_at": "2026-09-28T10:39:29.230029Z",
+    "pages": [
+      {
+        "slug": "library-catalog-routing",
+        "title": "Automating Library Reference Query Routing with Intent Classification",
+        "created_at": "2026-09-25T15:31:20.467624Z",
+        "updated_at": "2026-09-25T15:35:00.990043Z"
+      },
+      {
+        "slug": "permission-software-license",
+        "title": "Check Software License Justifications Before Procurement Review",
+        "created_at": "2026-09-25T15:33:55.274202Z",
+        "updated_at": "2026-09-25T15:36:02.408494Z"
+      },
+      {
+        "slug": "ingredient-allergen-screening",
+        "title": "Screen Ingredient Spec Sheets for Allergen Disclosures",
+        "created_at": "2026-09-25T15:53:34.323318Z",
+        "updated_at": "2026-09-25T15:53:34.323318Z"
+      },
+      {
+        "slug": "facility-maintenance-severity-scoring",
+        "title": "Scoring Maintenance Request Severity for Facility Dispatch",
+        "created_at": "2026-09-25T15:55:29.066891Z",
+        "updated_at": "2026-09-25T15:55:29.066891Z"
+      },
+      {
+        "slug": "wind-turbine-maintenance-report-completeness",
+        "title": "Scoring Wind Turbine Maintenance Report Completeness",
+        "created_at": "2026-09-26T19:26:35.886633Z",
+        "updated_at": "2026-09-26T19:26:35.886633Z"
+      },
+      {
+        "slug": "playlist-mood-palette",
+        "title": "Map Playlist Mood Descriptions to UI Color Palettes",
+        "created_at": "2026-09-27T20:00:01.341476Z",
+        "updated_at": "2026-09-27T20:00:01.341476Z"
+      },
+      {
+        "slug": "recipe-spice-level-scoring",
+        "title": "Score Recipe Heat Levels from Dish Descriptions for UI Gauges",
+        "created_at": "2026-09-28T09:42:44.812424Z",
+        "updated_at": "2026-09-28T09:42:44.812424Z"
+      },
+      {
+        "slug": "language-learner-grammar-error",
+        "title": "Detect Subject-Verb Agreement Errors in Learner Text",
+        "created_at": "2026-09-28T10:39:00.535045Z",
+        "updated_at": "2026-09-28T10:39:00.535045Z"
+      }
+    ]
+  }
+}

@@ -1850,6 +1850,477 @@
       },
       "created_at": "2026-09-28T09:42:44.812424Z",
       "updated_at": "2026-09-28T09:42:44.812424Z"
+    },
+    {
+      "slug": "language-learner-grammar-error",
+      "industry": "Language Learning Apps",
+      "audience": "Self-Directed Learners",
+      "task_type": "confusing-grammar-flag",
+      "search_intent": "Identify subject-verb agreement errors in user foreign language practice text.",
+      "summary": "Detect grammatical agreement mistakes in learner text to present immediate feedback.",
+      "problem": "The input consists of a single practice sentence written by a language learner. Because learners express ideas with varied vocabulary and sentence structures, simple pattern matching often misses agreement mismatches or flags false positives. The application must evaluate the sentence for subject-verb agreement errors so the learning interface can conditionally display a revision tip.",
+      "input_description": "A single practice sentence written by a language learner.",
+      "decision": "Noul: Does the submitted sentence contain a subject-verb agreement error?",
+      "action": "Learning UI highlights the verb phrase and displays a focused grammar tip.",
+      "schema_version": 1,
+      "seo": {
+        "title": "Detect Subject-Verb Agreement Errors in Learner Text",
+        "description": "Learn how to evaluate learner sentences for subject-verb agreement errors using Noul judgments to trigger conditional feedback in language apps."
+      },
+      "intro": "Language learners frequently submit practice sentences containing subject-verb agreement errors. This example helps you decide whether to present an interactive grammar tip based on a Noul judgment. Application code checks the model judgment to route UI highlights to the learner.",
+      "solution": "In the provided examples, the request submits a learner's input sentence in state and asks a single Noul question named has_agreement_error. The API returns a probability value indicating whether an agreement mistake is present, observed at 0.68 for an ungrammatical input ('The student write...'), 0.04 for a correct sentence ('The student writes...'), and 0.03 for a non-clause word ('Hello.'). Application code can compare this probability score against a custom threshold to decide when the learning interface should highlight the verb phrase and display a targeted revision tip. While the API provides the probability judgment, application code handles all threshold logic, UI highlights, and educational feedback policies.",
+      "limitations": [
+        "This example evaluates a single Noul question focusing on subject-verb agreement, but this single-question design does not prevent you from evaluating other grammatical rules through separate questions in a multi-label workflow.",
+        "The criteria for a false result cover both correct sentences and text lacking a subject-verb pair, so you can add separate questions if your UI needs to distinguish fragments from complete sentences.",
+        "Observing an elevated agreement error score indicates text pattern issues in the provided sentence, but it does not perform automated spell-checking or validate learner lesson eligibility."
+      ],
+      "examples": [
+        {
+          "name": "Sentence with subject-verb agreement error",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "sentence": "The student write a story every day."
+            },
+            "questions": {
+              "has_agreement_error": {
+                "type": "noul",
+                "instructions": "Determine if the sentence in state contains a subject-verb agreement error.",
+                "criteria": {
+                  "true": "The subject and verb do not agree in number or person.",
+                  "false": "The subject and verb agree in number and person, or the text does not contain a subject-verb pair."
+                }
+              }
+            }
+          },
+          "expected": {
+            "has_agreement_error": {
+              "type": "noul",
+              "min": 0.55,
+              "max": 0.95
+            }
+          },
+          "expected_description": "Elevated probability of an agreement error observed when the singular subject 'student' is paired with the base verb form 'write'.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "has_agreement_error": {
+                "type": "noul",
+                "noul": 0.68
+              }
+            },
+            "usage": {
+              "input_tokens": 346,
+              "output_tokens": 24
+            }
+          },
+          "verified_at": "2026-09-28T10:37:25.235343Z"
+        },
+        {
+          "name": "Grammatically correct sentence with matching subject and verb",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "sentence": "The student writes a story every day."
+            },
+            "questions": {
+              "has_agreement_error": {
+                "type": "noul",
+                "instructions": "Determine if the sentence in state contains a subject-verb agreement error.",
+                "criteria": {
+                  "true": "The subject and verb do not agree in number or person.",
+                  "false": "The subject and verb agree in number and person, or the text does not contain a subject-verb pair."
+                }
+              }
+            }
+          },
+          "expected": {
+            "has_agreement_error": {
+              "type": "noul",
+              "min": 0.0,
+              "max": 0.25
+            }
+          },
+          "expected_description": "Low probability of an agreement error because the singular subject 'student' correctly matches the third-person singular verb 'writes'.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "has_agreement_error": {
+                "type": "noul",
+                "noul": 0.04
+              }
+            },
+            "usage": {
+              "input_tokens": 346,
+              "output_tokens": 24
+            }
+          },
+          "verified_at": "2026-09-28T10:37:25.501772Z"
+        },
+        {
+          "name": "Single word greeting without subject or verb",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "sentence": "Hello."
+            },
+            "questions": {
+              "has_agreement_error": {
+                "type": "noul",
+                "instructions": "Determine if the sentence in state contains a subject-verb agreement error.",
+                "criteria": {
+                  "true": "The subject and verb do not agree in number or person.",
+                  "false": "The subject and verb agree in number and person, or the text does not contain a subject-verb pair."
+                }
+              }
+            }
+          },
+          "expected": {
+            "has_agreement_error": {
+              "type": "noul",
+              "min": 0.0,
+              "max": 0.3
+            }
+          },
+          "expected_description": "Low probability of a subject-verb agreement error because the single word greeting lacks a subject and verb clause.",
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "has_agreement_error": {
+                "type": "noul",
+                "noul": 0.03
+              }
+            },
+            "usage": {
+              "input_tokens": 340,
+              "output_tokens": 24
+            }
+          },
+          "verified_at": "2026-09-28T10:37:25.749859Z"
+        }
+      ],
+      "demo": {
+        "title": "Interactive Subject-Verb Agreement Radar",
+        "concept": "A interactive radar display evaluates learner text for subject-verb agreement errors, sweeping a dynamic needle across confidence bands and spawning visual indicator particles.",
+        "interaction": "The visitor selects a sample practice sentence or types a custom foreign language line into a text field.",
+        "visual": "A dial gauge sweeps smoothly to the error probability, while red warning pulse rings ripple outward for agreement errors and floating green sparkles float upward when agreement is correct.",
+        "questions": {
+          "has_agreement_error": {
+            "type": "noul",
+            "instructions": "Does the practice sentence in state field 'practice_text' contain a subject-verb agreement error?",
+            "criteria": {
+              "true": "The sentence exhibits a subject-verb agreement error in person or number.",
+              "false": "The sentence has correct subject-verb agreement or no identifiable agreement mistake."
+            }
+          },
+          "agreement_rating": {
+            "type": "score",
+            "instructions": "Rate the subject-verb agreement accuracy of the practice sentence in state field 'practice_text'.",
+            "criteria": [
+              "Severe subject-verb agreement mismatch",
+              "Minor or questionable agreement structure",
+              "Flawless subject-verb agreement"
+            ]
+          }
+        },
+        "html": "<div class=\"ts-stack\">\n  <div class=\"ts-card\">\n    <div class=\"ts-stack\">\n      <label class=\"ts-label\" for=\"practice-input\">\n        <strong>Practice Sentence</strong>\n        <span class=\"ts-help\">Enter a learner sentence to check for subject-verb agreement errors.</span>\n      </label>\n      <input type=\"text\" id=\"practice-input\" class=\"ts-input\" placeholder=\"e.g. She go to the store every morning...\" autocomplete=\"off\" />\n      <div class=\"ts-row\">\n        <button id=\"analyze-btn\" type=\"button\" class=\"ts-btn\">\n          <span id=\"btn-text\">Check Agreement</span>\n        </button>\n        <div id=\"sample-chips\" class=\"ts-row\" style=\"flex: 1; flex-wrap: wrap;\"></div>\n      </div>\n      <div id=\"status\" class=\"ts-status\" aria-live=\"polite\"></div>\n    </div>\n  </div>\n\n  <div id=\"result-panel\" class=\"ts-panel\" style=\"display: none;\">\n    <div class=\"ts-stack\">\n      <div class=\"ts-row\" style=\"justify-content: space-between; align-items: center;\">\n        <span class=\"ts-eyebrow\">Agreement Radar</span>\n        <span id=\"badge-status\" class=\"ts-badge\">--</span>\n      </div>\n\n      <div class=\"ts-grid\">\n        <div class=\"ts-card visual-container\">\n          <div class=\"radar-box\">\n            <svg viewBox=\"0 0 200 120\" class=\"radar-svg\">\n              <path d=\"M 20 100 A 80 80 0 0 1 180 100\" fill=\"none\" stroke=\"var(--ts-line)\" stroke-width=\"14\" stroke-linecap=\"round\"/>\n              <path d=\"M 20 100 A 80 80 0 0 1 65 46\" fill=\"none\" stroke=\"var(--ts-success)\" stroke-width=\"14\" stroke-linecap=\"round\" opacity=\"0.45\"/>\n              <path d=\"M 65 46 A 80 80 0 0 1 135 46\" fill=\"none\" stroke=\"var(--ts-c4)\" stroke-width=\"14\" opacity=\"0.45\"/>\n              <path d=\"M 135 46 A 80 80 0 0 1 180 100\" fill=\"none\" stroke=\"var(--ts-danger)\" stroke-width=\"14\" stroke-linecap=\"round\" opacity=\"0.45\"/>\n              <g id=\"needle-group\" style=\"transform-origin: 100px 100px; transform: rotate(-90deg); transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);\">\n                <line x1=\"100\" y1=\"100\" x2=\"100\" y2=\"32\" stroke=\"var(--ts-ink)\" stroke-width=\"4\" stroke-linecap=\"round\"/>\n                <circle cx=\"100\" cy=\"100\" r=\"7\" fill=\"var(--ts-ink)\"/>\n              </g>\n            </svg>\n            <div id=\"particle-area\" class=\"particle-area\"></div>\n          </div>\n          <div style=\"margin-top: -6px; text-align: center;\">\n            <div id=\"error-prob-val\" class=\"ts-value\">0%</div>\n            <div class=\"ts-help\">Error Probability</div>\n          </div>\n        </div>\n\n        <div class=\"ts-card\" style=\"display: flex; flex-direction: column; justify-content: space-between;\">\n          <div>\n            <span class=\"ts-eyebrow\">Grammar Feedback</span>\n            <div id=\"rating-title\" class=\"ts-title\" style=\"margin-top: 6px;\">--</div>\n            <p id=\"rating-desc\" class=\"ts-text\" style=\"font-size: 13px; margin-top: 6px;\">Enter text to evaluate agreement accuracy.</p>\n          </div>\n          <div style=\"margin-top: 14px;\">\n            <div class=\"ts-meter\">\n              <div id=\"rating-meter-fill\" class=\"ts-meter-fill\" style=\"width: 0%;\"></div>\n            </div>\n            <div class=\"ts-row\" style=\"justify-content: space-between; margin-top: 6px;\">\n              <span class=\"ts-help\">Severe Mismatch</span>\n              <span class=\"ts-help\">Flawless</span>\n            </div>\n          </div>\n        </div>\n      </div>\n    </div>\n  </div>\n</div>",
+        "css": "#demo .visual-container {\n  position: relative;\n  padding: 16px;\n  background: var(--ts-surface);\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n}\n\n#demo .radar-box {\n  position: relative;\n  width: 100%;\n  max-width: 210px;\n  margin: 0 auto;\n}\n\n#demo .radar-svg {\n  width: 100%;\n  height: auto;\n  display: block;\n}\n\n#demo .particle-area {\n  position: absolute;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  pointer-events: none;\n  overflow: hidden;\n}\n\n@keyframes warningPulse {\n  0% {\n    transform: scale(0.2);\n    opacity: 0.9;\n  }\n  100% {\n    transform: scale(2.0);\n    opacity: 0;\n  }\n}\n\n#demo .pulse-ring {\n  position: absolute;\n  top: 60%;\n  left: 50%;\n  width: 60px;\n  height: 60px;\n  margin-top: -30px;\n  margin-left: -30px;\n  border-radius: 50%;\n  border: 2px solid var(--ts-danger);\n  animation: warningPulse 1.6s infinite cubic-bezier(0.215, 0.61, 0.355, 1);\n}\n\n#demo .pulse-ring:nth-child(2) {\n  animation-delay: 0.5s;\n}\n\n@keyframes sparkleFloat {\n  0% {\n    transform: translateY(0) scale(0.6);\n    opacity: 1;\n  }\n  100% {\n    transform: translateY(-40px) scale(1.2);\n    opacity: 0;\n  }\n}\n\n#demo .sparkle {\n  position: absolute;\n  bottom: 20px;\n  width: 8px;\n  height: 8px;\n  border-radius: 50%;\n  background: var(--ts-success);\n  box-shadow: 0 0 6px var(--ts-success);\n  animation: sparkleFloat 1.2s infinite ease-out;\n}",
+        "js": "(function() {\n  const input = document.getElementById('practice-input');\n  const btn = document.getElementById('analyze-btn');\n  const status = document.getElementById('status');\n  const chipsContainer = document.getElementById('sample-chips');\n  const resultPanel = document.getElementById('result-panel');\n  const needleGroup = document.getElementById('needle-group');\n  const errorProbVal = document.getElementById('error-prob-val');\n  const badgeStatus = document.getElementById('badge-status');\n  const ratingTitle = document.getElementById('rating-title');\n  const ratingDesc = document.getElementById('rating-desc');\n  const ratingMeterFill = document.getElementById('rating-meter-fill');\n  const particleArea = document.getElementById('particle-area');\n\n  const samples = window.TypeSafeDemo.samples || [];\n  samples.forEach((sample, idx) => {\n    const chip = document.createElement('button');\n    chip.type = 'button';\n    chip.className = 'ts-chip';\n    chip.textContent = 'Sample ' + (idx + 1);\n    chip.title = sample.description;\n    chip.addEventListener('click', () => {\n      input.value = sample.state.practice_text;\n      runEvaluation();\n    });\n    chipsContainer.appendChild(chip);\n  });\n\n  btn.addEventListener('click', runEvaluation);\n  input.addEventListener('keydown', (e) => {\n    if (e.key === 'Enter') {\n      runEvaluation();\n    }\n  });\n\n  async function runEvaluation() {\n    const text = input.value.trim();\n    if (!text) {\n      status.className = 'ts-status is-error';\n      status.textContent = 'Please enter a practice sentence.';\n      return;\n    }\n\n    btn.disabled = true;\n    status.className = 'ts-status is-loading';\n    status.innerHTML = '<span class=\"ts-spinner\"></span> Checking grammar agreement...';\n\n    try {\n      const answers = await window.TypeSafeDemo.evaluate({ practice_text: text });\n      status.className = 'ts-status';\n      status.textContent = '';\n      renderResults(answers);\n    } catch (err) {\n      status.className = 'ts-status is-error';\n      status.textContent = window.TypeSafeDemo.describeError(err);\n    } finally {\n      btn.disabled = false;\n    }\n  }\n\n  function renderResults(answers) {\n    resultPanel.style.display = 'block';\n\n    const errorNoul = answers.has_agreement_error;\n    const ratingScore = answers.agreement_rating;\n\n    const prob = (errorNoul && typeof errorNoul.noul === 'number') ? errorNoul.noul : 0;\n    const scoreVal = (ratingScore && typeof ratingScore.score === 'number') ? ratingScore.score : 2;\n\n    const angle = -90 + (prob * 180);\n    needleGroup.style.transform = 'rotate(' + angle + 'deg)';\n    errorProbVal.textContent = Math.round(prob * 100) + '%';\n\n    particleArea.innerHTML = '';\n    if (prob > 0.4) {\n      const p1 = document.createElement('div');\n      p1.className = 'pulse-ring';\n      const p2 = document.createElement('div');\n      p2.className = 'pulse-ring';\n      particleArea.appendChild(p1);\n      particleArea.appendChild(p2);\n    } else {\n      for (let i = 0; i < 4; i++) {\n        const sp = document.createElement('div');\n        sp.className = 'sparkle';\n        sp.style.left = (20 + i * 20) + '%';\n        sp.style.animationDelay = (i * 0.3) + 's';\n        particleArea.appendChild(sp);\n      }\n    }\n\n    const fillPct = Math.min(100, Math.max(0, (scoreVal / 2) * 100));\n    ratingMeterFill.style.width = fillPct + '%';\n\n    if (scoreVal < 0.7) {\n      badgeStatus.textContent = 'Agreement Error';\n      badgeStatus.style.background = 'var(--ts-danger)';\n      badgeStatus.style.color = '#fff';\n      ratingTitle.textContent = 'Severe Subject-Verb Mismatch';\n      ratingDesc.textContent = 'The subject and verb do not agree in number or person. Highlight target verb for correction.';\n      ratingMeterFill.style.background = 'var(--ts-danger)';\n    } else if (scoreVal < 1.4) {\n      badgeStatus.textContent = 'Review Needed';\n      badgeStatus.style.background = 'var(--ts-c4)';\n      badgeStatus.style.color = 'var(--ts-ink)';\n      ratingTitle.textContent = 'Questionable Structure';\n      ratingDesc.textContent = 'The agreement phrasing is ambiguous or contains subtle stylistic misalignment.';\n      ratingMeterFill.style.background = 'var(--ts-c4)';\n    } else {\n      badgeStatus.textContent = 'Flawless';\n      badgeStatus.style.background = 'var(--ts-success)';\n      badgeStatus.style.color = '#fff';\n      ratingTitle.textContent = 'Correct Subject-Verb Agreement';\n      ratingDesc.textContent = 'Grammatical number and person match accurately across subject and predicate.';\n      ratingMeterFill.style.background = 'var(--ts-success)';\n    }\n  }\n})();",
+        "samples": [
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "practice_text": "She go to the library every afternoon after class."
+              },
+              "questions": {
+                "has_agreement_error": {
+                  "type": "noul",
+                  "instructions": "Does the practice sentence in state field 'practice_text' contain a subject-verb agreement error?",
+                  "criteria": {
+                    "true": "The sentence exhibits a subject-verb agreement error in person or number.",
+                    "false": "The sentence has correct subject-verb agreement or no identifiable agreement mistake."
+                  }
+                },
+                "agreement_rating": {
+                  "type": "score",
+                  "instructions": "Rate the subject-verb agreement accuracy of the practice sentence in state field 'practice_text'.",
+                  "criteria": [
+                    "Severe subject-verb agreement mismatch",
+                    "Minor or questionable agreement structure",
+                    "Flawless subject-verb agreement"
+                  ]
+                }
+              }
+            },
+            "description": "Incorrect third-person singular agreement ('She go' instead of 'She goes').",
+            "expected": {
+              "has_agreement_error": {
+                "type": "noul",
+                "min": 0.7,
+                "max": 1.0
+              },
+              "agreement_rating": {
+                "type": "score",
+                "min": 0.0,
+                "max": 0.5
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "has_agreement_error": {
+                  "type": "noul",
+                  "noul": 0.95
+                },
+                "agreement_rating": {
+                  "type": "score",
+                  "score": 0.22,
+                  "probabilities": {
+                    "0": 0.79,
+                    "1": 0.2,
+                    "2": 0.01
+                  },
+                  "confidence": 0.67,
+                  "legend": {
+                    "0": "Severe subject-verb agreement mismatch",
+                    "1": "Minor or questionable agreement structure",
+                    "2": "Flawless subject-verb agreement"
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 411,
+                "output_tokens": 39
+              }
+            },
+            "verified_at": "2026-09-28T10:38:59.483169Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "practice_text": "They have been studying French for three years."
+              },
+              "questions": {
+                "has_agreement_error": {
+                  "type": "noul",
+                  "instructions": "Does the practice sentence in state field 'practice_text' contain a subject-verb agreement error?",
+                  "criteria": {
+                    "true": "The sentence exhibits a subject-verb agreement error in person or number.",
+                    "false": "The sentence has correct subject-verb agreement or no identifiable agreement mistake."
+                  }
+                },
+                "agreement_rating": {
+                  "type": "score",
+                  "instructions": "Rate the subject-verb agreement accuracy of the practice sentence in state field 'practice_text'.",
+                  "criteria": [
+                    "Severe subject-verb agreement mismatch",
+                    "Minor or questionable agreement structure",
+                    "Flawless subject-verb agreement"
+                  ]
+                }
+              }
+            },
+            "description": "Correct plural subject and auxiliary verb agreement.",
+            "expected": {
+              "has_agreement_error": {
+                "type": "noul",
+                "min": 0.0,
+                "max": 0.2
+              },
+              "agreement_rating": {
+                "type": "score",
+                "min": 1.5,
+                "max": 2.0
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "has_agreement_error": {
+                  "type": "noul",
+                  "noul": 0.04
+                },
+                "agreement_rating": {
+                  "type": "score",
+                  "score": 1.99,
+                  "probabilities": {
+                    "0": 0.0,
+                    "1": 0.01,
+                    "2": 0.99
+                  },
+                  "confidence": 0.98,
+                  "legend": {
+                    "0": "Severe subject-verb agreement mismatch",
+                    "1": "Minor or questionable agreement structure",
+                    "2": "Flawless subject-verb agreement"
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 410,
+                "output_tokens": 39
+              }
+            },
+            "verified_at": "2026-09-28T10:38:59.767677Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "practice_text": "Le professeur expliquent la leçon aux étudiants attentivement."
+              },
+              "questions": {
+                "has_agreement_error": {
+                  "type": "noul",
+                  "instructions": "Does the practice sentence in state field 'practice_text' contain a subject-verb agreement error?",
+                  "criteria": {
+                    "true": "The sentence exhibits a subject-verb agreement error in person or number.",
+                    "false": "The sentence has correct subject-verb agreement or no identifiable agreement mistake."
+                  }
+                },
+                "agreement_rating": {
+                  "type": "score",
+                  "instructions": "Rate the subject-verb agreement accuracy of the practice sentence in state field 'practice_text'.",
+                  "criteria": [
+                    "Severe subject-verb agreement mismatch",
+                    "Minor or questionable agreement structure",
+                    "Flawless subject-verb agreement"
+                  ]
+                }
+              }
+            },
+            "description": "French subject-verb mismatch ('Le professeur expliquent' singular subject with plural verb).",
+            "expected": {
+              "has_agreement_error": {
+                "type": "noul",
+                "min": 0.7,
+                "max": 1.0
+              },
+              "agreement_rating": {
+                "type": "score",
+                "min": 0.0,
+                "max": 0.5
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "has_agreement_error": {
+                  "type": "noul",
+                  "noul": 0.86
+                },
+                "agreement_rating": {
+                  "type": "score",
+                  "score": 0.4,
+                  "probabilities": {
+                    "0": 0.71,
+                    "1": 0.18,
+                    "2": 0.11
+                  },
+                  "confidence": 0.41,
+                  "legend": {
+                    "0": "Severe subject-verb agreement mismatch",
+                    "1": "Minor or questionable agreement structure",
+                    "2": "Flawless subject-verb agreement"
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 417,
+                "output_tokens": 39
+              }
+            },
+            "verified_at": "2026-09-28T10:39:00.045819Z"
+          },
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "practice_text": "Nosotros escribimos una carta para el nuevo profesor."
+              },
+              "questions": {
+                "has_agreement_error": {
+                  "type": "noul",
+                  "instructions": "Does the practice sentence in state field 'practice_text' contain a subject-verb agreement error?",
+                  "criteria": {
+                    "true": "The sentence exhibits a subject-verb agreement error in person or number.",
+                    "false": "The sentence has correct subject-verb agreement or no identifiable agreement mistake."
+                  }
+                },
+                "agreement_rating": {
+                  "type": "score",
+                  "instructions": "Rate the subject-verb agreement accuracy of the practice sentence in state field 'practice_text'.",
+                  "criteria": [
+                    "Severe subject-verb agreement mismatch",
+                    "Minor or questionable agreement structure",
+                    "Flawless subject-verb agreement"
+                  ]
+                }
+              }
+            },
+            "description": "Correct first-person plural subject-verb agreement in Spanish.",
+            "expected": {
+              "has_agreement_error": {
+                "type": "noul",
+                "min": 0.0,
+                "max": 0.2
+              },
+              "agreement_rating": {
+                "type": "score",
+                "min": 1.5,
+                "max": 2.0
+              }
+            },
+            "response": {
+              "model": "jev-1.13.0",
+              "answers": {
+                "has_agreement_error": {
+                  "type": "noul",
+                  "noul": 0.05
+                },
+                "agreement_rating": {
+                  "type": "score",
+                  "score": 1.99,
+                  "probabilities": {
+                    "0": 0.0,
+                    "1": 0.01,
+                    "2": 0.99
+                  },
+                  "confidence": 0.98,
+                  "legend": {
+                    "0": "Severe subject-verb agreement mismatch",
+                    "1": "Minor or questionable agreement structure",
+                    "2": "Flawless subject-verb agreement"
+                  }
+                }
+              },
+              "usage": {
+                "input_tokens": 414,
+                "output_tokens": 39
+              }
+            },
+            "verified_at": "2026-09-28T10:39:00.530805Z"
+          }
+        ],
+        "verified_at": "2026-09-28T10:39:00.531191Z"
+      },
+      "verification": {
+        "model": "jev-1.13.0",
+        "verified_at": "2026-09-28T10:39:00.535045Z",
+        "quality": {
+          "useful": 0.96,
+          "supported": 0.9,
+          "consistent": 0.87
+        },
+        "novelty_probability": 0.83
+      },
+      "created_at": "2026-09-28T10:39:00.535045Z",
+      "updated_at": "2026-09-28T10:39:00.535045Z"
     }
   ]
 }
