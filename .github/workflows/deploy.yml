@@ -80,8 +80,7 @@ jobs:
       SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
       CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
-      # The Worker's workers.dev URL until the typesafe.pro custom domain is moved from Pages.
-      WEB_URL: ${{ vars.WEB_URL || 'https://typesafe-pro-web.chigwel137.workers.dev' }}
+      WEB_URL: ${{ vars.WEB_URL || 'https://typesafe.pro' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
