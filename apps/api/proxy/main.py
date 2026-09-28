@@ -22,6 +22,8 @@ from starlette.responses import JSONResponse, Response
 from .admin import admin_router
 from .auth import authenticate, bearer, client_ip, digest
 from .config import MAX_BODY_BYTES, Settings
+from .content_api import content_admin_router, public_content_router
+from .content_store import new_state as new_content_state
 from .limiter import Limiter
 from .payload import CAPTURE_BYTES, estimate_tokens, inspect_response, usage_tokens, valid_response
 from .scheduler import BodyBudget, Rejected, Scheduler
@@ -162,6 +164,7 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
         )
         state.store = store or await Store.connect(config.database_url)
         state.store.retention_seconds = config.observability_retention_seconds
+        new_content_state(state)
         try:
             await state.redis.ping()
             await state.store.policies()
@@ -198,10 +201,20 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
             if redis is None:
                 await state.redis.aclose()
 
-    app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url="/openapi.json",
+        title="typesafe.pro public content API",
+        version="1",
+        description="Read-only, cached access to published TypeSafe use cases.",
+    )
     app.router.redirect_slashes = False
     app.add_middleware(RequestID)
-    app.include_router(admin_router())
+    app.include_router(content_admin_router(), include_in_schema=False)
+    app.include_router(admin_router(), include_in_schema=False)
+    app.include_router(public_content_router())
 
     class AdminNotFound:
         async def __call__(self, scope, receive, send):
@@ -210,14 +223,14 @@ def create_app(settings=None, transport=None, *, store=None, redis=None) -> Fast
     app.router.add_route("/admin", AdminNotFound(), methods=None)
     app.router.add_route("/admin/{path:path}", AdminNotFound(), methods=None)
 
-    @app.get("/health")
+    @app.get("/health", include_in_schema=False)
     async def health(request: Request) -> Response:
         return JSONResponse(
             {"ok": True, "service": "typesafe-proxy", "release": app.state.settings.release_sha},
             headers={"Cache-Control": "no-store"},
         )
 
-    @app.post("/analytics/view")
+    @app.post("/analytics/view", include_in_schema=False)
     async def analytics_view(request: Request) -> Response:
         state = request.app.state
         config = state.settings

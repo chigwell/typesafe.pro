@@ -13,6 +13,7 @@ MAX_CONTEXT_TOKENS = 64_000
 MAX_STATE_QUESTION_TOKENS = 32_000
 RETENTION_SECONDS = 7 * 24 * 60 * 60
 TOKEN_NAME = re.compile(r"TYPESAFE_(TEST|MASTER|ADMIN)_API_TOKEN_([1-9][0-9]*)$")
+CONTENT_TOKEN_NAME = re.compile(r"TYPESAFE_CONTENT_TOKEN_([1-9][0-9]{0,2})")
 TIERS = ("paid", "free", "anonymous")
 
 
@@ -63,6 +64,9 @@ class Settings:
     admin_tokens: tuple[bytes, ...] = field(default=(), repr=False)
     analytics_view_rpm: int = 30
     analytics_view_burst: int = 10
+    content_tokens: tuple[bytes, ...] = field(default=(), repr=False)
+    content_read_rpm: int = 600
+    content_read_burst: int = 120
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "Settings":
@@ -102,6 +106,20 @@ class Settings:
             or set(masters) & set(admin_tokens)
         ):
             raise ValueError("Tokens must be unique and client/master/admin tokens must differ")
+        content = {}
+        for name, value in env.items():
+            match = CONTENT_TOKEN_NAME.fullmatch(name)
+            if name.startswith("TYPESAFE_CONTENT_TOKEN") and (
+                match is None or not re.fullmatch(r"[\x21-\x7e]{32,4096}", value)
+            ):
+                raise ValueError("Invalid content token configuration (names or values)")
+            if match:
+                content[match.group(1)] = value.encode("ascii")
+        content_tokens = [content[key] for key in sorted(content, key=int)]
+        if len(set(content_tokens)) != len(content_tokens) or set(content_tokens) & (
+            set(clients) | set(masters) | set(admin_tokens)
+        ):
+            raise ValueError("Content tokens must be unique and differ from API tokens")
         required = ("DATABASE_URL", "REDIS_URL", "TOKEN_HASH_SECRET")
         missing = [
             name for name in required if not env.get(name) or "\n" in env[name] or "\r" in env[name]
@@ -179,4 +197,7 @@ class Settings:
             admin_tokens=tuple(admins[key] for key in sorted(admins, key=int)),
             analytics_view_rpm=positive("ANALYTICS_VIEW_RPM", 30),
             analytics_view_burst=positive("ANALYTICS_VIEW_BURST", 10),
+            content_tokens=tuple(content_tokens),
+            content_read_rpm=positive("CONTENT_READ_RPM", 600),
+            content_read_burst=positive("CONTENT_READ_BURST", 120),
         )

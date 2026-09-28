@@ -141,7 +141,8 @@ async def store(migrated):
     store = await Store.connect(migrated)
     await store.pool.execute(
         "TRUNCATE api_client_tokens, proxy_error_events, page_views, "
-        "seo_runs, seo_publications, seo_pages"
+        "seo_runs, seo_publications, seo_pages, use_case_tag_links, use_case_tags, "
+        "use_cases, use_case_skips"
     )
     await store.pool.execute("""UPDATE rate_limit_policies SET
         rpm = CASE tier WHEN 'anonymous' THEN 30 WHEN 'free' THEN 120 ELSE 1000 END,

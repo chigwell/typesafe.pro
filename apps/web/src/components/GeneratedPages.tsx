@@ -63,7 +63,7 @@ export default function GeneratedPages({ summary, pages, runs, page, runPage, on
     </div>
     <div className="admin-totals">
       <div className="admin-metric"><span>Published pages</span><strong>{number(summary?.total_pages)}</strong></div>
-      <div className="admin-metric"><span>Added in last successful deploy</span><strong>{number(summary?.added_last_deploy)}</strong><small>{date(summary?.latest_publication?.published_at)}</small></div>
+      <div className="admin-metric"><span>Published in the last 7 days</span><strong>{number(summary?.added_last_deploy)}</strong><small>{date(summary?.latest_publication?.published_at)}</small></div>
       <div className="admin-metric"><span>Last generation attempt</span>
         {summary?.latest_attempt ? <Attempt run={summary.latest_attempt} /> : <strong>{summary ? "No runs yet" : "Unavailable"}</strong>}
       </div>

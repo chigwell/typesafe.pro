@@ -9,7 +9,28 @@ import pytest
 from conftest import ENV
 from pydantic import ValidationError
 
+from proxy.content_store import ContentStore
 from proxy.seo import Manifest, RunReport, SeoJournal
+from proxy.use_case_schema import Page
+
+FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "use_case_page.json").read_text())
+
+
+async def publish_page(store, slug, published_at):
+    page = dict(
+        FIXTURE, slug=slug, summary=f"{slug} summary", problem=f"{slug}. " + FIXTURE["problem"]
+    )
+    page["seo"] = dict(FIXTURE["seo"], title=slug.replace("-", " ").title() + " with TypeSafe")
+    await ContentStore(store).upsert(
+        Page.model_validate(page),
+        status="published",
+        category=None,
+        tags=[],
+        inspiration=None,
+        novelty=None,
+        published_at=published_at,
+    )
+
 
 API_DIR = Path(__file__).resolve().parents[1]
 NOW = datetime(2026, 9, 25, 12, tzinfo=UTC)
@@ -61,24 +82,22 @@ async def test_journal_initial_prepared_failed_and_successful_counts(store):
     assert (await journal.summary())["total_pages"] == 0
     await journal.record_run(run_report())
     assert (await journal.summary())["total_pages"] == 0
-    first = await journal.publish(manifest(), NOW + timedelta(seconds=40))
-    assert first["added_count"] == 1
-    assert (await journal.snapshot())["run_id"] == "run-1"
+    await publish_page(store, "route-support", datetime.now(UTC))
     await journal.record_run(run_report("run-2", "failed", 1))
     summary = await journal.summary()
     assert summary["latest_attempt"]["status"] == "failed"
     assert summary["total_pages"] == summary["added_last_deploy"] == 1
+    assert summary["latest_publication"]["published_at"]
     assert summary["totals"] == {
         "runs": 2,
         "api_calls": 24,
         "input_tokens": 600,
         "output_tokens": 300,
     }
-    second = await journal.publish(
-        manifest("run-3", 2, ("route-support", "rank-feedback")), NOW + timedelta(minutes=3)
-    )
-    assert second["added_count"] == 1
-    assert (await journal.summary())["total_pages"] == 2
+    # Pages older than a week still count as published but not as recently added.
+    await publish_page(store, "rank-feedback", datetime.now(UTC) - timedelta(days=30))
+    summary = await journal.summary()
+    assert summary["total_pages"] == 2 and summary["added_last_deploy"] == 1
 
 
 async def test_publish_idempotency_stale_replay_and_rollback(store):
@@ -93,11 +112,10 @@ async def test_publish_idempotency_stale_replay_and_rollback(store):
         await journal.publish(value | {"catalog_hash": "c" * 64})
     with pytest.raises(ValueError, match="Stale"):
         await journal.publish(manifest("run-old", 1), NOW + timedelta(minutes=4))
-    assert (await journal.summary())["total_pages"] == 0
-    assert (await journal.summary())["latest_publication"]["removed_count"] == 1
+    assert (await journal.snapshot())["pages"] == []
     # Explicit recovery uses a new release identity and generation timestamp.
     await journal.publish(manifest("run-recovery", 4), NOW + timedelta(minutes=5))
-    assert (await journal.summary())["total_pages"] == 1
+    assert [p["slug"] for p in (await journal.snapshot())["pages"]] == ["route-support"]
 
 
 async def test_run_replay_and_prepared_to_failed_update(store):
@@ -126,7 +144,8 @@ async def test_run_replay_and_prepared_to_failed_update(store):
 
 async def test_page_pagination_and_daily_unique_visitors(store):
     journal = SeoJournal(store)
-    await journal.publish(manifest(slugs=("route-support", "rank-feedback")))
+    await publish_page(store, "route-support", NOW)
+    await publish_page(store, "rank-feedback", NOW + timedelta(minutes=1))
     await store.record_page_view("/use-cases/route-support", "a" * 64, NOW)
     await store.record_page_view("/use-cases/route-support", "a" * 64, NOW)
     await store.record_page_view("/use-cases/route-support", "b" * 64, NOW + timedelta(days=1))
@@ -150,6 +169,7 @@ async def test_endpoints_authenticated_read_only_and_paginated(client_for):
         journal = SeoJournal(client.app.state.store)
         await journal.record_run(run_report())
         await journal.publish(manifest())
+        await publish_page(client.app.state.store, "route-support", NOW)
         summary = await client.get("/admin/api/seo/summary")
         assert summary.status_code == 200
         assert summary.json()["latest_attempt"]["status"] == "published"

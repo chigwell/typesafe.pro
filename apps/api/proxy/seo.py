@@ -204,8 +204,12 @@ class SeoJournal:
     async def summary(self):
         async with self.pool.acquire() as conn:
             async with conn.transaction(isolation="repeatable_read", readonly=True):
+                # Pages now live in use_cases and go live on approval, without deploys.
                 latest = await conn.fetchrow(
-                    "SELECT * FROM seo_publications ORDER BY id DESC LIMIT 1"
+                    """SELECT count(*) AS total_pages,
+                       count(*) FILTER (WHERE published_at > now() - interval '7 days') AS recent,
+                       max(published_at) AS published_at
+                       FROM use_cases WHERE status = 'published'"""
                 )
                 attempt = await conn.fetchrow(
                     """SELECT r.report,p.published_at FROM seo_runs r
@@ -220,9 +224,11 @@ class SeoJournal:
                        FROM seo_runs"""
                 )
         return {
-            "total_pages": latest["total_pages"] if latest else 0,
-            "added_last_deploy": latest["added_count"] if latest else 0,
-            "latest_publication": publication(latest),
+            "total_pages": latest["total_pages"],
+            "added_last_deploy": latest["recent"],
+            "latest_publication": (
+                {"published_at": iso(latest["published_at"])} if latest["published_at"] else None
+            ),
             "latest_attempt": report(attempt) if attempt else None,
             "totals": dict(totals),
         }
@@ -230,13 +236,16 @@ class SeoJournal:
     async def pages(self, page, page_size):
         async with self.pool.acquire() as conn:
             async with conn.transaction(isolation="repeatable_read", readonly=True):
-                total = await conn.fetchval("SELECT count(*) FROM seo_pages")
+                total = await conn.fetchval(
+                    "SELECT count(*) FROM use_cases WHERE status = 'published'"
+                )
                 rows = await conn.fetch(
                     """SELECT p.*, '/use-cases/' || p.slug AS path,
                        coalesce(v.unique_visitors,0) AS unique_visitors,
                        coalesce(v.total_hits,0)::bigint AS total_hits
-                       FROM (SELECT * FROM seo_pages ORDER BY published_at DESC,slug
-                             LIMIT $1 OFFSET $2) p
+                       FROM (SELECT slug, title, created_at, updated_at, published_at
+                             FROM use_cases WHERE status = 'published'
+                             ORDER BY published_at DESC, slug LIMIT $1 OFFSET $2) p
                        LEFT JOIN LATERAL (
                          SELECT count(*) AS unique_visitors,sum(hits) AS total_hits
                          FROM page_views WHERE path='/use-cases/' || p.slug

@@ -86,8 +86,10 @@ async def test_health_bypasses_admission(client_for):
         assert result.headers["access-control-expose-headers"] == "X-Request-ID, Retry-After"
         assert result.headers["x-request-id"]
         assert not calls
-        for path in ("/", "/docs", "/openapi.json", "/health/"):
+        for path in ("/", "/docs", "/redoc", "/health/"):
             assert (await client.get(path)).status_code == 404
+        # The public content API is documented on purpose; nothing else is in it.
+        assert (await client.get("/openapi.json")).status_code == 200
         assert (await client.post("/health")).status_code == 405
         assert not calls
 

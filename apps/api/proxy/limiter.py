@@ -96,6 +96,14 @@ class Limiter:
             )
         )
 
+    async def content_read_retry(self, ip_hash):
+        return int(
+            await self._client(
+                keys=[f"ts:content:read:{ip_hash}"],
+                args=[self.settings.content_read_rpm, self.settings.content_read_burst],
+            )
+        )
+
     async def acquire(self, owner):
         keys = []
         for master in self.settings.masters:

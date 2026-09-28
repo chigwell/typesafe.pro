@@ -28,6 +28,7 @@ def main():
                 "TYPESAFE_TEST_API_TOKEN_",
                 "TYPESAFE_MASTER_API_TOKEN_",
                 "TYPESAFE_ADMIN_API_TOKEN_",
+                "TYPESAFE_CONTENT_TOKEN_",
             )
         )
     )
@@ -48,6 +49,10 @@ def main():
         "MAX_INFLIGHT_REQUESTS",
         "MASTER_MAX_INFLIGHT",
         "REQUEST_TIMEOUT_SECONDS",
+        "ANALYTICS_VIEW_RPM",
+        "ANALYTICS_VIEW_BURST",
+        "CONTENT_READ_RPM",
+        "CONTENT_READ_BURST",
     ):
         if name in values_from_env:
             values[name] = values_from_env[name]
