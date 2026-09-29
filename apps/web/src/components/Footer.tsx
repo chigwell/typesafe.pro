@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUpRight } from "lucide-react";
-import { Brand, BrandMark } from "./icons";
+import { AppStoreBadge, Brand, BrandMark } from "./icons";
 
 export function FinalCta() {
   return (
@@ -36,6 +36,9 @@ export function Footer() {
             <a href="mailto:support@typesafe.pro">support@typesafe.pro</a>
             <a href="/#faq-independent">About this gateway</a>
           </div>
+        </div>
+        <div className="footer-store">
+          <AppStoreBadge />
         </div>
         <div className="footer-bottom">
           <p>

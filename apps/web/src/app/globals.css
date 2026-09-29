@@ -1668,6 +1668,50 @@ h1 .accent {
   font-size: 12px;
 }
 
+.footer-store {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.app-store-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 8px 16px;
+  background: var(--button);
+  color: var(--button-ink);
+  transition: transform 0.25s var(--ease), opacity 0.2s;
+}
+
+.app-store-badge:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.app-store-badge-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.app-store-badge-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.app-store-badge-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.app-store-badge-title {
+  font-size: 17px;
+  font-weight: 650;
+}
+
 .toast {
   position: fixed;
   right: 20px;
@@ -1815,6 +1859,11 @@ h1 .accent {
   .footer-bottom {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .footer-store {
+    justify-content: center;
+    margin-top: 16px;
   }
 
   .hero-flows {
