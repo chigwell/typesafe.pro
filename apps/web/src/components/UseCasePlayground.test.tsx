@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -6,7 +6,7 @@ import { UseCasePlayground } from "./UseCasePlayground";
 import { useCaseFixture } from "@/test/use-case-fixture";
 import { LANGUAGE_ORDER, LANGUAGES } from "@/lib/codegen";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe("use-case playground", () => {
   it("renders complete Python in initial HTML and makes no automatic call", async () => {
@@ -51,5 +51,53 @@ describe("use-case playground", () => {
     resolveResponse(new Response(JSON.stringify(examples[0].response), { status: 200, headers: { "Content-Type": "application/json" } }));
     await waitFor(() => expect(screen.getByText("Previous verification")).toBeInTheDocument());
     expect(screen.queryByText(/Live response received/)).not.toBeInTheDocument();
+  });
+});
+
+describe("use-case request lifecycle", () => {
+  function pendingFetch() {
+    return vi.spyOn(globalThis, "fetch").mockImplementation((_input, options) => new Promise((_resolve, reject) => {
+      options?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    }));
+  }
+  async function run() {
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Try online" })); });
+  }
+  it("cancels on demand and aborts on unmount", async () => {
+    const fetch = pendingFetch();
+    const { unmount } = render(<UseCasePlayground examples={useCaseFixture().examples} />);
+    await run();
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Cancel" })); });
+    expect(fetch.mock.calls[0][1]?.signal?.aborted).toBe(true);
+    expect(screen.getByText("Request cancelled.")).toBeInTheDocument();
+    await run();
+    unmount();
+    expect(fetch.mock.calls[1][1]?.signal?.aborted).toBe(true);
+  });
+  it("uses its own twenty-second timeout and leaves the answer empty", async () => {
+    vi.useFakeTimers();
+    const fetch = pendingFetch();
+    render(<UseCasePlayground examples={useCaseFixture().examples} />);
+    await run();
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(fetch.mock.calls[0][1]?.signal?.reason).toBe("timeout");
+    expect(screen.getByText("The request timed out after 20 seconds. Try again.")).toBeInTheDocument();
+    expect(screen.getByText("Ready when you are.")).toBeInTheDocument();
+  });
+  it("reports invalid response JSON without showing the saved answer", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{", { headers: { "Content-Type": "application/json" } }));
+    render(<UseCasePlayground examples={useCaseFixture().examples} />);
+    await run();
+    expect(await screen.findByText("The gateway returned invalid JSON.")).toBeInTheDocument();
+    expect(screen.getByText("Ready when you are.")).toBeInTheDocument();
+  });
+  it("copies exact result bytes with the use-case message", async () => {
+    vi.stubGlobal("isSecureContext", true);
+    const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+    const examples = useCaseFixture().examples;
+    render(<UseCasePlayground examples={examples} />);
+    fireEvent.click(screen.getByRole("button", { name: "Copy result" }));
+    expect(await screen.findByText("Copied to clipboard.")).toBeInTheDocument();
+    expect(write).toHaveBeenCalledWith(JSON.stringify(examples[0].response, null, 2));
   });
 });

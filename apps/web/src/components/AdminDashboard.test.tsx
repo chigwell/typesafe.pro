@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import AdminDashboard from "./AdminDashboard";
@@ -165,7 +165,7 @@ function mockApi({
     });
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("AdminDashboard", () => {
   it("signs in with credentials and renders system and activity", async () => {
@@ -306,5 +306,78 @@ describe("AdminDashboard", () => {
     await screen.findByText("Too many login attempts");
     expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled();
     expect(screen.getByText(/Try again in/)).toBeInTheDocument();
+  });
+});
+
+describe("admin polling lifecycle", () => {
+  async function settle() {
+    await act(async () => { for (let turn = 0; turn < 30; turn++) await Promise.resolve(); });
+  }
+  const privateLabels = ["42%", "60%", "35%", "Usage tokens", "IP activity", "Page views", "Support routing 1", "request-1"];
+  it("refreshes all eight resources every ten seconds without overlapping loads", async () => {
+    vi.useFakeTimers();
+    const fetch = mockApi();
+    const original = fetch.getMockImplementation()!;
+    let hold = false;
+    const pending: (() => void)[] = [];
+    fetch.mockImplementation((input, options) => hold && !String(input).endsWith("/auth/session")
+      ? new Promise((resolve) => { pending.push(() => { void Promise.resolve(original(input, options)).then(resolve); }); })
+      : original(input, options));
+    render(<AdminDashboard />);
+    await settle();
+    expect(fetch).toHaveBeenCalledTimes(9);
+    await act(async () => { await vi.advanceTimersByTimeAsync(9_999); });
+    expect(fetch).toHaveBeenCalledTimes(9);
+    hold = true;
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(fetch).toHaveBeenCalledTimes(17);
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(fetch).toHaveBeenCalledTimes(17);
+    hold = false;
+    await act(async () => { pending.forEach((resolve) => resolve()); });
+    await settle();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(fetch).toHaveBeenCalledTimes(25);
+  });
+  it("aborts an obsolete filter load and ignores its later settlement", async () => {
+    const fetch = mockApi();
+    const original = fetch.getMockImplementation()!;
+    const stale: (() => void)[] = [];
+    const signals: AbortSignal[] = [];
+    let firstLoad = true;
+    fetch.mockImplementation((input, options) => {
+      if (firstLoad && !String(input).endsWith("/auth/session")) {
+        signals.push(options?.signal as AbortSignal);
+        return new Promise((resolve) => { stale.push(() => { void Promise.resolve(original(input, options)).then(resolve); }); });
+      }
+      return original(input, options);
+    });
+    render(<AdminDashboard />);
+    await screen.findByRole("button", { name: "7d" });
+    await waitFor(() => expect(stale).toHaveLength(8));
+    firstLoad = false;
+    fireEvent.click(screen.getByRole("button", { name: "7d" }));
+    await screen.findByText("42%");
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    const html = document.querySelector(".admin-content")?.innerHTML;
+    await act(async () => { stale.forEach((resolve) => resolve()); });
+    expect(document.querySelector(".admin-content")?.innerHTML).toBe(html);
+    expect(screen.getAllByText("7d window", { selector: ".admin-section-heading span" })).toHaveLength(2);
+  });
+  it.each(["logout", "401"])("removes all private resource sections after %s", async (trigger) => {
+    const fetch = mockApi();
+    const original = fetch.getMockImplementation()!;
+    render(<AdminDashboard />);
+    await screen.findByText("42%");
+    for (const label of privateLabels) expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    if (trigger === "logout") fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    else {
+      fetch.mockImplementation((input, options) => String(input).includes("/summary?window=")
+        ? Promise.resolve(new Response(JSON.stringify({ detail: "Expired" }), { status: 401 })) : original(input, options));
+      fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    }
+    await screen.findByLabelText("Password");
+    for (const label of privateLabels) expect(screen.queryByText(label)).not.toBeInTheDocument();
+    expect(document.querySelector(".admin-content")).toBeNull();
   });
 });
