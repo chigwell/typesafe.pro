@@ -157,3 +157,4 @@ functional fixes and migrations above require separate tasks.
 | 11 | [11-quality](https://github.com/chigwell/typesafe.pro/pull/13) |
 | 12 | [12-candidates](https://github.com/chigwell/typesafe.pro/pull/14) |
 | 13 | [13-drafts](https://github.com/chigwell/typesafe.pro/pull/15) |
+| 14 | [14-styles](https://github.com/chigwell/typesafe.pro/pull/16) |

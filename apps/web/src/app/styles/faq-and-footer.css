@@ -1,3 +1,4 @@
+
 .faq-layout {
   display: grid;
   grid-template-columns: 0.75fr 1.25fr;
@@ -172,4 +173,3 @@
     transform: rotate(360deg);
   }
 }
-
