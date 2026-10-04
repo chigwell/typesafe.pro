@@ -314,6 +314,15 @@ describe("admin polling lifecycle", () => {
     await act(async () => { for (let turn = 0; turn < 30; turn++) await Promise.resolve(); });
   }
   const privateLabels = ["42%", "60%", "35%", "Usage tokens", "IP activity", "Page views", "Support routing 1", "request-1"];
+  it("preserves complete dashboard markup for a settled snapshot", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-04T12:00:00Z"));
+    vi.spyOn(Date.prototype, "toLocaleString").mockImplementation(function (this: Date) { return this.toISOString(); });
+    mockApi();
+    const { container } = render(<AdminDashboard />);
+    await settle();
+    expect(container.querySelector(".admin-content")?.innerHTML).toMatchSnapshot();
+  });
   it("refreshes all eight resources every ten seconds without overlapping loads", async () => {
     vi.useFakeTimers();
     const fetch = mockApi();
