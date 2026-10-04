@@ -1,0 +1,932 @@
+{
+  "$defs": {
+    "ChoiceAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "choice",
+          "title": "Type",
+          "type": "string"
+        },
+        "choice": {
+          "title": "Choice",
+          "type": "string"
+        },
+        "probabilities": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "title": "Probabilities",
+          "type": "object"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "choice",
+        "probabilities",
+        "confidence"
+      ],
+      "title": "ChoiceAnswer",
+      "type": "object"
+    },
+    "ChoiceQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "choice",
+          "title": "Type",
+          "type": "string"
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Instructions"
+        },
+        "criteria": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": {
+                  "$ref": "#/$defs/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "$ref": "#/$defs/JsonValue"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxProperties": 255,
+          "minProperties": 1,
+          "title": "Criteria",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "instructions",
+        "criteria"
+      ],
+      "title": "ChoiceQuestion",
+      "type": "object"
+    },
+    "Demo": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "concept": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Concept",
+          "type": "string"
+        },
+        "interaction": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Interaction",
+          "type": "string"
+        },
+        "visual": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Visual",
+          "type": "string"
+        },
+        "questions": {
+          "additionalProperties": {
+            "discriminator": {
+              "mapping": {
+                "choice": "#/$defs/ChoiceQuestion",
+                "noul": "#/$defs/NoulQuestion",
+                "score": "#/$defs/ScoreQuestion"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ChoiceQuestion"
+              },
+              {
+                "$ref": "#/$defs/NoulQuestion"
+              },
+              {
+                "$ref": "#/$defs/ScoreQuestion"
+              }
+            ]
+          },
+          "maxProperties": 20,
+          "minProperties": 1,
+          "title": "Questions",
+          "type": "object"
+        },
+        "html": {
+          "maxLength": 12000,
+          "minLength": 1,
+          "title": "Html",
+          "type": "string"
+        },
+        "css": {
+          "maxLength": 8000,
+          "title": "Css",
+          "type": "string"
+        },
+        "js": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Js",
+          "type": "string"
+        },
+        "samples": {
+          "items": {
+            "$ref": "#/$defs/VerifiedDemoSample"
+          },
+          "maxItems": 4,
+          "minItems": 2,
+          "title": "Samples",
+          "type": "array"
+        },
+        "verified_at": {
+          "title": "Verified At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "concept",
+        "interaction",
+        "visual",
+        "questions",
+        "html",
+        "css",
+        "js",
+        "samples",
+        "verified_at"
+      ],
+      "title": "Demo",
+      "type": "object"
+    },
+    "EvaluationRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "const": "jev-latest",
+          "default": "jev-latest",
+          "title": "Model",
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "State"
+        },
+        "questions": {
+          "additionalProperties": {
+            "discriminator": {
+              "mapping": {
+                "choice": "#/$defs/ChoiceQuestion",
+                "noul": "#/$defs/NoulQuestion",
+                "score": "#/$defs/ScoreQuestion"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ChoiceQuestion"
+              },
+              {
+                "$ref": "#/$defs/NoulQuestion"
+              },
+              {
+                "$ref": "#/$defs/ScoreQuestion"
+              }
+            ]
+          },
+          "maxProperties": 20,
+          "minProperties": 1,
+          "title": "Questions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "state",
+        "questions"
+      ],
+      "title": "EvaluationRequest",
+      "type": "object"
+    },
+    "EvaluationResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "answers": {
+          "additionalProperties": {
+            "discriminator": {
+              "mapping": {
+                "choice": "#/$defs/ChoiceAnswer",
+                "noul": "#/$defs/NoulAnswer",
+                "score": "#/$defs/ScoreAnswer"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/ChoiceAnswer"
+              },
+              {
+                "$ref": "#/$defs/NoulAnswer"
+              },
+              {
+                "$ref": "#/$defs/ScoreAnswer"
+              }
+            ]
+          },
+          "title": "Answers",
+          "type": "object"
+        },
+        "usage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Usage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "model",
+        "answers"
+      ],
+      "title": "EvaluationResponse",
+      "type": "object"
+    },
+    "Example": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "primary",
+            "alternative",
+            "edge"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "request": {
+          "$ref": "#/$defs/EvaluationRequest"
+        },
+        "expected": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Expected"
+          },
+          "title": "Expected",
+          "type": "object"
+        },
+        "expected_description": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Expected Description",
+          "type": "string"
+        },
+        "response": {
+          "$ref": "#/$defs/EvaluationResponse"
+        },
+        "verified_at": {
+          "title": "Verified At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "request",
+        "expected",
+        "expected_description",
+        "response",
+        "verified_at"
+      ],
+      "title": "Example",
+      "type": "object"
+    },
+    "Expected": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "choice",
+            "noul",
+            "score"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "choice": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Choice"
+        },
+        "min": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "Expected",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "NoulAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "noul",
+          "title": "Type",
+          "type": "string"
+        },
+        "noul": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Noul",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "noul"
+      ],
+      "title": "NoulAnswer",
+      "type": "object"
+    },
+    "NoulQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "noul",
+          "title": "Type",
+          "type": "string"
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Instructions"
+        },
+        "criteria": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "additionalProperties": {
+                      "$ref": "#/$defs/JsonValue"
+                    },
+                    "type": "object"
+                  },
+                  {
+                    "items": {
+                      "$ref": "#/$defs/JsonValue"
+                    },
+                    "type": "array"
+                  }
+                ]
+              },
+              "propertyNames": {
+                "enum": [
+                  "true",
+                  "false"
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Criteria"
+        }
+      },
+      "required": [
+        "type",
+        "instructions"
+      ],
+      "title": "NoulQuestion",
+      "type": "object"
+    },
+    "Quality": {
+      "additionalProperties": false,
+      "properties": {
+        "useful": {
+          "maximum": 1,
+          "minimum": 0.8,
+          "title": "Useful",
+          "type": "number"
+        },
+        "supported": {
+          "maximum": 1,
+          "minimum": 0.8,
+          "title": "Supported",
+          "type": "number"
+        },
+        "consistent": {
+          "maximum": 1,
+          "minimum": 0.8,
+          "title": "Consistent",
+          "type": "number"
+        }
+      },
+      "required": [
+        "useful",
+        "supported",
+        "consistent"
+      ],
+      "title": "Quality",
+      "type": "object"
+    },
+    "SEO": {
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "maxLength": 75,
+          "minLength": 20,
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "maxLength": 175,
+          "minLength": 70,
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "description"
+      ],
+      "title": "SEO",
+      "type": "object"
+    },
+    "ScoreAnswer": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "score",
+          "title": "Type",
+          "type": "string"
+        },
+        "score": {
+          "maximum": 9,
+          "minimum": 0,
+          "title": "Score",
+          "type": "number"
+        },
+        "probabilities": {
+          "additionalProperties": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "title": "Probabilities",
+          "type": "object"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "legend": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Legend",
+          "type": "object"
+        }
+      },
+      "required": [
+        "type",
+        "score",
+        "probabilities",
+        "confidence",
+        "legend"
+      ],
+      "title": "ScoreAnswer",
+      "type": "object"
+    },
+    "ScoreQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "score",
+          "title": "Type",
+          "type": "string"
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Instructions"
+        },
+        "criteria": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "additionalProperties": {
+                  "$ref": "#/$defs/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "items": {
+                  "$ref": "#/$defs/JsonValue"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "maxItems": 10,
+          "minItems": 2,
+          "title": "Criteria",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "instructions",
+        "criteria"
+      ],
+      "title": "ScoreQuestion",
+      "type": "object"
+    },
+    "Usage": {
+      "additionalProperties": false,
+      "properties": {
+        "input_tokens": {
+          "minimum": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "minimum": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "input_tokens",
+        "output_tokens"
+      ],
+      "title": "Usage",
+      "type": "object"
+    },
+    "Verification": {
+      "additionalProperties": false,
+      "properties": {
+        "model": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "verified_at": {
+          "title": "Verified At",
+          "type": "string"
+        },
+        "quality": {
+          "$ref": "#/$defs/Quality"
+        },
+        "novelty_probability": {
+          "exclusiveMinimum": 0.2,
+          "maximum": 1,
+          "title": "Novelty Probability",
+          "type": "number"
+        }
+      },
+      "required": [
+        "model",
+        "verified_at",
+        "quality",
+        "novelty_probability"
+      ],
+      "title": "Verification",
+      "type": "object"
+    },
+    "VerifiedDemoSample": {
+      "additionalProperties": false,
+      "properties": {
+        "request": {
+          "$ref": "#/$defs/EvaluationRequest"
+        },
+        "description": {
+          "maxLength": 800,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "expected": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Expected"
+          },
+          "title": "Expected",
+          "type": "object"
+        },
+        "response": {
+          "$ref": "#/$defs/EvaluationResponse"
+        },
+        "verified_at": {
+          "title": "Verified At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request",
+        "description",
+        "expected",
+        "response",
+        "verified_at"
+      ],
+      "title": "VerifiedDemoSample",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "slug": {
+      "maxLength": 90,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Slug",
+      "type": "string"
+    },
+    "industry": {
+      "maxLength": 800,
+      "minLength": 1,
+      "title": "Industry",
+      "type": "string"
+    },
+    "audience": {
+      "maxLength": 800,
+      "minLength": 1,
+      "title": "Audience",
+      "type": "string"
+    },
+    "task_type": {
+      "maxLength": 80,
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "title": "Task Type",
+      "type": "string"
+    },
+    "search_intent": {
+      "maxLength": 800,
+      "minLength": 1,
+      "title": "Search Intent",
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 800,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "problem": {
+      "maxLength": 12000,
+      "minLength": 1,
+      "title": "Problem",
+      "type": "string"
+    },
+    "input_description": {
+      "maxLength": 800,
+      "minLength": 1,
+      "title": "Input Description",
+      "type": "string"
+    },
+    "decision": {
+      "maxLength": 800,
+      "minLength": 1,
+      "title": "Decision",
+      "type": "string"
+    },
+    "action": {
+      "maxLength": 800,
+      "minLength": 1,
+      "title": "Action",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "seo": {
+      "$ref": "#/$defs/SEO"
+    },
+    "intro": {
+      "maxLength": 12000,
+      "minLength": 1,
+      "title": "Intro",
+      "type": "string"
+    },
+    "solution": {
+      "maxLength": 12000,
+      "minLength": 1,
+      "title": "Solution",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 800,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 6,
+      "minItems": 1,
+      "title": "Limitations",
+      "type": "array"
+    },
+    "examples": {
+      "items": {
+        "$ref": "#/$defs/Example"
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "title": "Examples",
+      "type": "array"
+    },
+    "demo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Demo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "verification": {
+      "$ref": "#/$defs/Verification"
+    },
+    "created_at": {
+      "title": "Created At",
+      "type": "string"
+    },
+    "updated_at": {
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "slug",
+    "industry",
+    "audience",
+    "task_type",
+    "search_intent",
+    "summary",
+    "problem",
+    "input_description",
+    "decision",
+    "action",
+    "seo",
+    "intro",
+    "solution",
+    "limitations",
+    "examples",
+    "verification",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "Page",
+  "type": "object"
+}
