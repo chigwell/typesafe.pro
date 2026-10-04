@@ -1,0 +1,1320 @@
+{
+  "repairs": {
+    "events": [
+      {
+        "call": "structured",
+        "schema": "Description",
+        "input": "d971c7905de15605e5b1e4d61e3f9437030f6af4783b74f5252bb9cab0f1fbe9",
+        "output": "da04b1a5743772ac7f807d8762c2092e27952e172de1ead1f6a1889b30103839"
+      },
+      {
+        "call": "structured",
+        "schema": "DraftExamples",
+        "input": "f3bb3152e0833c3335f99e45b6cf3b22040dc0099d1e1a0ad377acd0e3df7935",
+        "output": "959d488383f0a18da7745222853552af08f400237ace21ac95e4eede5ac59bc7"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "f59ac352e3e9c1557c27824a0e5592420cfba6f8b4ceb986a521a66097cd3103",
+        "output": "24b4e88d9999058401ec8a813fd4a8f076670de2625d0a5bf4783ffaa9bbe427"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "b1cd55cbf5362a0885772ed8fdb2afc6f22f1f0e7292e6d6d795e196dfb66412",
+        "output": "24b4e88d9999058401ec8a813fd4a8f076670de2625d0a5bf4783ffaa9bbe427"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "ebe273f82fd410273b1ca38076ae31280c1c96759caeac8208a01d748c56e3d6",
+        "output": "24b4e88d9999058401ec8a813fd4a8f076670de2625d0a5bf4783ffaa9bbe427"
+      },
+      {
+        "call": "structured",
+        "schema": "DraftExamples",
+        "input": "523ba3a7ba9176a2ddf83c49627a0c843148c0fd51be5100b6c2d915f7c8105b",
+        "output": "959d488383f0a18da7745222853552af08f400237ace21ac95e4eede5ac59bc7"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "f59ac352e3e9c1557c27824a0e5592420cfba6f8b4ceb986a521a66097cd3103",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "b1cd55cbf5362a0885772ed8fdb2afc6f22f1f0e7292e6d6d795e196dfb66412",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "ebe273f82fd410273b1ca38076ae31280c1c96759caeac8208a01d748c56e3d6",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "structured",
+        "schema": "Explanation",
+        "input": "eebad7381307c9546064710f9936d88b8bd4697ce5663a4c49166753b5547978",
+        "output": "00d54b9bc23b2339e8ba24044e161543207508691dcae03e44535736c04729ad"
+      },
+      {
+        "call": "structured",
+        "schema": "SEO",
+        "input": "be53d365e1f6f51230711efc341985b0b345eef3c67fee71abab28bd60f1c8d0",
+        "output": "804fa54b85eff509da6818efeddc1b16cbf0c3dba1abc5b8c9b857b151fdd502"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "useful",
+          "supported",
+          "consistent"
+        ],
+        "input": "217a4cd323fada80b5cb5ff0fdf2c800f7a46d496b5c0dee58b386a2a9ea4485",
+        "output": "846feb6c8afbf73b39ea5649766e307ca510482ef611ae53954394afcabf62a9"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "example_0",
+          "example_1",
+          "example_2",
+          "framing",
+          "solution",
+          "limitations"
+        ],
+        "input": "44ec08c2d8bdf29a610558cd27cff0ece6153ae706c3d29def594a0862f658f6",
+        "output": "74b843ec90fbc2b721157c5e039aefec774eaa936e8ca1bb640447d3fd9d684d"
+      },
+      {
+        "call": "structured",
+        "schema": "ArticleRepair",
+        "input": "fe117d82e9462700bc573c7fd733281bfe00b2fc2e1b1528060ef3e614724a8a",
+        "output": "2e13c796fae003a5023035c991fc288ceed2282176f91bb8fb74888e4186250a"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "useful",
+          "supported",
+          "consistent"
+        ],
+        "input": "b7734a581c667f0d3288307269d333291a82c2e84e47606c7afef484a8bba655",
+        "output": "926f37dc5cacb675ce810d9e4a96410a7d53443be885662e2756fcf937299cd1"
+      }
+    ],
+    "warnings": [
+      "3 example(s) did not match the live API; repairing",
+      "quality check below 0.8 (consistent=0.60); weakest parts: framing, solution; revising the text"
+    ],
+    "page": {
+      "slug": "route-workshop-1",
+      "industry": "workshops",
+      "audience": "developers",
+      "task_type": "intent-routing-1",
+      "search_intent": "Route workshop message 1",
+      "summary": "Dispatch case1 using alpha1 beta1 gamma1",
+      "problem": "Workshop workflow 1 needs a particular semantic decision.Workshop workflow 1 needs a particular semantic decision.Workshop workflow 1 needs a particular semantic decision.",
+      "input_description": "A fictional request for workflow 1",
+      "decision": "Choose one: Select workshop action number 1",
+      "action": "Dispatch 1",
+      "schema_version": 1,
+      "seo": {
+        "title": "Route workshop requests with TypeSafe",
+        "description": "Build a workshop routing workflow with verified TypeSafe requests and interactive examples for developers."
+      },
+      "intro": "A developer receives different workshop requests. A developer receives different workshop requests. A developer receives different workshop requests. ",
+      "solution": "Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. ",
+      "limitations": [
+        "Escalate unclear messages for review.",
+        "Missing workshop details need follow-up."
+      ],
+      "examples": [
+        {
+          "name": "Revised primary",
+          "kind": "primary",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "message": "Repair primary"
+            },
+            "questions": {
+              "repair": {
+                "type": "noul",
+                "instructions": "Is repair requested?"
+              }
+            }
+          },
+          "expected": {
+            "repair": {
+              "type": "noul",
+              "min": 0.8,
+              "max": 1.0
+            }
+          },
+          "expected_description": "A repair request is identified.",
+          "response": {
+            "model": "jev-test-only",
+            "answers": {
+              "repair": {
+                "type": "noul",
+                "noul": 0.95
+              }
+            }
+          },
+          "verified_at": "2026-10-04T10:00:00Z"
+        },
+        {
+          "name": "Revised alternative",
+          "kind": "alternative",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "message": "Repair alternative"
+            },
+            "questions": {
+              "repair": {
+                "type": "noul",
+                "instructions": "Is repair requested?"
+              }
+            }
+          },
+          "expected": {
+            "repair": {
+              "type": "noul",
+              "min": 0.8,
+              "max": 1.0
+            }
+          },
+          "expected_description": "A repair request is identified.",
+          "response": {
+            "model": "jev-test-only",
+            "answers": {
+              "repair": {
+                "type": "noul",
+                "noul": 0.95
+              }
+            }
+          },
+          "verified_at": "2026-10-04T10:00:00Z"
+        },
+        {
+          "name": "Revised edge",
+          "kind": "edge",
+          "request": {
+            "model": "jev-latest",
+            "state": {
+              "message": "Repair edge"
+            },
+            "questions": {
+              "repair": {
+                "type": "noul",
+                "instructions": "Is repair requested?"
+              }
+            }
+          },
+          "expected": {
+            "repair": {
+              "type": "noul",
+              "min": 0.8,
+              "max": 1.0
+            }
+          },
+          "expected_description": "A repair request is identified.",
+          "response": {
+            "model": "jev-test-only",
+            "answers": {
+              "repair": {
+                "type": "noul",
+                "noul": 0.95
+              }
+            }
+          },
+          "verified_at": "2026-10-04T10:00:00Z"
+        }
+      ],
+      "verification": {
+        "model": "jev-test-only",
+        "verified_at": "2026-10-04T10:00:00Z",
+        "quality": {
+          "useful": 0.95,
+          "supported": 0.95,
+          "consistent": 0.95
+        },
+        "novelty_probability": 0.95
+      },
+      "created_at": "2026-10-04T10:00:00Z",
+      "updated_at": "2026-10-04T10:00:00Z"
+    }
+  },
+  "best_version_failure": {
+    "events": [
+      {
+        "call": "structured",
+        "schema": "Description",
+        "input": "d971c7905de15605e5b1e4d61e3f9437030f6af4783b74f5252bb9cab0f1fbe9",
+        "output": "da04b1a5743772ac7f807d8762c2092e27952e172de1ead1f6a1889b30103839"
+      },
+      {
+        "call": "structured",
+        "schema": "DraftExamples",
+        "input": "f3bb3152e0833c3335f99e45b6cf3b22040dc0099d1e1a0ad377acd0e3df7935",
+        "output": "959d488383f0a18da7745222853552af08f400237ace21ac95e4eede5ac59bc7"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "f59ac352e3e9c1557c27824a0e5592420cfba6f8b4ceb986a521a66097cd3103",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "b1cd55cbf5362a0885772ed8fdb2afc6f22f1f0e7292e6d6d795e196dfb66412",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "ebe273f82fd410273b1ca38076ae31280c1c96759caeac8208a01d748c56e3d6",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "structured",
+        "schema": "Explanation",
+        "input": "eebad7381307c9546064710f9936d88b8bd4697ce5663a4c49166753b5547978",
+        "output": "00d54b9bc23b2339e8ba24044e161543207508691dcae03e44535736c04729ad"
+      },
+      {
+        "call": "structured",
+        "schema": "SEO",
+        "input": "be53d365e1f6f51230711efc341985b0b345eef3c67fee71abab28bd60f1c8d0",
+        "output": "804fa54b85eff509da6818efeddc1b16cbf0c3dba1abc5b8c9b857b151fdd502"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "useful",
+          "supported",
+          "consistent"
+        ],
+        "input": "217a4cd323fada80b5cb5ff0fdf2c800f7a46d496b5c0dee58b386a2a9ea4485",
+        "output": "1f605e484b683b61b6c3e9643b9b6cac09bcce275368baef1de37013cbd9f81b"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "example_0",
+          "example_1",
+          "example_2",
+          "framing",
+          "solution",
+          "limitations"
+        ],
+        "input": "44ec08c2d8bdf29a610558cd27cff0ece6153ae706c3d29def594a0862f658f6",
+        "output": "4b9a122388e12c9fce4e0c6eae5ce535b2ac3e62f9b86ab724f7ab9e2feaa4ef"
+      },
+      {
+        "call": "structured",
+        "schema": "ArticleRepair",
+        "input": "3e1247d54d27e0b89a97a00b8f03435e29a1b6446347e34537bf37a64aa96399",
+        "output": "2e13c796fae003a5023035c991fc288ceed2282176f91bb8fb74888e4186250a"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "useful",
+          "supported",
+          "consistent"
+        ],
+        "input": "b7734a581c667f0d3288307269d333291a82c2e84e47606c7afef484a8bba655",
+        "output": "7c5770d22251996351911ad7e47f9ed4d138d8ae08398223a2f4534c9c65ff83"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "example_0",
+          "example_1",
+          "example_2",
+          "framing",
+          "solution",
+          "limitations"
+        ],
+        "input": "21616451ce144f3b731d164ed5cc1a8a393366bd3215ae86a09e8f4dcfd8e80f",
+        "output": "4b9a122388e12c9fce4e0c6eae5ce535b2ac3e62f9b86ab724f7ab9e2feaa4ef"
+      },
+      {
+        "call": "structured",
+        "schema": "ArticleRepair",
+        "input": "9bc159281a797a1dc32eb0c982ae487c4305581f005804800551af5f039455fb",
+        "output": "0442afaf25ee5de643832b163a94fba462f3ebdfb922d769877b159771fbfdf6"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "useful",
+          "supported",
+          "consistent"
+        ],
+        "input": "f91fc1cf7c6dce64612d55d9847d7496aeb3556ff3e5b486960b147f6ee279ed",
+        "output": "846feb6c8afbf73b39ea5649766e307ca510482ef611ae53954394afcabf62a9"
+      }
+    ],
+    "warnings": [
+      "quality check below 0.8 (consistent=0.79); revising the text",
+      "quality check below 0.8 (consistent=0.50); revising the text"
+    ],
+    "reason": "quality_threshold_failed: consistent=0.79"
+  },
+  "review_resume": {
+    "events": [
+      {
+        "call": "categories",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "61fad85505275c1e3e77b86453111443c089ce8e20e0de58a62fe4a4d2c78880"
+      },
+      {
+        "call": "compact_pages",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "call": "skips",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "call": "structured",
+        "schema": "Ideas",
+        "input": "3458a44534eebebd535529253b934f877b71fdd04da0a94151a95573cb09504d",
+        "output": "b44dbe633b92e8c100f33847a22bfa62c96a2d786af2a536546ba57175343921"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "focused_0",
+          "focused_1",
+          "focused_2",
+          "focused_3",
+          "focused_4",
+          "focused_5",
+          "focused_6",
+          "focused_7",
+          "focused_8",
+          "focused_9"
+        ],
+        "input": "f27efab5558d14b65b6db414c8989de7bd52b9e14a5681475558969c78547813",
+        "output": "67daab0adf7df72b4524c0b6b9f23ad080bc7c1416f4e87678c26a33bb46d7c3"
+      },
+      {
+        "call": "structured",
+        "schema": "DemoConcepts",
+        "input": "d99d8c58ca38f4e75af851e583f37fbead9259677f8f9a13e0c65d6c9d575fdb",
+        "output": "6d002d18ebcef86116c76ea45eb6c9fa1ab8468a5d150ce2022c0df7901729b8"
+      },
+      {
+        "call": "structured",
+        "schema": "Description",
+        "input": "7e510fd988e989e3880a7193396b2cbdc17fa8811373d472ae3b3fc2de349626",
+        "output": "b6c94aaa22694af33f37e278fc0d71ed48b137a743567ed686646f9413da5a00"
+      },
+      {
+        "call": "structured",
+        "schema": "DraftExamples",
+        "input": "7e1078e4b736bad4da6ec51ecc66dbe87972c979b33c48b015b5711d19aef272",
+        "output": "959d488383f0a18da7745222853552af08f400237ace21ac95e4eede5ac59bc7"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "f59ac352e3e9c1557c27824a0e5592420cfba6f8b4ceb986a521a66097cd3103",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "b1cd55cbf5362a0885772ed8fdb2afc6f22f1f0e7292e6d6d795e196dfb66412",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "ebe273f82fd410273b1ca38076ae31280c1c96759caeac8208a01d748c56e3d6",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "structured",
+        "schema": "Explanation",
+        "input": "ec2a93f39df19ce5bacdd43257be7b51bc4f30865e441b5903f3f009892328ad",
+        "output": "00d54b9bc23b2339e8ba24044e161543207508691dcae03e44535736c04729ad"
+      },
+      {
+        "call": "structured",
+        "schema": "SEO",
+        "input": "ded7bf7653bbd250f2557ba53a0b099f0ae4661724a483a4ecbdc78b4edbed62",
+        "output": "804fa54b85eff509da6818efeddc1b16cbf0c3dba1abc5b8c9b857b151fdd502"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "useful",
+          "supported",
+          "consistent"
+        ],
+        "input": "67ef49884dd22e88fe3a68987ce220b51e50aa94202660679cf0bd76ae988a98",
+        "output": "926f37dc5cacb675ce810d9e4a96410a7d53443be885662e2756fcf937299cd1"
+      },
+      {
+        "call": "structured",
+        "schema": "DemoCode",
+        "input": "1dac8dcf706f7936f1aa1b96cb2f11468b3e441769ac697bb26f55db056fdca5",
+        "output": "69cfe63801be4292bb4891c3d6f33dc4adfb6ae9879701d117c0e2e44c462375"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "mood"
+        ],
+        "input": "5fe9a8513bd99410573ff1f60c2d4f78a5e4145b14c2e1e73c8932e84968fca0",
+        "output": "69de584b16c2eb5d9fa3e860114d9d036968b574563a4dfe4745b2bb4744e080"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "mood"
+        ],
+        "input": "6529348b944ebda8a44ad60db4eef80211ac48b79dd85cd8655adfe521cce8b7",
+        "output": "69de584b16c2eb5d9fa3e860114d9d036968b574563a4dfe4745b2bb4744e080"
+      },
+      {
+        "call": "structured",
+        "schema": "Taxonomy",
+        "input": "3486a0873c5f9e4655b21c99f4d957b96c931224aff96447df54029c1a6cf478",
+        "output": "5170c970f3d807ceec913c5382224d1d9eff255959dfa5478f70dba1203c04cb"
+      },
+      {
+        "call": "put",
+        "input": "c6257a09f4e7efb6880ddf9e224e516b075a755d644b2a0faaaf1ab93f5b297a",
+        "output": "8d8b6f0227368cf2e77ca0c3de8377418106a37feb6b8bc416be7390d615aab8"
+      },
+      {
+        "call": "preview_token",
+        "input": "c26c534754acaaef51d965057ffcd09537aa2ed7e4f6043b1a00c305b182cff4",
+        "output": "2977083b0c92f5965bea2144c075d9ca2e4c4e0278513a3bc7d4d70dbcee0925"
+      },
+      {
+        "call": "drafts",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "c86cbeec73a972e8c721bc15c7861ce86f3b8a185fd2ff6757a57c7ea604020d"
+      },
+      {
+        "call": "structured",
+        "schema": "DemoCode",
+        "input": "d8f474107938d4c94acb42a6e5525fc6589037eba11f07e8fafe51b1a4540eaf",
+        "output": "69cfe63801be4292bb4891c3d6f33dc4adfb6ae9879701d117c0e2e44c462375"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "mood"
+        ],
+        "input": "5fe9a8513bd99410573ff1f60c2d4f78a5e4145b14c2e1e73c8932e84968fca0",
+        "output": "69de584b16c2eb5d9fa3e860114d9d036968b574563a4dfe4745b2bb4744e080"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "mood"
+        ],
+        "input": "6529348b944ebda8a44ad60db4eef80211ac48b79dd85cd8655adfe521cce8b7",
+        "output": "69de584b16c2eb5d9fa3e860114d9d036968b574563a4dfe4745b2bb4744e080"
+      },
+      {
+        "call": "put",
+        "input": "1dba1ae715e07a4d35ba34114b7df484d2fc964a4b1415bf7093ab16c025b6a4",
+        "output": "b16dcdf132628b7f4298a8c678932ca82354c078578cb24b49a8236176c0edb1"
+      },
+      {
+        "call": "preview_token",
+        "input": "c26c534754acaaef51d965057ffcd09537aa2ed7e4f6043b1a00c305b182cff4",
+        "output": "2977083b0c92f5965bea2144c075d9ca2e4c4e0278513a3bc7d4d70dbcee0925"
+      },
+      {
+        "call": "drafts",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "dc3311b9432f19097f57f1ec103de105bc0718ee6c312818a10e76c699489c78"
+      },
+      {
+        "call": "categories",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "61fad85505275c1e3e77b86453111443c089ce8e20e0de58a62fe4a4d2c78880"
+      },
+      {
+        "call": "compact_pages",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "608acb7841b54245a90a752d09bef5351a732de4355b92b3a11fe17901c92fd0"
+      },
+      {
+        "call": "drafts",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "dc3311b9432f19097f57f1ec103de105bc0718ee6c312818a10e76c699489c78"
+      },
+      {
+        "call": "preview_token",
+        "input": "c26c534754acaaef51d965057ffcd09537aa2ed7e4f6043b1a00c305b182cff4",
+        "output": "2977083b0c92f5965bea2144c075d9ca2e4c4e0278513a3bc7d4d70dbcee0925"
+      },
+      {
+        "call": "drafts",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "dc3311b9432f19097f57f1ec103de105bc0718ee6c312818a10e76c699489c78"
+      },
+      {
+        "call": "structured",
+        "schema": "Description",
+        "input": "d0381295d1ff4e7de25853864a5ac6c7fb9f0eac2244b9e06cca3dbebb69018e",
+        "output": "b6c94aaa22694af33f37e278fc0d71ed48b137a743567ed686646f9413da5a00"
+      },
+      {
+        "call": "structured",
+        "schema": "DraftExamples",
+        "input": "c8b6994556817cd340f26be89bc36bdf0ca5336e82a696a85267fd1dd888466c",
+        "output": "959d488383f0a18da7745222853552af08f400237ace21ac95e4eede5ac59bc7"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "f59ac352e3e9c1557c27824a0e5592420cfba6f8b4ceb986a521a66097cd3103",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "b1cd55cbf5362a0885772ed8fdb2afc6f22f1f0e7292e6d6d795e196dfb66412",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "repair"
+        ],
+        "input": "ebe273f82fd410273b1ca38076ae31280c1c96759caeac8208a01d748c56e3d6",
+        "output": "69ae53de21e5165c4a16812fdafd5b1b5edc15125028c81c8d0c0b181c523225"
+      },
+      {
+        "call": "structured",
+        "schema": "Explanation",
+        "input": "bec438edf1afb8b6571d0f9782964f83fc0c744352ac51fa2a9fae86f0c06303",
+        "output": "00d54b9bc23b2339e8ba24044e161543207508691dcae03e44535736c04729ad"
+      },
+      {
+        "call": "structured",
+        "schema": "SEO",
+        "input": "8920f763ace9da29704235998b78f4829c79dc218be07bd457a891c8db190200",
+        "output": "804fa54b85eff509da6818efeddc1b16cbf0c3dba1abc5b8c9b857b151fdd502"
+      },
+      {
+        "call": "evaluate",
+        "questions": [
+          "useful",
+          "supported",
+          "consistent"
+        ],
+        "input": "67ef49884dd22e88fe3a68987ce220b51e50aa94202660679cf0bd76ae988a98",
+        "output": "926f37dc5cacb675ce810d9e4a96410a7d53443be885662e2756fcf937299cd1"
+      },
+      {
+        "call": "put",
+        "input": "77f1a0a9c73f25ca0e5b17ec8222e70a730b70c6912f8381fdcf94389a198061",
+        "output": "a01926119754cb039a45414a282baab25661128970128a5e538736ce165612a9"
+      },
+      {
+        "call": "preview_token",
+        "input": "c26c534754acaaef51d965057ffcd09537aa2ed7e4f6043b1a00c305b182cff4",
+        "output": "2977083b0c92f5965bea2144c075d9ca2e4c4e0278513a3bc7d4d70dbcee0925"
+      },
+      {
+        "call": "drafts",
+        "input": "97fcdad9fe31227a9ec60e519ff7635ac71941c55b77e585c908db1fa6406030",
+        "output": "d956a3f6a662c01a89bb6d69d59ba136be432481ff1ac7f3836b071858a0accd"
+      },
+      {
+        "call": "publish",
+        "input": "c26c534754acaaef51d965057ffcd09537aa2ed7e4f6043b1a00c305b182cff4",
+        "output": "d7cb9f6a0f6c875abfd2778c5de95034c442eede2c5291f8cc674ba4bddb9493"
+      },
+      {
+        "call": "record_run",
+        "input": "14a8b1ca24c5e4b514a2b703c88086773d383a84d497729cc953a7a6a2ead729",
+        "output": "e066deba4e5894d18a5ab7bc36113e9a33ae1e95fded873429c91473c38dbfda"
+      }
+    ],
+    "drafts": {
+      "route-workshop-10": {
+        "page": {
+          "slug": "route-workshop-10",
+          "industry": "workshops",
+          "audience": "developers",
+          "task_type": "intent-routing-10",
+          "search_intent": "Route workshop message 10",
+          "summary": "Dispatch case10 using alpha10 beta10 gamma10",
+          "problem": "Workshop workflow 10 needs a particular semantic decision.Workshop workflow 10 needs a particular semantic decision.Workshop workflow 10 needs a particular semantic decision.",
+          "input_description": "A fictional request for workflow 10",
+          "decision": "Select workshop action number 10",
+          "action": "Dispatch 10",
+          "schema_version": 1,
+          "seo": {
+            "title": "Route workshop requests with TypeSafe",
+            "description": "Build a workshop routing workflow with verified TypeSafe requests and interactive examples for developers."
+          },
+          "intro": "A developer receives different workshop requests. A developer receives different workshop requests. A developer receives different workshop requests. ",
+          "solution": "Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. ",
+          "limitations": [
+            "Escalate unclear messages for review.",
+            "Missing workshop details need follow-up."
+          ],
+          "examples": [
+            {
+              "name": "Primary",
+              "kind": "primary",
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "message": "Repair primary"
+                },
+                "questions": {
+                  "repair": {
+                    "type": "noul",
+                    "instructions": "Is repair requested?"
+                  }
+                }
+              },
+              "expected": {
+                "repair": {
+                  "type": "noul",
+                  "min": 0.8,
+                  "max": 1.0
+                }
+              },
+              "expected_description": "A repair request is identified.",
+              "response": {
+                "model": "jev-test-only",
+                "answers": {
+                  "repair": {
+                    "type": "noul",
+                    "noul": 0.95
+                  }
+                }
+              },
+              "verified_at": "2026-10-04T10:00:00Z"
+            },
+            {
+              "name": "Alternative",
+              "kind": "alternative",
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "message": "Repair alternative"
+                },
+                "questions": {
+                  "repair": {
+                    "type": "noul",
+                    "instructions": "Is repair requested?"
+                  }
+                }
+              },
+              "expected": {
+                "repair": {
+                  "type": "noul",
+                  "min": 0.8,
+                  "max": 1.0
+                }
+              },
+              "expected_description": "A repair request is identified.",
+              "response": {
+                "model": "jev-test-only",
+                "answers": {
+                  "repair": {
+                    "type": "noul",
+                    "noul": 0.95
+                  }
+                }
+              },
+              "verified_at": "2026-10-04T10:00:00Z"
+            },
+            {
+              "name": "Edge",
+              "kind": "edge",
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "message": "Repair edge"
+                },
+                "questions": {
+                  "repair": {
+                    "type": "noul",
+                    "instructions": "Is repair requested?"
+                  }
+                }
+              },
+              "expected": {
+                "repair": {
+                  "type": "noul",
+                  "min": 0.8,
+                  "max": 1.0
+                }
+              },
+              "expected_description": "A repair request is identified.",
+              "response": {
+                "model": "jev-test-only",
+                "answers": {
+                  "repair": {
+                    "type": "noul",
+                    "noul": 0.95
+                  }
+                }
+              },
+              "verified_at": "2026-10-04T10:00:00Z"
+            }
+          ],
+          "demo": {
+            "title": "Mood bar 1",
+            "concept": "A bar grows with how positive the message is.",
+            "interaction": "Type a short customer message and press Check.",
+            "visual": "The bar width follows the noul probability.",
+            "questions": {
+              "mood": {
+                "type": "noul",
+                "instructions": "Is the message positive?"
+              }
+            },
+            "html": "<label>Message <input id=\"demo-input\" type=\"text\"></label><button id=\"demo-run\" type=\"button\">Check</button><p id=\"demo-status\" aria-live=\"polite\"></p><div id=\"demo-visual\"></div>",
+            "css": "#demo-visual{height:40px;background:var(--demo-accent);transition:width .4s}",
+            "js": "const input = document.getElementById(\"demo-input\");\nconst button = document.getElementById(\"demo-run\");\nconst status = document.getElementById(\"demo-status\");\nconst visual = document.getElementById(\"demo-visual\");\nbutton.addEventListener(\"click\", async () => {\n  button.disabled = true;\n  try {\n    const answers = await window.TypeSafeDemo.evaluate({ message: input.value });\n    visual.style.width = Math.round(answers.mood.noul * 100) + \"%\";\n    status.textContent = \"Positive: \" + answers.mood.noul.toFixed(2);\n  } catch (error) {\n    status.textContent = window.TypeSafeDemo.describeError(error);\n  } finally {\n    button.disabled = false;\n  }\n});\n",
+            "samples": [
+              {
+                "request": {
+                  "model": "jev-latest",
+                  "state": {
+                    "message": "Thanks, this was fast and friendly!"
+                  },
+                  "questions": {
+                    "mood": {
+                      "type": "noul",
+                      "instructions": "Is the message positive?"
+                    }
+                  }
+                },
+                "description": "A clearly positive message.",
+                "expected": {
+                  "mood": {
+                    "type": "noul",
+                    "min": 0.8,
+                    "max": 1.0
+                  }
+                },
+                "response": {
+                  "model": "jev-test-only",
+                  "answers": {
+                    "mood": {
+                      "type": "noul",
+                      "noul": 0.95
+                    }
+                  }
+                },
+                "verified_at": "2026-10-04T10:00:00Z"
+              },
+              {
+                "request": {
+                  "model": "jev-latest",
+                  "state": {
+                    "message": "Great support, thank you."
+                  },
+                  "questions": {
+                    "mood": {
+                      "type": "noul",
+                      "instructions": "Is the message positive?"
+                    }
+                  }
+                },
+                "description": "Another positive message.",
+                "expected": {
+                  "mood": {
+                    "type": "noul",
+                    "min": 0.8,
+                    "max": 1.0
+                  }
+                },
+                "response": {
+                  "model": "jev-test-only",
+                  "answers": {
+                    "mood": {
+                      "type": "noul",
+                      "noul": 0.95
+                    }
+                  }
+                },
+                "verified_at": "2026-10-04T10:00:00Z"
+              }
+            ],
+            "verified_at": "2026-10-04T10:00:00Z"
+          },
+          "verification": {
+            "model": "jev-test-only",
+            "verified_at": "2026-10-04T10:00:00Z",
+            "quality": {
+              "useful": 0.95,
+              "supported": 0.95,
+              "consistent": 0.95
+            },
+            "novelty_probability": 1.0
+          },
+          "created_at": "2026-10-04T10:00:00Z",
+          "updated_at": "2026-10-04T10:00:00Z"
+        },
+        "status": "draft",
+        "category": "routing-triage",
+        "tags": [
+          "workshops",
+          "routing"
+        ],
+        "meta": {
+          "headline": {
+            "source": "hn",
+            "id": 100,
+            "title": "Headline 1-0",
+            "url": null
+          },
+          "review": {
+            "idea": {
+              "slug": "route-workshop-10",
+              "industry": "workshops",
+              "audience": "developers",
+              "task_type": "intent-routing-10",
+              "search_intent": "Route workshop message 10",
+              "summary": "Dispatch case10 using alpha10 beta10 gamma10",
+              "problem": "Workshop workflow 10 needs a particular semantic decision.",
+              "input_description": "A fictional request for workflow 10",
+              "decision": "Select workshop action number 10",
+              "action": "Dispatch 10"
+            },
+            "concept": {
+              "title": "Mood bar 1",
+              "concept": "A bar grows with how positive the message is.",
+              "interaction": "Type a short customer message and press Check.",
+              "visual": "The bar width follows the noul probability.",
+              "questions": {
+                "mood": {
+                  "type": "noul",
+                  "instructions": "Is the message positive?"
+                }
+              }
+            },
+            "feedback": [
+              {
+                "at": "2026-10-04T10:00:00Z",
+                "scope": "demo",
+                "text": "Use emoji instead"
+              }
+            ],
+            "attempt": 2,
+            "created_at": "2026-10-04T10:00:00Z"
+          }
+        },
+        "novelty": 1.0,
+        "revision": 2,
+        "published_at": null
+      }
+    },
+    "published": {
+      "route-workshop-10": {
+        "page": {
+          "slug": "route-workshop-10",
+          "industry": "workshops",
+          "audience": "developers",
+          "task_type": "intent-routing-10",
+          "search_intent": "Route workshop message 10",
+          "summary": "Dispatch case10 using alpha10 beta10 gamma10",
+          "problem": "Workshop workflow 10 needs a particular semantic decision.Workshop workflow 10 needs a particular semantic decision.Workshop workflow 10 needs a particular semantic decision.",
+          "input_description": "A fictional request for workflow 10",
+          "decision": "Select workshop action number 10",
+          "action": "Dispatch 10",
+          "schema_version": 1,
+          "seo": {
+            "title": "Route workshop requests with TypeSafe",
+            "description": "Build a workshop routing workflow with verified TypeSafe requests and interactive examples for developers."
+          },
+          "intro": "A developer receives different workshop requests. A developer receives different workshop requests. A developer receives different workshop requests. ",
+          "solution": "Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. Use the typed probability to route the request. ",
+          "limitations": [
+            "Escalate unclear messages for review.",
+            "Missing workshop details need follow-up."
+          ],
+          "examples": [
+            {
+              "name": "Primary",
+              "kind": "primary",
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "message": "Repair primary"
+                },
+                "questions": {
+                  "repair": {
+                    "type": "noul",
+                    "instructions": "Is repair requested?"
+                  }
+                }
+              },
+              "expected": {
+                "repair": {
+                  "type": "noul",
+                  "min": 0.8,
+                  "max": 1.0
+                }
+              },
+              "expected_description": "A repair request is identified.",
+              "response": {
+                "model": "jev-test-only",
+                "answers": {
+                  "repair": {
+                    "type": "noul",
+                    "noul": 0.95
+                  }
+                }
+              },
+              "verified_at": "2026-10-04T10:00:00Z"
+            },
+            {
+              "name": "Alternative",
+              "kind": "alternative",
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "message": "Repair alternative"
+                },
+                "questions": {
+                  "repair": {
+                    "type": "noul",
+                    "instructions": "Is repair requested?"
+                  }
+                }
+              },
+              "expected": {
+                "repair": {
+                  "type": "noul",
+                  "min": 0.8,
+                  "max": 1.0
+                }
+              },
+              "expected_description": "A repair request is identified.",
+              "response": {
+                "model": "jev-test-only",
+                "answers": {
+                  "repair": {
+                    "type": "noul",
+                    "noul": 0.95
+                  }
+                }
+              },
+              "verified_at": "2026-10-04T10:00:00Z"
+            },
+            {
+              "name": "Edge",
+              "kind": "edge",
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "message": "Repair edge"
+                },
+                "questions": {
+                  "repair": {
+                    "type": "noul",
+                    "instructions": "Is repair requested?"
+                  }
+                }
+              },
+              "expected": {
+                "repair": {
+                  "type": "noul",
+                  "min": 0.8,
+                  "max": 1.0
+                }
+              },
+              "expected_description": "A repair request is identified.",
+              "response": {
+                "model": "jev-test-only",
+                "answers": {
+                  "repair": {
+                    "type": "noul",
+                    "noul": 0.95
+                  }
+                }
+              },
+              "verified_at": "2026-10-04T10:00:00Z"
+            }
+          ],
+          "demo": {
+            "title": "Mood bar 1",
+            "concept": "A bar grows with how positive the message is.",
+            "interaction": "Type a short customer message and press Check.",
+            "visual": "The bar width follows the noul probability.",
+            "questions": {
+              "mood": {
+                "type": "noul",
+                "instructions": "Is the message positive?"
+              }
+            },
+            "html": "<label>Message <input id=\"demo-input\" type=\"text\"></label><button id=\"demo-run\" type=\"button\">Check</button><p id=\"demo-status\" aria-live=\"polite\"></p><div id=\"demo-visual\"></div>",
+            "css": "#demo-visual{height:40px;background:var(--demo-accent);transition:width .4s}",
+            "js": "const input = document.getElementById(\"demo-input\");\nconst button = document.getElementById(\"demo-run\");\nconst status = document.getElementById(\"demo-status\");\nconst visual = document.getElementById(\"demo-visual\");\nbutton.addEventListener(\"click\", async () => {\n  button.disabled = true;\n  try {\n    const answers = await window.TypeSafeDemo.evaluate({ message: input.value });\n    visual.style.width = Math.round(answers.mood.noul * 100) + \"%\";\n    status.textContent = \"Positive: \" + answers.mood.noul.toFixed(2);\n  } catch (error) {\n    status.textContent = window.TypeSafeDemo.describeError(error);\n  } finally {\n    button.disabled = false;\n  }\n});\n",
+            "samples": [
+              {
+                "request": {
+                  "model": "jev-latest",
+                  "state": {
+                    "message": "Thanks, this was fast and friendly!"
+                  },
+                  "questions": {
+                    "mood": {
+                      "type": "noul",
+                      "instructions": "Is the message positive?"
+                    }
+                  }
+                },
+                "description": "A clearly positive message.",
+                "expected": {
+                  "mood": {
+                    "type": "noul",
+                    "min": 0.8,
+                    "max": 1.0
+                  }
+                },
+                "response": {
+                  "model": "jev-test-only",
+                  "answers": {
+                    "mood": {
+                      "type": "noul",
+                      "noul": 0.95
+                    }
+                  }
+                },
+                "verified_at": "2026-10-04T10:00:00Z"
+              },
+              {
+                "request": {
+                  "model": "jev-latest",
+                  "state": {
+                    "message": "Great support, thank you."
+                  },
+                  "questions": {
+                    "mood": {
+                      "type": "noul",
+                      "instructions": "Is the message positive?"
+                    }
+                  }
+                },
+                "description": "Another positive message.",
+                "expected": {
+                  "mood": {
+                    "type": "noul",
+                    "min": 0.8,
+                    "max": 1.0
+                  }
+                },
+                "response": {
+                  "model": "jev-test-only",
+                  "answers": {
+                    "mood": {
+                      "type": "noul",
+                      "noul": 0.95
+                    }
+                  }
+                },
+                "verified_at": "2026-10-04T10:00:00Z"
+              }
+            ],
+            "verified_at": "2026-10-04T10:00:00Z"
+          },
+          "verification": {
+            "model": "jev-test-only",
+            "verified_at": "2026-10-04T10:00:00Z",
+            "quality": {
+              "useful": 0.95,
+              "supported": 0.95,
+              "consistent": 0.95
+            },
+            "novelty_probability": 1.0
+          },
+          "created_at": "2026-10-04T10:00:00Z",
+          "updated_at": "2026-10-04T10:00:00Z"
+        },
+        "status": "published",
+        "category": "routing-triage",
+        "tags": [
+          "routing",
+          "workshops"
+        ],
+        "meta": {
+          "headline": null,
+          "review": {
+            "idea": {
+              "slug": "route-workshop-10",
+              "industry": "workshops",
+              "audience": "developers",
+              "task_type": "intent-routing-10",
+              "search_intent": "Route workshop message 10",
+              "summary": "Dispatch case10 using alpha10 beta10 gamma10",
+              "problem": "Workshop workflow 10 needs a particular semantic decision.",
+              "input_description": "A fictional request for workflow 10",
+              "decision": "Select workshop action number 10",
+              "action": "Dispatch 10"
+            },
+            "concept": {
+              "title": "Mood bar 1",
+              "concept": "A bar grows with how positive the message is.",
+              "interaction": "Type a short customer message and press Check.",
+              "visual": "The bar width follows the noul probability.",
+              "questions": {
+                "mood": {
+                  "type": "noul",
+                  "instructions": "Is the message positive?"
+                }
+              }
+            },
+            "feedback": [
+              {
+                "at": "2026-10-04T10:00:00Z",
+                "scope": "demo",
+                "text": "Use emoji instead"
+              },
+              {
+                "at": "2026-10-04T10:00:00Z",
+                "scope": "text",
+                "text": "Shorter intro"
+              }
+            ],
+            "attempt": 3,
+            "created_at": "2026-10-04T10:00:00Z"
+          }
+        },
+        "novelty": 1.0,
+        "revision": 4,
+        "published_at": null
+      }
+    },
+    "runs": [
+      {
+        "run_id": "local-parity-1",
+        "source_sha": "de21693",
+        "status": "prepared",
+        "reason": "approved_by_reviewer",
+        "started_at": "2026-10-04T10:00:00Z",
+        "finished_at": "2026-10-04T10:00:00Z",
+        "duration_seconds": 0.0,
+        "seed": 42,
+        "rounds": 0,
+        "api_calls": 8,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "generated_count": 1,
+        "rejected_count": 0,
+        "rejections": {},
+        "catalog_hash": "",
+        "mode": "review",
+        "approved_count": 1,
+        "skipped_count": 0,
+        "inspiration_source": "hn"
+      }
+    ],
+    "reports": [
+      {
+        "run_id": "local-parity",
+        "source_sha": "de21693",
+        "status": "skipped",
+        "reason": "no_pages_approved",
+        "started_at": "2026-10-04T10:00:00Z",
+        "finished_at": "2026-10-04T10:00:00Z",
+        "duration_seconds": 0.0,
+        "seed": 42,
+        "rounds": 1,
+        "api_calls": 18,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "generated_count": 2,
+        "rejected_count": 0,
+        "rejections": {},
+        "catalog_hash": "",
+        "mode": "review",
+        "approved_count": 0,
+        "skipped_count": 0,
+        "inspiration_source": "hn"
+      },
+      {
+        "run_id": "local-parity",
+        "source_sha": "de21693",
+        "status": "prepared",
+        "reason": "approved_by_reviewer",
+        "started_at": "2026-10-04T10:00:00Z",
+        "finished_at": "2026-10-04T10:00:00Z",
+        "duration_seconds": 0.0,
+        "seed": 42,
+        "rounds": 0,
+        "api_calls": 8,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "generated_count": 1,
+        "rejected_count": 0,
+        "rejections": {},
+        "catalog_hash": "",
+        "mode": "review",
+        "approved_count": 1,
+        "skipped_count": 0,
+        "inspiration_source": "hn"
+      }
+    ],
+    "remaining_candidates": [
+      "route-workshop-11",
+      "route-workshop-12",
+      "route-workshop-13",
+      "route-workshop-14",
+      "route-workshop-15",
+      "route-workshop-16",
+      "route-workshop-17",
+      "route-workshop-18",
+      "route-workshop-19"
+    ]
+  }
+}
