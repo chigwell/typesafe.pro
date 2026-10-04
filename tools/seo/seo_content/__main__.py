@@ -2,9 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from .content_api import ContentApiError
-from .providers import Budget
-from .review import ReviewError, ReviewSession
+from .errors import ContentApiError, ReviewError
 
 
 def main():
@@ -59,6 +57,9 @@ def main():
             from .maintenance import import_files
 
             return import_files(args.content_dir, taxonomy=args.taxonomy)
+        from .providers import Budget
+        from .review import ReviewSession
+
         if not 1 <= args.max_pages <= 20:
             raise ReviewError("--max-pages must be between 1 and 20")
         session = ReviewSession(

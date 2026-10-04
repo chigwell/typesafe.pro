@@ -17,24 +17,8 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from llmatch_messages import llmatch
 from pydantic import BaseModel, ValidationError
 
+from .errors import BudgetExhausted, ProviderError, StageError  # noqa: F401
 from .models import EvaluationRequest, EvaluationResponse, validate_response
-
-
-class ProviderError(RuntimeError):
-    def __init__(self, reason, *, retryable=True, retry_after=None):
-        super().__init__(reason)
-        self.retryable = retryable
-        self.retry_after = retry_after
-        self.detail = None
-
-
-class StageError(ProviderError):
-    """Model output failed its schema; discard this candidate, not the entire run."""
-
-
-class BudgetExhausted(ProviderError):
-    pass
-
 
 MAX_RESPONSE_BYTES = 1_048_576
 MAX_CALL_SECONDS = 60

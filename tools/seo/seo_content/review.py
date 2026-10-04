@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from .catalog import compact, fingerprint, normalized
 from .content_api import ContentApi, ContentApiError
 from .demo import propose_concepts
+from .errors import ReviewError  # noqa: F401
 from .inspiration import InspirationUnavailable, WordsFeed, feed_for
 from .models import DemoConcept, Idea, Page, Report
 from .novelty import Rejected, novelty_scan
@@ -53,10 +54,6 @@ def jaccard(a: set[str], b: set[str]) -> float:
 
 
 LINE = "─" * 72
-
-
-class ReviewError(Exception):
-    pass
 
 
 class Quit(Exception):
