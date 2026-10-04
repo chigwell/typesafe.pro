@@ -13,12 +13,14 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from conftest import ENV, VALID_REQUEST
+from starlette.datastructures import State
 from starlette.requests import Request
 
 from proxy import content_api, content_store
 from proxy.config import Settings
 from proxy.content_store import ResponseCache, cached
 from proxy.main import create_app
+from proxy.scheduler import BodyBudget
 from proxy.use_case_schema import Page
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -278,3 +280,19 @@ async def test_disconnect_during_stream_releases_upstream_lease_and_body(store, 
     event = await store.pool.fetchrow("SELECT * FROM proxy_error_events")
     assert event["error_code"] == "client_disconnected" and event["status"] == 499
     assert event["raw_response"] == "first bytes"
+
+
+async def test_gateway_reads_replaced_application_state_per_request(client_for, monkeypatch):
+    async with client_for(lambda _: httpx.Response(200, stream=httpx.ByteStream(b"ok"))) as client:
+        previous = client.app.state
+        replacement = State(dict(previous._state))
+        replacement.budget = BodyBudget(previous.settings)
+        client.app.state = replacement
+
+        def stale_budget():
+            pytest.fail("The endpoint retained stale application state")
+
+        monkeypatch.setattr(previous.budget, "enter", stale_budget)
+        result = await client.post("/v1/systemone", json=VALID_REQUEST)
+        assert result.status_code == 200 and result.content == b"ok"
+        assert replacement.budget.requests == replacement.budget.bytes == 0
