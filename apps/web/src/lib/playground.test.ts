@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeCode } from "./codegen";
 import { PRESETS } from "./presets";
-import { findSample, requestFor, validateRequest, validateResponse } from "./playground";
+import { answerForSample, clone, findSample, requestFor, validateRequest, validateResponse } from "./playground";
 
 describe("playground helpers", () => {
   it("builds a valid request from a preset and finds its authored sample", () => {
@@ -49,3 +49,28 @@ describe("playground helpers", () => {
   });
 });
 
+
+describe("authored sample isolation", () => {
+  it("retains JSON cloning semantics and does not share nested authored request or answer values", () => {
+    expect(clone({ absent: undefined, nan: NaN, nested: [undefined, { value: 1 }] })).toEqual({ nan: null, nested: [null, { value: 1 }] });
+    const first = requestFor(PRESETS[0]);
+    const expected = requestFor(PRESETS[0]);
+    if (first.questions[PRESETS[0].questionId].type === "choice") {
+      const question = first.questions[PRESETS[0].questionId];
+      if (question.type === "choice") question.criteria.refund = "Changed";
+    }
+    expect(requestFor(PRESETS[0])).toEqual(expected);
+    const found = findSample(expected)!;
+    const response = answerForSample(found);
+    const expectedResponse = answerForSample(found);
+    const answer = response.answers[found.preset.questionId];
+    if (answer.type === "choice") answer.probabilities.refund = 0;
+    expect(answerForSample(found)).toEqual(expectedResponse);
+  });
+  it("finds the same sample when question and criteria keys are reordered", () => {
+    const request = requestFor(PRESETS[0]);
+    const question = request.questions[PRESETS[0].questionId];
+    if (question.type === "choice") question.criteria = Object.fromEntries(Object.entries(question.criteria).reverse());
+    expect(findSample(request)?.index).toBe(0);
+  });
+});

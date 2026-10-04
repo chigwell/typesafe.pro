@@ -388,5 +388,12 @@ describe("admin polling lifecycle", () => {
     await screen.findByLabelText("Password");
     for (const label of privateLabels) expect(screen.queryByText(label)).not.toBeInTheDocument();
     expect(document.querySelector(".admin-content")).toBeNull();
+    fetch.mockImplementation((input, options) => String(input).includes("/auth/")
+      ? original(input, options) : new Promise(() => {}));
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "admin-password" } });
+    fireEvent.submit(screen.getByRole("button", { name: "Sign in" }).closest("form")!);
+    await screen.findByText("Overview");
+    for (const value of ["42%", "60%", "35%", "120", "203.0.113.1", "14", "Support routing 1", "request-1", "run-123"])
+      expect(screen.queryByText(value)).not.toBeInTheDocument();
   });
 });
