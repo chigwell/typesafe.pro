@@ -1,6 +1,6 @@
 # Admin observability
 
-The static frontend is served at `https://typesafe.pro/admin`. Data and login live
+The Worker-rendered frontend is served at `https://typesafe.pro/admin`. Data and login live
 at `https://api.typesafe.pro/admin/api`. No admin credential is bundled into Next.js.
 All data endpoints require a signed, host-only HttpOnly/Secure cookie. Sessions
 expire after eight hours; changing the password invalidates existing sessions.

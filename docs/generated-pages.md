@@ -83,8 +83,9 @@ solution, limitations; the model sees the failing rubric and weak parts and may 
 the input description, decision and action with the verified example questions, which
 stay fixed; the best-scoring version is kept), one
 automatic page retry with the failure as feedback, transient provider errors
-(timeouts, 429, 5xx, Cloudflare 52x) retried after 10 s and 30 s before asking, 400 external calls and 60 minutes per review
-session (time spent waiting for the reviewer is excluded). A stored page that fails
+(timeouts, 429, 5xx, Cloudflare 52x) retried after 10 s and 30 s before asking, 400 provider POSTs and 60 minutes per review
+session. Content API and inspiration requests do not consume the call budget;
+time spent waiting for the reviewer is excluded. A stored page that fails
 the schema fails `npm run content:check`; provider unavailability ends the session with pending drafts kept.
 
 ## Setup
