@@ -33,6 +33,14 @@ from .candidate_selection import (  # noqa: F401
 from .catalog import compact, fingerprint
 from .content_api import ContentApi, ContentApiError
 from .demo import propose_concepts
+from .draft_state import (
+    ReviewDraft,
+    compact_fields,
+    draft_from_api,
+    feedback_notes,
+    review_metadata,
+    saved_draft,
+)
 from .errors import ReviewError  # noqa: F401
 from .inspiration import InspirationUnavailable, WordsFeed, feed_for
 from .models import DemoConcept, Idea, Page, Report
@@ -542,18 +550,11 @@ class ReviewSession:
 
     def save_draft(
         self, idea, novelty, concept, page, *, attempt, feedback, created_at=None, listing=None
-    ):
+    ) -> ReviewDraft:
         category, tags = listing or self.taxonomy(page)
-        meta = {
-            "headline": self.origins.get(page.slug),
-            "review": {
-                "idea": idea.model_dump(),
-                "concept": concept.model_dump(exclude_none=True),
-                "feedback": feedback,
-                "attempt": attempt,
-                "created_at": created_at or now(),
-            },
-        }
+        meta = review_metadata(
+            idea, concept, feedback, attempt, created_at, self.origins.get(page.slug), now
+        )
         saved = self.resilient(
             "Saving the draft",
             lambda: self.api.put(
@@ -567,50 +568,18 @@ class ReviewSession:
         )
         if not any(item.slug == page.slug for item in self.known):
             self.known.append(Idea.model_validate(compact(page)))
-        return {
-            "slug": page.slug,
-            "idea": meta["review"]["idea"],
-            "concept": meta["review"]["concept"],
-            "page": page.model_dump(exclude_none=True),
-            "novelty": novelty,
-            "feedback": feedback,
-            "attempt": attempt,
-            "created_at": meta["review"]["created_at"],
-            "category": category,
-            "tags": tags,
-            "revision": saved["revision"],
-        }
+        return saved_draft(page, meta, novelty, category, tags, saved)
 
-    def draft_from_api(self, item: dict) -> dict | None:
-        review = (item.get("inspiration") or {}).get("review") or {}
-        try:
-            Page.model_validate(item["page"])
-            Idea.model_validate(review["idea"])
-            DemoConcept.model_validate(review["concept"])
-        except (ValidationError, KeyError, TypeError):
-            self.warn(f"draft {item.get('slug')} has no review state and was ignored")
-            return None
-        return {
-            "slug": item["slug"],
-            "idea": review["idea"],
-            "concept": review["concept"],
-            "page": item["page"],
-            "novelty": item.get("novelty") or 0.8,
-            "feedback": review.get("feedback", []),
-            "attempt": review.get("attempt", 1),
-            "created_at": review.get("created_at"),
-            "category": item.get("category"),
-            "tags": item.get("tags", []),
-            "revision": item.get("revision"),
-        }
+    def draft_from_api(self, item: dict) -> ReviewDraft | None:
+        return draft_from_api(item, self.warn)
 
-    def read_draft(self, slug: str) -> dict | None:
+    def read_draft(self, slug: str) -> ReviewDraft | None:
         for item in self.resilient("Loading drafts", self.api.drafts):
             if item["slug"] == slug:
                 return self.draft_from_api(item)
         return None
 
-    def pending_drafts(self) -> list[dict]:
+    def pending_drafts(self) -> list[ReviewDraft]:
         drafts = [
             draft
             for item in self.resilient("Loading drafts", self.api.drafts)
@@ -631,7 +600,7 @@ class ReviewSession:
             with self.budget.paused():
                 self.opener(url)
 
-    def review_draft(self, draft: dict):
+    def review_draft(self, draft: ReviewDraft):
         idea = Idea.model_validate(draft["idea"])
         concept = DemoConcept.model_validate(draft["concept"])
         page = Page.model_validate(draft["page"])
@@ -684,8 +653,7 @@ class ReviewSession:
                 self.warn("empty feedback; nothing regenerated")
                 continue
             feedback.append({"at": now(), "scope": scope, "text": text})
-            text_notes = [f["text"] for f in feedback if f["scope"] in ("text", "both")]
-            demo_notes = [f["text"] for f in feedback if f["scope"] in ("demo", "both", "concept")]
+            text_notes, demo_notes = feedback_notes(feedback)
             try:
                 self.out("Regenerating ...")
                 current = page
@@ -768,10 +736,6 @@ class ReviewSession:
         except ContentApiError as exc:
             self.warn(f"the run report was not recorded ({exc}); the page is published")
         self.out(f"Published {page.slug}: {self.preview_base}/use-cases/{page.slug}")
-
-
-def compact_fields(item: dict) -> dict:
-    return {key: item[key] for key in Idea.model_fields}
 
 
 def generator_version() -> str:

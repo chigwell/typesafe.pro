@@ -473,3 +473,30 @@ def test_long_candidate_lists_are_capped_with_more(repo):
     listing = [line for line in review.lines[first:] if ". route-workshop-" in line]
     assert any("more partly similar idea(s): press m" in line for line in review.lines)
     assert any(line.startswith("13. ") for line in listing)
+
+
+def test_draft_conversion_preserves_defaults_aliases_and_zero_novelty(repo, page):
+    from conftest import concept
+
+    review = session(repo, [])
+    item = {
+        "slug": page.slug,
+        "page": page.model_dump(exclude_none=True),
+        "novelty": 0,
+        "inspiration": {
+            "review": {
+                "idea": idea().model_dump(),
+                "concept": concept().model_dump(exclude_none=True),
+            }
+        },
+    }
+    draft = review.draft_from_api(item)
+    assert draft["page"] is item["page"]
+    assert draft["idea"] is item["inspiration"]["review"]["idea"]
+    assert draft["novelty"] == 0.8
+    assert draft["feedback"] == [] and draft["attempt"] == 1
+    assert draft["tags"] == []
+    assert draft["created_at"] is None and draft["revision"] is None
+    assert draft["category"] is None
+    assert review.draft_from_api({"slug": "old-draft", "page": item["page"]}) is None
+    assert review.lines[-1] == "  ! draft old-draft has no review state and was ignored"
