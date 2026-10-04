@@ -1,19 +1,6 @@
 "use client";
 
-import {
-  ArrowRight,
-  Braces,
-  Check,
-  Grid3X3,
-  Info,
-  LoaderCircle,
-  Plus,
-  RotateCcw,
-  SlidersHorizontal,
-  Star,
-  Tag,
-  X,
-} from "lucide-react";
+import { Check, Grid3X3, Info, Star, Tag } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { copyText } from "@/lib/clipboard";
 import { PRESETS, FEATURED_PRESET_IDS } from "@/lib/presets";
@@ -25,13 +12,14 @@ import {
   isRecord,
   requestFor,
   runLiveEvaluation,
-  shortCriterion,
   validateRequest,
 } from "@/lib/playground";
 import type { EvaluationRequest, EvaluationResponse, Preset, Question } from "@/lib/typesafe";
 import { ResultPanel } from "./ResultPanel";
-export { ResultPanel } from "./ResultPanel";
+import { LandingPlaygroundEditor } from "./LandingPlaygroundEditor";
 import { PresetIcon } from "./icons";
+
+export { ResultPanel } from "./ResultPanel";
 
 type Mode = "sample" | "live";
 
@@ -408,7 +396,6 @@ export function Playground({
 
   const stateText = typeof request.state === "string" ? request.state : JSON.stringify(request.state, null, 2);
   const instructionsText = typeof firstQuestion?.instructions === "string" ? firstQuestion.instructions : JSON.stringify(firstQuestion?.instructions ?? "", null, 2);
-  const QuestionIcon = questionSummary.icon;
 
   return (
     <section className="container playground-section" id="playground" aria-labelledby="playground-heading">
@@ -446,120 +433,21 @@ export function Playground({
           </div>
         </div>
         <div className="pg-grid">
-          <div className="editor-panel">
-            {!advanced ? (
-              <div id="simple-panel">
-                <div className="field-heading">
-                  <label className="field-label" htmlFor="state-input">
-                    <span className="step-dot">1</span>Your text
-                  </label>
-                  <button type="button" className="text-action" onClick={resetToCurrent}>
-                    <RotateCcw aria-hidden="true" /> Reset
-                  </button>
-                </div>
-                <textarea
-                  id="state-input"
-                  maxLength={20_000}
-                  spellCheck={false}
-                  aria-describedby="input-mode-help"
-                  value={stateText}
-                  onChange={(event) => updateSimpleState(event.target.value)}
-                  placeholder="Paste a message, review, or a few lines of text..."
-                />
-                <div className="input-footer">
-                  <div className="variant-buttons" aria-label="Try different sample inputs">
-                    {currentPreset.variants.map((variant, index) => (
-                      <button key={variant.name} type="button" className="variant-button" aria-pressed={index === variantIndex} onClick={() => loadPreset(currentPreset.id, index)}>
-                        {variant.name}
-                      </button>
-                    ))}
-                  </div>
-                  <span id="char-count">{stateText.length} chars</span>
-                </div>
-                <div className="question-field">
-                  <div className="field-heading">
-                    <label className="field-label" htmlFor="instructions-input">
-                      <span className="step-dot">2</span>Your question
-                    </label>
-                    <span className="answer-kind">
-                      <QuestionIcon aria-hidden="true" />
-                      {questionSummary.text}
-                    </span>
-                  </div>
-                  <textarea id="instructions-input" maxLength={4000} spellCheck={false} value={instructionsText} onChange={(event) => updateSimpleInstructions(event.target.value)} />
-                  <AnswerOptions question={firstQuestion} />
-                </div>
-              </div>
-            ) : (
-              <div id="advanced-panel">
-                <div className="field-heading">
-                  <label className="field-label" htmlFor="request-json">
-                    <Braces aria-hidden="true" /> Your request - JSON
-                  </label>
-                  <button
-                    type="button"
-                    className="text-action"
-                    onClick={() => {
-                      const parsed = parseJson();
-                      if (parsed) {
-                        setJsonText(JSON.stringify(parsed, null, 2));
-                        onToast("JSON formatted");
-                      }
-                    }}
-                  >
-                    Format JSON
-                  </button>
-                </div>
-                <p className="field-help">Edit the text, questions, labels, or scoring rules. Each question sees the same state.</p>
-                <div className="advanced-tools">
-                  <button type="button" onClick={() => addQuestion("noul")}>
-                    <Plus aria-hidden="true" /> Yes / no
-                  </button>
-                  <button type="button" onClick={() => addQuestion("choice")}>
-                    <Plus aria-hidden="true" /> Choice
-                  </button>
-                  <button type="button" onClick={() => addQuestion("score")}>
-                    <Plus aria-hidden="true" /> Score
-                  </button>
-                  <button type="button" onClick={addStructuredRules}>
-                    <Braces aria-hidden="true" /> Structured rules
-                  </button>
-                </div>
-                <textarea id="request-json" spellCheck={false} value={jsonText} onChange={(event) => onJsonInput(event.target.value)} aria-invalid={Boolean(jsonError)} />
-                <p className="field-help">Use model, state, and questions. Top-level extras are rejected before a live call.</p>
-                {jsonError ? <p id="validation-error">{jsonError}</p> : null}
-              </div>
-            )}
-            {mode === "live" ? (
-              <div className="token-field">
-                <label htmlFor="api-token">
-                  typesafe.pro token <span>(optional)</span>
-                </label>
-                <input id="api-token" type="password" maxLength={2048} autoComplete="off" spellCheck={false} value={token} onChange={(event) => setToken(event.target.value)} placeholder="Only for requests that need a gateway token" />
-                <p className="field-help">Kept in this page only, not saved. Never enter a TypeSafe provider key here.</p>
-              </div>
-            ) : null}
-            <div className="editor-actions">
-              <button className="advanced-btn" type="button" aria-expanded={advanced} onClick={() => setAdvanced((value) => !value)}>
-                <SlidersHorizontal aria-hidden="true" />
-                <span>{advanced ? "Simple mode" : "Advanced mode"}</span>
-              </button>
-              <div className="run-actions">
-                {running ? (
-                  <button className="btn btn-secondary btn-small" type="button" onClick={() => abortCurrent(true)}>
-                    <X aria-hidden="true" /> Cancel
-                  </button>
-                ) : null}
-                <button className="btn btn-primary" type="button" disabled={Boolean(jsonError) || running} onClick={run}>
-                  {running ? <LoaderCircle aria-hidden="true" className="spinner" /> : <ArrowRight aria-hidden="true" />}
-                  {running ? "Asking Jev..." : mode === "sample" ? "Run example" : "Run for free"}
-                </button>
-              </div>
-            </div>
-            <p className={`status-line ${statusIsError ? "is-error" : ""}`} id="input-mode-help" aria-live="polite">
-              {status}
-            </p>
-          </div>
+          <LandingPlaygroundEditor
+            advanced={advanced} mode={mode} currentPreset={currentPreset} variantIndex={variantIndex}
+            stateText={stateText} instructionsText={instructionsText} firstQuestion={firstQuestion}
+            questionSummary={questionSummary} jsonText={jsonText} jsonError={jsonError}
+            token={token} running={running} status={status} statusIsError={statusIsError}
+            onReset={resetToCurrent} onVariant={(index) => loadPreset(currentPreset.id, index)}
+            onStateChange={updateSimpleState} onInstructionsChange={updateSimpleInstructions}
+            onJsonChange={onJsonInput} onFormatJson={() => {
+              const parsed = parseJson();
+              if (parsed) { setJsonText(JSON.stringify(parsed, null, 2)); onToast("JSON formatted"); }
+            }}
+            onAddQuestion={addQuestion} onStructuredRules={addStructuredRules}
+            onTokenChange={setToken} onToggleAdvanced={() => setAdvanced((value) => !value)}
+            onCancel={() => abortCurrent(true)} onRun={run}
+          />
           <ResultPanel
             result={result}
             request={resultRequest}
@@ -583,25 +471,6 @@ export function Playground({
         <span>Samples stay in your browser. Live API sends your input to typesafe.pro and TypeSafe. Please do not paste private information.</span>
       </p>
     </section>
-  );
-}
-
-function AnswerOptions({ question }: { question?: Question }) {
-  if (!question) return null;
-  const options: string[] =
-    question.type === "choice"
-      ? Object.keys(question.criteria)
-      : question.type === "score"
-        ? question.criteria.map((criterion, index) => `${index}: ${shortCriterion(criterion)}`)
-        : ["0 = no", "0.5 = unsure", "1 = yes"];
-  return (
-    <div className="answer-options" aria-label="Possible answers">
-      {options.map((option) => (
-        <span key={option} className="answer-option">
-          {option}
-        </span>
-      ))}
-    </div>
   );
 }
 
