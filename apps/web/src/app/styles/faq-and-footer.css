@@ -1,0 +1,175 @@
+.faq-layout {
+  display: grid;
+  grid-template-columns: 0.75fr 1.25fr;
+  gap: 42px;
+}
+
+.faq-intro p {
+  margin-top: 18px;
+  color: var(--body);
+}
+
+.faq-list {
+  display: grid;
+  gap: 10px;
+}
+
+.faq-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.faq-question {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: transparent;
+  padding: 18px;
+  text-align: left;
+  font-weight: 650;
+}
+
+.faq-item.is-open .faq-question svg {
+  transform: rotate(45deg);
+}
+
+.faq-answer {
+  padding: 0 18px 18px;
+  color: var(--body);
+}
+
+.final-cta {
+  margin-block: 24px 72px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 50px;
+  text-align: center;
+}
+
+.final-mark {
+  width: 44px;
+  height: 50px;
+  color: var(--accent);
+}
+
+.final-cta h2 {
+  margin-top: 18px;
+  font-size: 48px;
+  line-height: 1.12;
+}
+
+.final-cta p {
+  margin-top: 14px;
+  color: var(--body);
+}
+
+.final-cta .btn {
+  margin-top: 24px;
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding-block: 34px;
+}
+
+.footer-top,
+.footer-bottom {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 18px;
+  color: var(--body);
+  font-size: 13px;
+}
+
+.footer-bottom {
+  margin-top: 28px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.footer-store {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.app-store-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 8px 16px;
+  background: var(--button);
+  color: var(--button-ink);
+  transition: transform 0.25s var(--ease), opacity 0.2s;
+}
+
+.app-store-badge:hover {
+  transform: translateY(-2px);
+  opacity: 0.9;
+}
+
+.app-store-badge-icon {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.app-store-badge-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.app-store-badge-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.app-store-badge-title {
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 80;
+  max-width: min(360px, calc(100% - 40px));
+  transform: translateY(20px);
+  border-radius: var(--radius);
+  background: var(--button);
+  color: var(--button-ink);
+  padding: 13px 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast.is-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+

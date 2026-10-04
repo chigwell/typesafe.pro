@@ -1,11 +1,11 @@
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { readStylesheet } from "@/test/styles";
 import { DEMO_BRAND, DEMO_BRAND_CSS } from "./demo-brand";
 import { buildDemoDocument } from "./demo-document";
 import { useCaseDemoFixture } from "@/test/use-case-fixture";
 
-const globals = readFileSync(resolve(__dirname, "../app/globals.css"), "utf8");
+const globals = readStylesheet(resolve(__dirname, "../app/globals.css"));
 
 function block(selector: string) {
   const start = globals.indexOf(`${selector} {`);

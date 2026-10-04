@@ -1,0 +1,153 @@
+:root {
+  color-scheme: light;
+  --canvas: #ebf5ff;
+  --surface: #fafdff;
+  --white: #ffffff;
+  --soft: #e3effa;
+  --ink: #0a0d12;
+  --body: #505d6b;
+  --muted: #667586;
+  --line: #d6e3ef;
+  --accent: #0069e0;
+  --accent-soft: #e6f2ff;
+  --mint-wash: #dcf4e8;
+  --mint-ink: #28604b;
+  --button: #181d27;
+  --button-ink: #ffffff;
+  --error: #a42c35;
+  --header: rgba(235, 245, 255, 0.94);
+  --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --radius: 8px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #101b27;
+  --surface: #192634;
+  --white: #1e2d3d;
+  --soft: #223346;
+  --ink: #f1f6fb;
+  --body: #b9c7d5;
+  --muted: #9bacbd;
+  --line: #304356;
+  --accent: #8ec1ff;
+  --accent-soft: #263f5e;
+  --mint-wash: #203b35;
+  --mint-ink: #abe4c9;
+  --button: #edf4fc;
+  --button-ink: #101b27;
+  --error: #ffb6bd;
+  --header: rgba(16, 27, 39, 0.94);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 104px;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background: var(--canvas);
+  font: 400 16px/1.55 var(--font);
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  letter-spacing: 0;
+}
+
+button,
+a,
+input,
+textarea,
+summary {
+  outline-offset: 5px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+}
+
+button {
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+svg {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  vertical-align: middle;
+}
+
+textarea,
+input[type="text"],
+input[type="password"],
+input[type="search"] {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--ink);
+  padding: 14px 15px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+textarea {
+  min-width: 0;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+textarea:hover,
+input:hover {
+  border-color: var(--muted);
+}
+
+textarea:focus,
+input:focus {
+  border-color: var(--accent);
+}
+

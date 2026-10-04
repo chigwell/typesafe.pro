@@ -1,0 +1,228 @@
+{
+  "fixture": "apps/web/scripts/parity-api.py",
+  "stylesheet_sha256": "5fc51204171b3d175809a69cae12df1423deb70b46ba2f72c7cc5f18e0c83c40",
+  "styles_match": 20,
+  "style_differences": 0,
+  "cases": [
+    {
+      "case": "detail-desktop-light",
+      "route": "/use-cases/playlist-mood-palette",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "b693e5bbca5ebb24c83a274fec2b79a058c16c57d1c6a087f0f8e140823a28a9",
+      "after_computed_style_sha256": "b693e5bbca5ebb24c83a274fec2b79a058c16c57d1c6a087f0f8e140823a28a9"
+    },
+    {
+      "case": "detail-mobile-light",
+      "route": "/use-cases/playlist-mood-palette",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "8e95631788a5b56ee59c4471d5fd91f24b1d33de1e92e9157c7b185bc00a689b",
+      "after_computed_style_sha256": "8e95631788a5b56ee59c4471d5fd91f24b1d33de1e92e9157c7b185bc00a689b"
+    },
+    {
+      "case": "detail-mobile-dark",
+      "route": "/use-cases/playlist-mood-palette",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "a4d8bd03549709f75b4eea99c29d23625f9ed7ff3bfa2225c65f9c169f846504",
+      "after_computed_style_sha256": "a4d8bd03549709f75b4eea99c29d23625f9ed7ff3bfa2225c65f9c169f846504"
+    },
+    {
+      "case": "detail-desktop-dark",
+      "route": "/use-cases/playlist-mood-palette",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "1ffc0057b9a32a791b9c6fb3f1133ce22b38693df91b5a07f4ddc1ac84a2ce01",
+      "after_computed_style_sha256": "1ffc0057b9a32a791b9c6fb3f1133ce22b38693df91b5a07f4ddc1ac84a2ce01"
+    },
+    {
+      "case": "demo-desktop-dark",
+      "route": "/use-cases/playlist-mood-palette",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "21e5db06347e44f3e46df285f87972fd46f89a79c1655ebdafa343e704ec9702",
+      "after_computed_style_sha256": "21e5db06347e44f3e46df285f87972fd46f89a79c1655ebdafa343e704ec9702"
+    },
+    {
+      "case": "demo-mobile-dark",
+      "route": "/use-cases/playlist-mood-palette",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "49e653721ad07a2a7f1e665cd57701144a916688b6a563c72654d342dcbd4e0d",
+      "after_computed_style_sha256": "49e653721ad07a2a7f1e665cd57701144a916688b6a563c72654d342dcbd4e0d"
+    },
+    {
+      "case": "demo-mobile-light",
+      "route": "/use-cases/playlist-mood-palette",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "3573573cbeb6578d42996c4cf113ca176a7d9321c2c06a01fb033f0cebffdac1",
+      "after_computed_style_sha256": "3573573cbeb6578d42996c4cf113ca176a7d9321c2c06a01fb033f0cebffdac1"
+    },
+    {
+      "case": "demo-desktop-light",
+      "route": "/use-cases/playlist-mood-palette",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "5d15affbe8b2bd39fbe886aaad6e41b8ebc8de992058aefaa0c7e368b00d174c",
+      "after_computed_style_sha256": "5d15affbe8b2bd39fbe886aaad6e41b8ebc8de992058aefaa0c7e368b00d174c"
+    },
+    {
+      "case": "catalog-desktop-light",
+      "route": "/use-cases",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "f090263b876b9a7367376b4214ffd965cf663dbfbf28bb3900530a38382c63d8",
+      "after_computed_style_sha256": "f090263b876b9a7367376b4214ffd965cf663dbfbf28bb3900530a38382c63d8"
+    },
+    {
+      "case": "catalog-mobile-light",
+      "route": "/use-cases",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "d65eff969b4a9416ec385bc6b163bee3ffbb5c3b4a4074fad4f1c0661952f471",
+      "after_computed_style_sha256": "d65eff969b4a9416ec385bc6b163bee3ffbb5c3b4a4074fad4f1c0661952f471"
+    },
+    {
+      "case": "catalog-mobile-dark",
+      "route": "/use-cases",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "9543baca84a94417dde381a259b8b9d73de84c061f841b5b13f7fe7a39d85579",
+      "after_computed_style_sha256": "9543baca84a94417dde381a259b8b9d73de84c061f841b5b13f7fe7a39d85579"
+    },
+    {
+      "case": "catalog-desktop-dark",
+      "route": "/use-cases",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "c686359c8d7f72fd9af26b48ee368c5b46ff68b74a1907fef0297049f2a70788",
+      "after_computed_style_sha256": "c686359c8d7f72fd9af26b48ee368c5b46ff68b74a1907fef0297049f2a70788"
+    },
+    {
+      "case": "home-desktop-dark",
+      "route": "/",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "4db9e81d603052246d30af03cbe31d66c56e8e1015868574ba5448bec9552036",
+      "after_computed_style_sha256": "4db9e81d603052246d30af03cbe31d66c56e8e1015868574ba5448bec9552036"
+    },
+    {
+      "case": "home-mobile-dark",
+      "route": "/",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "4cdae8697f34facc3aa90e09e5d928f9725cb05b1266f07c075b791bddeae1e8",
+      "after_computed_style_sha256": "4cdae8697f34facc3aa90e09e5d928f9725cb05b1266f07c075b791bddeae1e8"
+    },
+    {
+      "case": "home-mobile-light",
+      "route": "/",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "46cd97609e73df180c0cf22742862f3901e972f2026c2cdc3b6070af7d74867a",
+      "after_computed_style_sha256": "46cd97609e73df180c0cf22742862f3901e972f2026c2cdc3b6070af7d74867a"
+    },
+    {
+      "case": "home-desktop-light",
+      "route": "/",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "58d10256ee728487e54181d707cbf0e37cd21fdbabaf9296abe8710ca765a3a5",
+      "after_computed_style_sha256": "58d10256ee728487e54181d707cbf0e37cd21fdbabaf9296abe8710ca765a3a5"
+    },
+    {
+      "case": "admin-desktop-light",
+      "route": "/admin",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "873dc2703285a6a6d9acd22bda63b154f86a5a3d3dc906a712dfc304f916d3ae",
+      "after_computed_style_sha256": "873dc2703285a6a6d9acd22bda63b154f86a5a3d3dc906a712dfc304f916d3ae"
+    },
+    {
+      "case": "admin-mobile-light",
+      "route": "/admin",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "light",
+      "before_computed_style_sha256": "f2d4403a2d17ec658a4033276c5bff3f390e57fdb28d2e9e326ec0d529cbec76",
+      "after_computed_style_sha256": "f2d4403a2d17ec658a4033276c5bff3f390e57fdb28d2e9e326ec0d529cbec76"
+    },
+    {
+      "case": "admin-mobile-dark",
+      "route": "/admin",
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "e3996e683c29ddd1654c8d262fe08a75de8d14c8de46005e5eddb48708c5ac72",
+      "after_computed_style_sha256": "e3996e683c29ddd1654c8d262fe08a75de8d14c8de46005e5eddb48708c5ac72"
+    },
+    {
+      "case": "admin-desktop-dark",
+      "route": "/admin",
+      "viewport": {
+        "height": 900,
+        "width": 1440
+      },
+      "theme": "dark",
+      "before_computed_style_sha256": "51a7eff0d3fbd6f5275a5e0f15d135a379a97c9c34b74e00e0896f498bc73220",
+      "after_computed_style_sha256": "51a7eff0d3fbd6f5275a5e0f15d135a379a97c9c34b74e00e0896f498bc73220"
+    }
+  ]
+}
