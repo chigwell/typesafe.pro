@@ -15,7 +15,7 @@ from .admin import admin_router
 from .auth import client_ip, digest
 from .config import Settings
 from .content_api import content_admin_router, public_content_router
-from .content_store import new_state as new_content_state
+from .content_cache import new_state as new_content_state
 from .endpoint import ProxyEndpoint
 from .endpoint import admission_policy as admission_policy
 from .endpoint import retry_seconds as retry_seconds

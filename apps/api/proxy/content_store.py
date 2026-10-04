@@ -1,4 +1,4 @@
-"""Use-case content: Postgres queries, a small in-process response cache, preview tokens."""
+"""Use-case content: Postgres queries and signed preview tokens."""
 
 import hashlib
 import hmac
@@ -8,6 +8,9 @@ import time
 from datetime import UTC, datetime
 
 from .auth import digest
+from .content_cache import ResponseCache as ResponseCache
+from .content_cache import cached as cached
+from .content_cache import new_state as new_state
 from .storage import iso
 from .use_case_schema import Page
 
@@ -61,31 +64,6 @@ def valid_preview(secret: bytes, slug: str, token: str, now: float | None = None
         return False
     expected = digest(secret, f"{slug}.{expires}".encode(), "use-case-preview")
     return hmac.compare_digest(signature.encode(), expected.encode())
-
-
-class ResponseCache:
-    """Bounded TTL cache of serialized public responses; cleared on every content write."""
-
-    def __init__(self, ttl=60, limit=2000):
-        self.ttl = ttl
-        self.limit = limit
-        self.items: dict = {}
-        self.version = 0
-
-    def get(self, key):
-        item = self.items.get(key)
-        if item and item[0] > time.monotonic() and item[1] == self.version:
-            return item[2]
-        return None
-
-    def put(self, key, value):
-        if len(self.items) >= self.limit:
-            self.items.clear()
-        self.items[key] = (time.monotonic() + self.ttl, self.version, value)
-
-    def invalidate(self):
-        self.version += 1
-        self.items.clear()
 
 
 CARD_COLUMNS = """u.id, u.slug, u.title, u.summary, u.industry, u.audience, u.task_type,
@@ -456,18 +434,3 @@ class ContentStore:
             item["decision"][:800],
             (item.get("reason") or "")[:800],
         )
-
-
-async def cached(state, key, producer):
-    """Serve a cached serialized body, or build, serialize and cache it."""
-    cache: ResponseCache = state.content_cache
-    body = cache.get(key)
-    if body is None:
-        value = await producer()
-        body = json.dumps(value, separators=(",", ":"), ensure_ascii=False).encode()
-        cache.put(key, body)
-    return body
-
-
-def new_state(app_state):
-    app_state.content_cache = ResponseCache()

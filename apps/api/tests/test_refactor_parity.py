@@ -16,7 +16,7 @@ from conftest import ENV, VALID_REQUEST
 from starlette.datastructures import State
 from starlette.requests import Request
 
-from proxy import content_api, content_store
+from proxy import content_api, content_cache, content_store
 from proxy.config import Settings
 from proxy.content_store import ResponseCache, cached
 from proxy.main import create_app
@@ -296,3 +296,13 @@ async def test_gateway_reads_replaced_application_state_per_request(client_for, 
         result = await client.post("/v1/systemone", json=VALID_REQUEST)
         assert result.status_code == 200 and result.content == b"ok"
         assert replacement.budget.requests == replacement.budget.bytes == 0
+
+
+def test_content_cache_legacy_imports_remain_compatible():
+    assert content_store.ResponseCache is content_cache.ResponseCache
+    assert content_store.cached is content_cache.cached
+    assert content_store.new_state is content_cache.new_state
+    state = SimpleNamespace()
+    content_store.new_state(state)
+    assert isinstance(state.content_cache, ResponseCache)
+    assert state.content_cache.ttl == 60 and state.content_cache.limit == 2000
