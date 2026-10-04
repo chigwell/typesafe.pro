@@ -2,7 +2,6 @@ import {
   API_ENDPOINT,
   DEFAULT_API_BASE,
   DEFAULT_MODEL,
-  LIVE_TIMEOUT_MS,
   MAX_BODY_BYTES,
   MAX_QUESTIONS,
   MAX_RESPONSE_BYTES,
@@ -367,11 +366,6 @@ export async function runLiveEvaluation(options: {
     throw new Error(httpError(response));
   }
   return validateResponse(await readBoundedJson(response), options.request);
-}
-
-export function timeoutSignal(controller: AbortController, ms = LIVE_TIMEOUT_MS): { timer: number; signal: AbortSignal } {
-  const timer = window.setTimeout(() => controller.abort("timeout"), ms);
-  return { timer, signal: controller.signal };
 }
 
 export function answerForSample(found: SampleMatch): EvaluationResponse {

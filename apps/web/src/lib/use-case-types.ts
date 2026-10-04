@@ -34,8 +34,6 @@ export type UseCaseDemo = {
   verified_at: string;
 };
 
-export const DEMO_LIMITS = { html: 12_000, css: 8_000, js: 20_000, samples: [2, 4] as const };
-
 export type UseCasePage = {
   schema_version: 1;
   slug: string;
@@ -62,18 +60,6 @@ export type UseCasePage = {
   };
   created_at: string;
   updated_at: string;
-  /** Development-only preview loaded from content/use-cases/drafts; never published. */
+  /** Signed draft preview from the content API; never publicly listed. */
   draft?: boolean;
 };
-
-export type UseCaseRelease = {
-  schema_version: 1;
-  run_id: string;
-  source_sha: string;
-  catalog_hash: string;
-  generated_at: string;
-  pages: Array<Pick<UseCasePage, "slug" | "created_at" | "updated_at"> & { title: string }>;
-};
-
-export const USE_CASES_PAGE_SIZE = 24;
-export const SITEMAP_CHUNK_SIZE = 10_000;

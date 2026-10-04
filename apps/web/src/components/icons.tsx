@@ -3,8 +3,6 @@
 import {
   BookOpen,
   Bug,
-  Check,
-  Copy,
   FileCheck,
   Grid3X3,
   Mail,
@@ -90,5 +88,3 @@ export function AppStoreBadge() {
     </a>
   );
 }
-
-export { Check, Copy };

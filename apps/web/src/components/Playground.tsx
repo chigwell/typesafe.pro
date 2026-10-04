@@ -16,7 +16,6 @@ import {
   Star,
   Tag,
   X,
-  Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { copyText } from "@/lib/clipboard";
@@ -30,7 +29,6 @@ import {
   requestFor,
   runLiveEvaluation,
   shortCriterion,
-  simpleCompatible,
   validateRequest,
 } from "@/lib/playground";
 import type { EvaluationRequest, EvaluationResponse, Preset, Question } from "@/lib/typesafe";
