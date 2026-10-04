@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import type { FormEvent } from "react";
+import { useState } from "react";
 import {
   KeyRound,
   LogOut,
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
-import { adminFetch, AdminError } from "@/lib/admin";
 import { date, number } from "./admin/AdminPrimitives";
 import { SystemHealth } from "./admin/SystemHealth";
 import { ApiActivity } from "./admin/ApiActivity";
@@ -16,35 +14,17 @@ import { PageViews } from "./admin/PageViews";
 import { IpActivitySection } from "./admin/IpActivitySection";
 import { ErrorHistory } from "./admin/ErrorHistory";
 import GeneratedPages from "./GeneratedPages";
-import type {
-  ActivityWindow,
-  ErrorEvent,
-  IpActivity,
-  Page,
-  PageViewRow,
-  SeoSummary,
-  SeoPage,
-  SeoRun,
-  Summary,
-  SystemStatus,
-} from "@/lib/admin";
-
-const dayInput = (offsetDays = 0) => {
-  const value = new Date();
-  value.setUTCDate(value.getUTCDate() + offsetDays);
-  return value.toISOString().slice(0, 10);
-};
-const message = (error: unknown) =>
-  error instanceof Error ? error.message : "Connection unavailable";
-
+import type { ActivityWindow } from "@/lib/admin";
+import { dayInput } from "./admin/admin-lifecycle";
+import { useAdminAuth } from "./admin/useAdminAuth";
+import { useAdminPolling } from "./admin/useAdminPolling";
 
 export default function AdminDashboard() {
-  const [auth, setAuth] = useState<"checking" | "login" | "ready">("checking");
-  const [password, setPassword] = useState("");
-  const [authError, setAuthError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [retryAt, setRetryAt] = useState(0);
-  const [clock, setClock] = useState(Date.now());
+  const session = useAdminAuth({
+    onLogout: () => data.clearPrivateData(),
+    onLogoutFailure: (failure) => data.setFailures([failure]),
+  });
+  const { auth, password, setPassword, authError, busy, cooldown, login, logout } = session;
   const [window, setWindow] = useState<ActivityWindow>("24h");
   const [ipPage, setIpPage] = useState(1);
   const [viewPage, setViewPage] = useState(1);
@@ -55,197 +35,14 @@ export default function AdminDashboard() {
   const [status, setStatus] = useState("");
   const [errorCode, setErrorCode] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [updated, setUpdated] = useState<number>();
-  const [system, setSystem] = useState<SystemStatus>();
-  const [summary, setSummary] = useState<Summary>();
-  const [ips, setIps] = useState<Page<IpActivity>>();
-  const [pageViews, setPageViews] = useState<Page<PageViewRow>>();
-  const [errors, setErrors] = useState<Page<ErrorEvent>>();
-  const [seoSummary, setSeoSummary] = useState<SeoSummary>();
-  const [seoPages, setSeoPages] = useState<Page<SeoPage>>();
-  const [seoRuns, setSeoRuns] = useState<Page<SeoRun>>();
   const [seoPage, setSeoPage] = useState(1);
   const [seoRunPage, setSeoRunPage] = useState(1);
-  const [failures, setFailures] = useState<string[]>([]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    adminFetch("/auth/session", { signal: controller.signal })
-      .then(() => setAuth("ready"))
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        setAuth("login");
-        if (!(error instanceof AdminError && error.status === 401))
-          setAuthError(message(error));
-      });
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    if (retryAt <= Date.now()) return;
-    const timer = setInterval(() => setClock(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [retryAt]);
-
-  useEffect(() => {
-    if (auth !== "ready") return;
-    const controller = new AbortController();
-    let inFlight = false;
-    const load = async () => {
-      if (inFlight) return;
-      inFlight = true;
-      setLoading(true);
-      const opts = { signal: controller.signal };
-      const query = new URLSearchParams({
-        page: String(errorPage),
-        page_size: "25",
-      });
-      if (status) query.set("status", status);
-      if (errorCode) query.set("error_code", errorCode);
-      const results = await Promise.allSettled([
-        adminFetch<SystemStatus>("/system", opts),
-        adminFetch<Summary>(`/summary?window=${window}`, opts),
-        adminFetch<Page<IpActivity>>(
-          `/ip-activity?window=${window}&page=${ipPage}&page_size=25`,
-          opts,
-        ),
-        adminFetch<Page<PageViewRow>>(
-          `/page-views?from=${viewsFrom}&to=${viewsTo}&page=${viewPage}&page_size=25`,
-          opts,
-        ),
-        adminFetch<Page<ErrorEvent>>(`/errors?${query}`, opts),
-        adminFetch<SeoSummary>("/seo/summary", opts),
-        adminFetch<Page<SeoPage>>(`/seo/pages?page=${seoPage}&page_size=25`, opts),
-        adminFetch<Page<SeoRun>>(`/seo/runs?page=${seoRunPage}&page_size=25`, opts),
-      ] as const);
-      if (controller.signal.aborted) return;
-      if (
-        results.some(
-          (result) =>
-            result.status === "rejected" &&
-            result.reason instanceof AdminError &&
-            result.reason.status === 401,
-        )
-      ) {
-        setSystem(undefined);
-        setSummary(undefined);
-        setIps(undefined);
-        setPageViews(undefined);
-        setErrors(undefined);
-        setSeoSummary(undefined);
-        setSeoPages(undefined);
-        setSeoRuns(undefined);
-        setAuthError("Session expired. Sign in again.");
-        setAuth("login");
-      } else {
-        setSystem(
-          results[0].status === "fulfilled" ? results[0].value : undefined,
-        );
-        setSummary(
-          results[1].status === "fulfilled" ? results[1].value : undefined,
-        );
-        setIps(
-          results[2].status === "fulfilled" ? results[2].value : undefined,
-        );
-        setErrors(
-          results[4].status === "fulfilled" ? results[4].value : undefined,
-        );
-        setPageViews(
-          results[3].status === "fulfilled" ? results[3].value : undefined,
-        );
-        setSeoSummary(results[5].status === "fulfilled" ? results[5].value : undefined);
-        setSeoPages(results[6].status === "fulfilled" ? results[6].value : undefined);
-        setSeoRuns(results[7].status === "fulfilled" ? results[7].value : undefined);
-        const labels = [
-          "System",
-          "Activity",
-          "IP activity",
-          "Page views",
-          "Errors",
-          "Generated pages",
-          "Generated page list",
-          "Generation history",
-        ];
-        setFailures(
-          results.flatMap((result, index) =>
-            result.status === "rejected"
-              ? [`${labels[index]}: ${message(result.reason)}`]
-              : [],
-          ),
-        );
-        setUpdated(Date.now() / 1000);
-      }
-      setLoading(false);
-      inFlight = false;
-    };
-    void load();
-    const timer = setInterval(() => void load(), 10000);
-    return () => {
-      controller.abort();
-      clearInterval(timer);
-    };
-  }, [
-    auth,
-    window,
-    ipPage,
-    viewPage,
-    viewsFrom,
-    viewsTo,
-    errorPage,
-    seoPage,
-    seoRunPage,
-    status,
-    errorCode,
-    refresh,
-  ]);
-
-  async function login(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setAuthError("");
-    try {
-      await adminFetch("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ password }),
-      });
-      setPassword("");
-      setRetryAt(0);
-      setAuth("ready");
-    } catch (error) {
-      setAuthError(message(error));
-      if (error instanceof AdminError && error.retryAfter) {
-        setRetryAt(Date.now() + error.retryAfter * 1000);
-        setClock(Date.now());
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function logout() {
-    setBusy(true);
-    try {
-      await adminFetch("/auth/logout", { method: "POST" });
-      setAuthError("");
-      setPassword("");
-      setSystem(undefined);
-      setSummary(undefined);
-      setIps(undefined);
-      setPageViews(undefined);
-      setErrors(undefined);
-      setSeoSummary(undefined);
-      setSeoPages(undefined);
-      setSeoRuns(undefined);
-      setAuth("login");
-    } catch (error) {
-      setFailures([`Sign out: ${message(error)}`]);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const cooldown = Math.max(0, Math.ceil((retryAt - clock) / 1000));
+  const data = useAdminPolling({
+    auth, window, ipPage, viewPage, viewsFrom, viewsTo, errorPage,
+    seoPage, seoRunPage, status, errorCode, refresh, onUnauthorized: session.expireSession,
+  });
+  const { system, summary, ips, pageViews, errors, seoSummary, seoPages, seoRuns } = data.snapshot;
+  const { loading, updated, failures, clearFields } = data;
   return (
     <main className="admin-root">
       <header className="admin-header">
@@ -327,8 +124,8 @@ export default function AdminDashboard() {
                     onClick={() => {
                       setWindow(value);
                       setIpPage(1);
-                      setSummary(undefined);
-                      setIps(undefined);
+                      clearFields("summary");
+                      clearFields("ips");
                     }}
                   >
                     {value}
@@ -375,23 +172,23 @@ export default function AdminDashboard() {
           <GeneratedPages
             summary={seoSummary} pages={seoPages} runs={seoRuns}
             page={seoPage} runPage={seoRunPage} loading={loading}
-            onPage={(page) => { setSeoPage(page); setSeoPages(undefined); }}
-            onRunPage={(page) => { setSeoRunPage(page); setSeoRuns(undefined); }}
+            onPage={(page) => { setSeoPage(page); clearFields("seoPages"); }}
+            onRunPage={(page) => { setSeoRunPage(page); clearFields("seoRuns"); }}
           />
 
           <PageViews pageViews={pageViews} viewsFrom={viewsFrom} viewsTo={viewsTo} viewPage={viewPage} loading={loading}
-            onFrom={(value) => { setViewsFrom(value); setViewPage(1); setPageViews(undefined); }}
-            onTo={(value) => { setViewsTo(value); setViewPage(1); setPageViews(undefined); }}
-            onPage={(page) => { setViewPage(page); setPageViews(undefined); }} />
+            onFrom={(value) => { setViewsFrom(value); setViewPage(1); clearFields("pageViews"); }}
+            onTo={(value) => { setViewsTo(value); setViewPage(1); clearFields("pageViews"); }}
+            onPage={(page) => { setViewPage(page); clearFields("pageViews"); }} />
 
           <IpActivitySection ips={ips} window={window} ipPage={ipPage} loading={loading}
-            onPage={(page) => { setIpPage(page); setIps(undefined); }} />
+            onPage={(page) => { setIpPage(page); clearFields("ips"); }} />
 
           <ErrorHistory errors={errors} status={status} errorCode={errorCode} expandedError={expandedError} errorPage={errorPage} loading={loading}
-            onStatus={(value) => { setStatus(value); setErrorPage(1); setErrors(undefined); }}
-            onErrorCode={(value) => { setErrorCode(value); setErrorPage(1); setErrors(undefined); }}
+            onStatus={(value) => { setStatus(value); setErrorPage(1); clearFields("errors"); }}
+            onErrorCode={(value) => { setErrorCode(value); setErrorPage(1); clearFields("errors"); }}
             onExpandedError={setExpandedError}
-            onPage={(page) => { setErrorPage(page); setErrors(undefined); }} />
+            onPage={(page) => { setErrorPage(page); clearFields("errors"); }} />
         </div>
       )}
     </main>
