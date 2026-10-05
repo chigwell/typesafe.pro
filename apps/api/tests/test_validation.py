@@ -140,7 +140,7 @@ async def test_route_rejection_before_body_or_admission(
         state = client.app.state
         admission = AsyncMock(side_effect=AssertionError("Admission called"))
         budget = Mock(side_effect=AssertionError("Budget claimed"))
-        monkeypatch.setattr("proxy.main.authenticate", admission)
+        monkeypatch.setattr("proxy.endpoint.authenticate", admission)
         monkeypatch.setattr(state.budget, "enter", budget)
         monkeypatch.setattr(state.scheduler, "acquire", admission)
 
