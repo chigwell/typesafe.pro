@@ -1,0 +1,163 @@
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 980px) {
+  .container {
+    width: min(calc(100% - 40px), 760px);
+  }
+
+  h1 {
+    font-size: 70px;
+  }
+
+  .section-title {
+    font-size: 42px;
+  }
+
+  .float-note,
+  .float-answer {
+    display: none;
+  }
+
+  .pg-grid,
+  .primitive-grid,
+  .cases-grid,
+  .developer-layout,
+  .faq-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .result-panel {
+    margin: 0 13px 13px;
+  }
+
+  .examples-top,
+  .playground-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .example-controls {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .filter-tabs {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .container {
+    width: min(calc(100% - 28px), 620px);
+  }
+
+  .header-inner {
+    height: 76px;
+  }
+
+  .brand {
+    font-size: 22px;
+  }
+
+  .header-cta {
+    display: none;
+  }
+
+  .mobile-toggle {
+    display: inline-flex;
+  }
+
+  .nav-links {
+    position: absolute;
+    top: 76px;
+    left: 14px;
+    right: 14px;
+    display: none;
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 12px;
+    box-shadow: 0 18px 40px rgba(10, 13, 18, 0.14);
+  }
+
+  .nav-links.is-open {
+    display: grid;
+  }
+
+  .nav-links a {
+    padding: 10px;
+  }
+
+  h1 {
+    font-size: 50px;
+  }
+
+  .hero {
+    padding-top: 32px;
+  }
+
+  .hero-ctas,
+  .hero-flows,
+  .editor-actions,
+  .cases-bottom,
+  .footer-top,
+  .footer-bottom {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .footer-store {
+    justify-content: center;
+    margin-top: 16px;
+  }
+
+  .hero-flows {
+    gap: 10px;
+  }
+
+  .pg-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px;
+  }
+
+  .editor-panel,
+  .result-panel {
+    padding: 20px;
+  }
+
+  .run-actions {
+    justify-content: stretch;
+  }
+
+  .run-actions .btn {
+    width: 100%;
+  }
+
+  .result-value {
+    font-size: 36px;
+  }
+
+  .prob-row {
+    grid-template-columns: minmax(50px, 68px) 1fr 36px;
+  }
+
+  .final-cta {
+    padding: 32px 20px;
+  }
+
+  .final-cta h2 {
+    font-size: 34px;
+  }
+}

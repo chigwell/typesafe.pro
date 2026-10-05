@@ -1,5 +1,5 @@
 import { Script } from "node:vm";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildDemoDocument, demoCsp } from "./demo-document";
 import { DEMO_RUNTIME } from "./demo-runtime";
 import { useCaseDemoFixture } from "@/test/use-case-fixture";
@@ -43,7 +43,11 @@ describe("sandboxed demo document", () => {
   });
 
   describe("runtime error messages", () => {
+    beforeEach(() => vi.useFakeTimers());
     afterEach(() => {
+      // Runtime initialization schedules height measurement; it must not outlive JSDOM.
+      vi.clearAllTimers();
+      vi.useRealTimers();
       vi.unstubAllGlobals();
       delete (window as { TypeSafeDemo?: unknown }).TypeSafeDemo;
     });

@@ -77,16 +77,21 @@ assigns categories without a model).
 - The demo code (`Demo` in `models.py`) is screened with word-boundary patterns against
   scripts, styles, links, frames, forms, `src`, remote CSS URLs, `fetch`, `XMLHttpRequest`,
   `import`, `eval`, `Function`, storage, cookies, `location`, `postMessage`, parent-window
-  access and `document.write`; `node --check` verifies syntax; each of its 2–4 sample
-  states is executed with the demo's fixed questions and must meet its expectation. The
-  script is then run in jsdom (`demo_harness.mjs`) once per sample: the sample chip is
-  clicked (or empty inputs filled from its state), the main button pressed and
-  `evaluate()` resolved with the sample's real answers; a missing `evaluate()` call, any
-  exception or a `describeError` call rejects the demo, as does breaking on a failed
-  request. The prompt carries the exact answer shapes (`probabilities` is an object;
-  Score `score` is fractional). The model-written code runs under Node's permission
-  model (read-only access to the harness and jsdom; no writes, child processes or, on
-  Node 25+, network) with an empty environment, because jsdom is no sandbox. A failure
+  access and `document.write`. When available, `node --check` verifies syntax.
+  Candidate sample states are evaluated with the demo's fixed questions; invalid
+  samples and samples that miss their expectations are dropped, and at least two
+  verified samples must remain. The saved samples are then exercised in jsdom
+  (`demo_harness.mjs`): the sample chip is clicked (or empty inputs filled from its
+  state), the main button pressed and `evaluate()` resolved with the sample's real
+  answers. A missing `evaluate()` call, reported runtime error or `describeError()`
+  call while rendering successful answers rejects the demo; the harness also checks
+  that a failed request does not cause a runtime error. The prompt carries the exact
+  answer shapes (`probabilities` is an object; Score `score` is fractional).
+  The model-written code runs under Node's permission model (read-only access to
+  the harness and jsdom; no writes, child processes or, on Node 25+, network) with an
+  empty environment, because jsdom is no sandbox. If Node, jsdom or the permission
+  harness is unavailable, or the corresponding check cannot run, generation warns
+  and continues; sample verification remains required. A failure
   is fed back to the model up to twice. The reviewer then inspects the demo in
   the sandboxed iframe before approval; only approved pages enter the catalog.
 
