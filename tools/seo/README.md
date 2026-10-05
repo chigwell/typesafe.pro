@@ -53,8 +53,9 @@ assigns categories without a model).
 ## Pipeline and bounds
 
 - Each idea round requests ten scenarios; at most ten rounds per session.
-- A session has a 60 minute and 400 external-call budget by default, including retries;
-  time spent waiting for the reviewer is paused.
+- A session has a 60 minute budget and a 400 provider-POST budget by default,
+  including provider retries. Content API and inspiration requests do not consume
+  that call budget; time spent waiting for the reviewer is paused.
 - Each model stage makes at most three HTTP attempts. `llmatch-messages` extracts
   `<json>` contents with `max_retries=0`; the outer loop owns all retries. This avoids
   multiplying retries in llmatch, LangChain or the HTTP transport.

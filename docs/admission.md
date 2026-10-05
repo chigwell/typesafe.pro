@@ -112,7 +112,7 @@ Compressed bytes remain unchanged in transit. Failures after headers terminate
 the stream and are logged separately; a second HTTP status cannot be sent then.
 
 Cleanup runs at startup and every minute, deleting expired events in batches of
-2000. Retention is three days plus cleanup lag, not a PostgreSQL native TTL.
+2000. Retention defaults to seven days plus cleanup lag, not a PostgreSQL native TTL.
 The job runs with the API, so cleanup resumes on restart after downtime. Size
 database storage for the expected error rate and its bounded response captures.
 
@@ -123,7 +123,7 @@ delivery on process kill; use a durable external log sink if that becomes requir
 
 Redis hashes `ts:metrics:<unix-minute>:all`, `:tier:<tier>` and `:master:<id>` contain
 requests, upstream_requests, estimated_tokens, usage_tokens and status families.
-Counters flush every 500 ms and expire after three days. Cardinality depends on
+Counters flush every 500 ms and expire after seven days. Cardinality depends on
 tiers/masters, never client IDs or IPs. Redis failures can lose the current metric
 batch; they are reported with `metrics_unavailable` without retaining an unbounded
 backlog. Query by known minute keys or `SCAN`, not production `KEYS`.
