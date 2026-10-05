@@ -16,41 +16,38 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from .catalog import compact, fingerprint, normalized
+from . import candidate_selection
+
+# Retain existing imports of candidate helpers and policy constants.
+from .candidate_selection import (  # noqa: F401
+    CLEAN_TARGET,
+    DUPLICATE,
+    EXTRA_ROUNDS,
+    MAX_IDEA_ROUNDS,
+    MIN_FOCUS,
+    NEAR_IDENTICAL,
+    SIMILAR,
+    jaccard,
+    words_of,
+)
+from .catalog import compact, fingerprint
 from .content_api import ContentApi, ContentApiError
 from .demo import propose_concepts
 from .errors import ReviewError  # noqa: F401
 from .inspiration import InspirationUnavailable, WordsFeed, feed_for
 from .models import DemoConcept, Idea, Page, Report
-from .novelty import Rejected, novelty_scan
+from .novelty import Rejected
 from .pipeline import (
     choose_taxonomy,
     create_page,
-    focus_scores,
     now,
-    propose_ideas,
     rebuild_demo,
 )
 from .providers import Budget, BudgetExhausted, ProviderError, Providers, StageError
 
 RUN_ID = re.compile(r"^[A-Za-z0-9_.-]{1,120}$")
-MAX_IDEA_ROUNDS = 10
 RETRY_DELAYS = (10, 30)
-DUPLICATE = 0.8
-SIMILAR = 0.2
-NEAR_IDENTICAL = 0.5
-MIN_FOCUS = 0.5
 SHOWN = 12
-CLEAN_TARGET = 5
-EXTRA_ROUNDS = 2
-
-
-def words_of(idea) -> set[str]:
-    return set(normalized(f"{idea.slug.replace('-', ' ')} {idea.summary}").split())
-
-
-def jaccard(a: set[str], b: set[str]) -> float:
-    return len(a & b) / len(a | b) if a and b else 0.0
 
 
 LINE = "─" * 72
@@ -370,150 +367,19 @@ class ReviewSession:
         return headlines
 
     def diverse(self, candidates: list[Idea]) -> list[Idea]:
-        """Drop near-identical ideas before spending API calls on duplicate checks."""
-        from .pipeline import frequent_task_types
-
-        avoid = {normalized(t) for t in frequent_task_types(self.known, [])[:6]}
-        kept, types, seen = [], set(), [words_of(p) for p in self.known]
-        seen += [
-            set(normalized(f"{x['slug'].replace('-', ' ')} {x['summary']}").split())
-            for x in self.proposed_before_round
-        ]
-        hidden = 0
-        for idea in candidates:
-            task = normalized(idea.task_type)
-            words = words_of(idea)
-            if (
-                task in types
-                or task in avoid
-                or any(jaccard(words, w) >= NEAR_IDENTICAL for w in seen)
-            ):
-                hidden += 1
-                self.rejected["low_diversity"] += 1
-                continue
-            types.add(task)
-            seen.append(words)
-            kept.append(idea)
-        if hidden:
-            self.out(f"Hid {hidden} near-identical idea(s).")
-        return kept
+        return candidate_selection.diverse(self, candidates)
 
     def fill_pool(self):
-        """Collect focused, diverse, novel ideas; ask again with feedback when too few."""
-        extra = 0
-        while not self.pool or self.clean_count() < CLEAN_TARGET:
-            if self.pool:
-                if extra >= EXTRA_ROUNDS:
-                    break
-                extra += 1
-                self.out(
-                    f"Only {self.clean_count()} clearly new idea(s); asking for more with "
-                    f"feedback ({extra}/{EXTRA_ROUNDS}) ..."
-                )
-            self.idea_round()
-            if not self.pool:
-                self.warn("no new ideas survived; asking for more")
-        # Clearly new ideas first (most focused first), then partly similar ones from the
-        # most to the least novel.
-        self.pool.sort(
-            key=lambda item: (
-                item[2] is not None,
-                -(self.focus.get(item[0].slug, 0) if item[2] is None else item[1]),
-            )
-        )
+        return candidate_selection.fill_pool(self)
 
     def clean_count(self) -> int:
-        return sum(1 for _, _, similar in self.pool if similar is None)
+        return candidate_selection.clean_count(self)
 
     def idea_round(self):
-        if self.rounds >= MAX_IDEA_ROUNDS:
-            raise ReviewError("too many idea rounds; end the session and start again")
-        self.rounds += 1
-        self.out(f"\nProposing ideas (round {self.rounds}) ...")
-        headlines = self.next_headlines()
-        skipped = self.skips()
-        try:
-            ideas = self.resilient(
-                "Idea generation",
-                lambda: propose_ideas(
-                    self.known,
-                    self.provider,
-                    self.rng,
-                    [{k: s[k] for k in ("summary", "task_type", "decision")} for s in skipped],
-                    self.proposed[-60:],
-                    headlines,
-                    self.near_misses[-20:],
-                ),
-            )
-        except StageError:
-            self.rejected["idea_stage_failed"] += 1
-            self.warn("the model did not return valid ideas; trying another round")
-            return
-        taken = {p.slug for p in self.known}
-        taken.update(item[0].slug for item in self.pool)
-        skipped_prints = {s["fingerprint"] for s in skipped}
-        self.proposed_before_round = list(self.proposed)
-        fresh = []
-        for candidate in ideas.ideas:
-            idea = Idea.model_validate(compact(candidate))
-            self.proposed.append(
-                {"slug": idea.slug, "summary": idea.summary, "task_type": idea.task_type}
-            )
-            if idea.slug in taken or fingerprint(idea) in skipped_prints:
-                continue
-            taken.add(idea.slug)
-            if 0 <= candidate.inspired_by < len(headlines):
-                self.origins[idea.slug] = headlines[candidate.inspired_by].as_dict()
-            fresh.append(idea)
-        fresh = self.focused(self.diverse(fresh))
-        self.out(f"Checking {len(fresh)} ideas against the catalog for duplicates ...")
-        hidden = 0
-        by_slug = {p.slug: p for p in self.known}
-        for idea in fresh:
-            try:
-                duplicate, similar = self.resilient(
-                    "Duplicate check",
-                    lambda idea=idea: novelty_scan(idea, self.known, self.provider),
-                )
-            except Rejected as exc:
-                self.rejected[str(exc)] += 1
-                hidden += 1
-                continue
-            if duplicate > SIMILAR and similar in by_slug:
-                page = by_slug[similar]
-                self.near_misses.append(
-                    {
-                        "idea": idea.summary,
-                        "decision": idea.decision,
-                        "too_similar_to": {"summary": page.summary, "decision": page.decision},
-                    }
-                )
-            if duplicate >= DUPLICATE:
-                self.rejected["semantic_duplicate"] += 1
-                hidden += 1
-                continue
-            self.pool.append((idea, 1 - duplicate, similar if duplicate > SIMILAR else None))
-        if hidden:
-            self.out(f"Hid {hidden} idea(s) that duplicate existing pages.")
+        return candidate_selection.idea_round(self)
 
     def focused(self, ideas: list[Idea]) -> list[Idea]:
-        """Ask Jev how focused each idea is; hide vague or specialist ones (one request)."""
-        if not ideas:
-            return ideas
-        try:
-            scores = self.resilient("Focus check", lambda: focus_scores(ideas, self.provider))
-        except (StageError, ValueError):
-            return ideas
-        kept = []
-        for idea, score in zip(ideas, scores, strict=True):
-            self.focus[idea.slug] = score
-            if score >= MIN_FOCUS:
-                kept.append(idea)
-            else:
-                self.rejected["unfocused"] += 1
-        if len(kept) < len(ideas):
-            self.out(f"Hid {len(ideas) - len(kept)} unfocused idea(s).")
-        return kept
+        return candidate_selection.focused(self, ideas)
 
     def pick_candidate(self) -> tuple[Idea, float, str | None]:
         while True:
