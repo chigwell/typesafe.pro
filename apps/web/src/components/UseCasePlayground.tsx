@@ -8,6 +8,7 @@ import { runLiveEvaluation, validateRequest } from "@/lib/playground";
 import { highlightCode } from "@/lib/syntax";
 import { LIVE_TIMEOUT_MS, type EvaluationResponse } from "@/lib/typesafe";
 import type { UseCaseExample } from "@/lib/use-case-types";
+import { UseCaseRequestEditor } from "./UseCaseRequestEditor";
 import { ResultPanel } from "./ResultPanel";
 import { HighlightedCodeLines } from "./HighlightedCodeLines";
 
@@ -93,19 +94,9 @@ export function UseCasePlayground({ examples }: { examples: UseCaseExample[] }) 
       <p><strong>Expected behavior:</strong> {example.expected_description}</p>
       <div className="playground">
         <div className="pg-grid">
-          <div className="editor-panel">
-            <label className="field-label" htmlFor="use-case-request">Request JSON</label>
-            <textarea id="use-case-request" className="use-case-request" spellCheck={false} value={json} aria-invalid={Boolean(validationError)} aria-describedby="use-case-status" onChange={(event) => {
-              cancel(); setJson(event.target.value); setResult(null); setLive(false); setStatus("Request changed. Run it to see a new answer."); setError(false);
-            }} />
-            <div className="editor-actions">
-              <button type="button" className="text-action" onClick={() => select(index)}>Reset example</button>
-              {running ? <button type="button" className="btn btn-secondary" onClick={() => { cancel(); setStatus("Request cancelled."); }}>Cancel</button> : null}
-              <button className="btn btn-primary" type="button" disabled={Boolean(validationError) || running} onClick={run}>{running ? "Asking Jev…" : "Try online"}</button>
-            </div>
-            <p className={`status-line ${validationError || error ? "is-error" : ""}`} id="use-case-status" role="status">{validationError || status}</p>
-            <p className="field-help">Use non-sensitive test data. Live input goes to typesafe.pro and TypeSafe. Anonymous requests use the gateway’s free rate limit.</p>
-          </div>
+          <UseCaseRequestEditor json={json} validationError={validationError} running={running} error={error} status={status}
+            onChange={(value) => { cancel(); setJson(value); setResult(null); setLive(false); setStatus("Request changed. Run it to see a new answer."); setError(false); }}
+            onReset={() => select(index)} onCancel={() => { cancel(); setStatus("Request cancelled."); }} onRun={run} />
           <ResultPanel result={result} request={resultRequest} badge={live ? "Live response" : "Previous verification"} live={live} rawVisible={raw} nextStep={example.expected_description} meta={live ? result?.model ?? "" : `${example.response.model} · verified ${example.verified_at.slice(0, 10)} · new probabilities may differ`} running={running} onToggleRaw={() => setRaw((value) => !value)} onCopyResult={() => { if (result) void copy(JSON.stringify(result, null, 2)); }} />
         </div>
       </div>
