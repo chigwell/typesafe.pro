@@ -6,6 +6,7 @@ import { copyText } from "@/lib/clipboard";
 import { LANGUAGE_ORDER, LANGUAGES, makeCode, type LanguageId } from "@/lib/codegen";
 import { API_BASE } from "@/lib/playground";
 import { highlightCode } from "@/lib/syntax";
+import { HighlightedCodeLines } from "./HighlightedCodeLines";
 import type { EvaluationRequest } from "@/lib/typesafe";
 
 const LANGUAGE_MARKS: Record<LanguageId, { label: string; className: string }> = {
@@ -127,21 +128,7 @@ export function DeveloperSection({
           <div className="code-body" id="code-panel" role="tabpanel" aria-labelledby={`code-tab-${language}`}>
             <pre className="code-pre" tabIndex={0} aria-label="Code example" ref={preRef}>
               <code>
-                {highlightedLines.map((line, lineIndex) => (
-                  <span className="code-line" key={`${lineIndex}-${line.map((token) => token.text).join("")}`}>
-                    <span className="line-number" aria-hidden="true">
-                      {lineIndex + 1}
-                    </span>
-                    <span className="code-line-content">
-                      {line.map((token, tokenIndex) => (
-                        <span className={`token-${token.kind}`} key={`${tokenIndex}-${token.text}`}>
-                          {token.text}
-                        </span>
-                      ))}
-                      {typing && lineIndex === highlightedLines.length - 1 ? <span className="typing-cursor" aria-hidden="true" /> : null}
-                    </span>
-                  </span>
-                ))}
+                <HighlightedCodeLines lines={highlightedLines} typing={typing} contentKeys />
               </code>
             </pre>
           </div>

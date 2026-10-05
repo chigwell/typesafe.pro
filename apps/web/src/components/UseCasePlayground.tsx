@@ -9,6 +9,7 @@ import { highlightCode } from "@/lib/syntax";
 import { LIVE_TIMEOUT_MS, type EvaluationResponse } from "@/lib/typesafe";
 import type { UseCaseExample } from "@/lib/use-case-types";
 import { ResultPanel } from "./Playground";
+import { HighlightedCodeLines } from "./HighlightedCodeLines";
 
 export function UseCasePlayground({ examples }: { examples: UseCaseExample[] }) {
   const [index, setIndex] = useState(0);
@@ -121,7 +122,7 @@ export function UseCasePlayground({ examples }: { examples: UseCaseExample[] }) 
           {LANGUAGE_ORDER.map((item) => <button key={item} id={`uc-tab-${item}`} className="code-tab" role="tab" type="button" tabIndex={item === language ? 0 : -1} aria-selected={item === language} aria-controls="uc-code-panel" onClick={() => setLanguage(item)}>{LANGUAGES[item].label}</button>)}
         </div>
         <div className="code-body" id="uc-code-panel" role="tabpanel" aria-labelledby={`uc-tab-${language}`}>
-          <pre className="code-pre" tabIndex={0} aria-label="Code example"><code>{highlightCode(code, language).map((line, lineIndex) => <span className="code-line" key={lineIndex}><span className="line-number" aria-hidden="true">{lineIndex + 1}</span><span className="code-line-content">{line.map((token, tokenIndex) => <span className={`token-${token.kind}`} key={tokenIndex}>{token.text}</span>)}</span></span>)}</code></pre>
+          <pre className="code-pre" tabIndex={0} aria-label="Code example"><code><HighlightedCodeLines lines={highlightCode(code, language)} /></code></pre>
         </div>
         <div className="code-footer"><span>{LANGUAGES[language].filename}</span><span>Anonymous HTTP</span></div>
       </div>
