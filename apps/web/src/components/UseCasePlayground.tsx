@@ -8,7 +8,7 @@ import { runLiveEvaluation, validateRequest } from "@/lib/playground";
 import { highlightCode } from "@/lib/syntax";
 import { LIVE_TIMEOUT_MS, type EvaluationResponse } from "@/lib/typesafe";
 import type { UseCaseExample } from "@/lib/use-case-types";
-import { ResultPanel } from "./Playground";
+import { ResultPanel } from "./ResultPanel";
 import { HighlightedCodeLines } from "./HighlightedCodeLines";
 
 export function UseCasePlayground({ examples }: { examples: UseCaseExample[] }) {
