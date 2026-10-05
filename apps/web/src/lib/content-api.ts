@@ -12,7 +12,6 @@ export type UseCaseDetail = Omit<components["schemas"]["UseCaseDetail"], "page">
 export type ListQuery = { q?: string; category?: string; tag?: string; page?: number; page_size?: number };
 
 export const PAGE_SIZE = 24;
-export const SITEMAP_CHUNK_SIZE = 10_000;
 const TIMEOUT_MS = 8000;
 
 export class ContentApiError extends Error {

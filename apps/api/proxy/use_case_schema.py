@@ -524,40 +524,6 @@ class Page(Idea):
         return self
 
 
-class Shard(StrictModel):
-    schema_version: Literal[1] = 1
-    pages: Annotated[list[Page], Field(min_length=1, max_length=100)]
-
-
-class ShardEntry(StrictModel):
-    file: Annotated[str, Field(pattern=r"^pages-[0-9]{4,}\.json$")]
-    count: Annotated[int, Field(ge=1, le=100)]
-    sha256: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
-
-
-class Manifest(StrictModel):
-    schema_version: Literal[1] = 1
-    total: Annotated[int, Field(ge=0)]
-    shards: list[ShardEntry]
-    catalog_hash: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
-
-
-class ReleasePage(StrictModel):
-    slug: str
-    title: str
-    created_at: str
-    updated_at: str
-
-
-class Release(StrictModel):
-    schema_version: Literal[1] = 1
-    run_id: str
-    source_sha: str
-    catalog_hash: Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
-    generated_at: str
-    pages: list[ReleasePage]
-
-
 class Report(StrictModel):
     run_id: str
     source_sha: str
