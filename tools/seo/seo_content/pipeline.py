@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from .catalog import compact
 from .demo import build_demo
+from .example_verification import verify_examples
 from .models import (
     SEO,
     ArticleRepair,
@@ -14,7 +15,6 @@ from .models import (
     Description,
     DraftExamples,
     EvaluationRequest,
-    Example,
     Explanation,
     Idea,
     Ideas,
@@ -23,7 +23,6 @@ from .models import (
     Quality,
     Taxonomy,
     Verification,
-    assert_expected,
 )
 from .novelty import Rejected
 
@@ -333,51 +332,7 @@ def create_page(
         ),
         context,
     )
-    # Expectations are predictions; when the live API disagrees, show the model what it
-    # actually returned and let it adjust inputs or expectations (at most two repairs).
-    for attempt in range(3):
-        examples, mismatches = [], []
-        for draft in drafts.examples:
-            response = provider.evaluate(draft.request)
-            try:
-                assert_expected(draft, response)
-            except ValueError as exc:
-                mismatches.append(
-                    {
-                        "example": draft.kind,
-                        "problem": str(exc),
-                        "expected": {
-                            k: v.model_dump(exclude_none=True) for k, v in draft.expected.items()
-                        },
-                        "actual_answers": response.model_dump(exclude_none=True)["answers"],
-                    }
-                )
-                continue
-            examples.append(
-                Example(**draft.model_dump(exclude_none=True), response=response, verified_at=now())
-            )
-        if not mismatches:
-            break
-        if attempt == 2:
-            raise Rejected("example_expectation_failed")
-        if warn:
-            warn(f"{len(mismatches)} example(s) did not match the live API; repairing")
-        drafts = provider.structured(
-            DraftExamples,
-            (
-                "Some examples did not match the live API (see `failed_examples` with the "
-                "actual answers). Return all three examples again. Keep the questions "
-                "identical across examples. For each failed example either change its "
-                "input so the intended outcome is clearly expressed, or change its "
-                "expectation to the behaviour you now expect, keeping it defensible and "
-                "consistent with the scenario. Keep the passing examples unchanged."
-            ),
-            {
-                **context,
-                "previous_examples": drafts.model_dump(exclude_none=True),
-                "failed_examples": mismatches,
-            },
-        )
+    examples = verify_examples(drafts, context, provider, now, warn=warn)
     context["verified_examples"] = [item.model_dump(exclude_none=True) for item in examples]
     explanation = provider.structured(
         Explanation,
