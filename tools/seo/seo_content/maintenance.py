@@ -6,9 +6,8 @@ from pathlib import Path
 import httpx
 
 from .content_api import ContentApi, ContentApiError
+from .errors import ProviderError
 from .models import Page
-from .pipeline import choose_taxonomy
-from .providers import Budget, ProviderError, Providers
 
 CATEGORY_HINTS = [
     ("moderation-safety", ("spam", "abuse", "moderation", "safety", "toxic", "fraud", "authentic")),
@@ -48,8 +47,13 @@ def read_catalog(content_dir: Path) -> tuple[list[Page], set[str]]:
 def import_files(content_dir: Path, *, taxonomy="llm", api=None, provider=None, out=print) -> int:
     api = api or ContentApi()
     categories = api.categories()
-    if taxonomy == "llm" and provider is None:
-        provider = Providers(Budget(max_calls=60, max_seconds=1800))
+    if taxonomy == "llm":
+        from .pipeline import choose_taxonomy
+
+        if provider is None:
+            from .providers import Budget, Providers
+
+            provider = Providers(Budget(max_calls=60, max_seconds=1800))
 
     def listing(page: Page):
         if taxonomy == "llm":

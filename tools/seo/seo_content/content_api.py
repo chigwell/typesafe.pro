@@ -5,17 +5,9 @@ from urllib.parse import quote
 
 import httpx
 
-from .providers import ProviderError
+from .errors import ContentApiError  # noqa: F401
 
 DEFAULT_BASE = "https://api.typesafe.pro"
-
-
-class ContentApiError(ProviderError):
-    """A content API failure. 4xx client errors are not retried; network and 5xx/429 are."""
-
-    def __init__(self, reason, *, status=None, retryable=True):
-        super().__init__(reason, retryable=retryable)
-        self.status = status
 
 
 class ContentApi:
