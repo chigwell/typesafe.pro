@@ -20,9 +20,9 @@
     "deploy:web": "npm run deploy --workspace @typesafe-pro/web"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9.0"
   },
   "devDependencies": {
-    "wrangler": "^4.135.0"
+    "wrangler": "^4.151.3"
   }
 }

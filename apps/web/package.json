@@ -16,9 +16,9 @@
     "api:types": "openapi-typescript ${TYPESAFE_API_BASE:-https://api.typesafe.pro}/openapi.json -o src/lib/api-types.ts"
   },
   "dependencies": {
-    "@opennextjs/cloudflare": "^1.20.6",
+    "@opennextjs/cloudflare": "^1.20.13",
     "lucide-react": "^0.475.0",
-    "next": "^15.5.24",
+    "next": "^16.4.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
